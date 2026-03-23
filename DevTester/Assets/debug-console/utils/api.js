@@ -3,6 +3,16 @@ export async function loadSession() {
   return await response.json();
 }
 
+export async function loadMode() {
+  try {
+    const response = await fetch('/api/mode');
+    const text = await response.text();
+    return JSON.parse(text); // "postMortem" | "stepping"
+  } catch {
+    return 'postMortem';
+  }
+}
+
 export async function loadMemory(eventIndex) {
   try {
     const response = await fetch(`/api/memory/${eventIndex}`);
@@ -31,4 +41,74 @@ export async function evaluateExpression(expression, eventIndex) {
     body: JSON.stringify({ expression, eventIndex })
   });
   return await response.json();
+}
+
+/**
+ * Open a WebSocket connection to the debug server.
+ *
+ * @param {object} handlers
+ * @param {function} handlers.onEvent      - called with each DebugEventEnvelope streamed in real time
+ * @param {function} handlers.onPaused     - called with { location, vars } when a breakpoint is hit
+ * @param {function} handlers.onCompleted  - called when the pipeline finishes
+ * @param {function} handlers.onOpen       - called when the socket is connected
+ * @param {function} handlers.onClose      - called when the socket closes
+ * @returns WebSocket instance (use .send() to send JSON commands back)
+ */
+export function connectWebSocket({ onEvent, onPaused, onCompleted, onOpen, onClose } = {}) {
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const ws = new WebSocket(`${protocol}//${location.host}/ws`);
+
+  ws.onopen = () => {
+    console.log('[WS] connected');
+    onOpen?.();
+  };
+
+  ws.onmessage = (e) => {
+    let msg;
+    try { msg = JSON.parse(e.data); } catch { return; }
+
+    switch (msg.type) {
+      case 'event':
+        onEvent?.(msg.envelope);
+        break;
+      case 'paused':
+        onPaused?.(msg);
+        break;
+      case 'completed':
+        onCompleted?.();
+        break;
+    }
+  };
+
+  ws.onclose = () => {
+    console.log('[WS] disconnected');
+    onClose?.();
+  };
+
+  ws.onerror = (err) => {
+    console.warn('[WS] error', err);
+  };
+
+  return ws;
+}
+
+/**
+ * Send a stepping command to the server via an open WebSocket.
+ */
+export function sendResume(ws, mode = 'run') {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'resume', mode }));
+  }
+}
+
+export function sendAddBreakpoint(ws, fileIdentifier, lineNo) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'addBreakpoint', fileIdentifier, lineNo }));
+  }
+}
+
+export function sendRemoveBreakpoint(ws, fileIdentifier, lineNo) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'removeBreakpoint', fileIdentifier, lineNo }));
+  }
 }

@@ -1,6 +1,6 @@
 import { LitElement, html, css } from 'https://cdn.jsdelivr.net/npm/lit@3/+esm';
 import { state } from '../utils/state.js';
-import { loadSession } from '../utils/api.js';
+import { loadSession, loadMode, connectWebSocket } from '../utils/api.js';
 import { buildFileWindows } from '../utils/file-tree-builder.js';
 import './header-bar.js';
 import './summary-bar.js';
@@ -12,6 +12,7 @@ import './variables-panel.js';
 import './models-panel.js';
 import './footer-bar.js';
 import './pane-resizer.js';
+import './stepper-panel.js';
 
 export class DebugApp extends LitElement {
   static properties = {
@@ -19,7 +20,10 @@ export class DebugApp extends LitElement {
     selectedIndex: { type: Number, state: true },
     currentWindow: { type: Object, state: true },
     visibleFileWindows: { type: Array, state: true },
-    activeSidebarTab: { type: String, state: true }
+    activeSidebarTab: { type: String, state: true },
+    serverMode: { type: String, state: true },
+    pausedState: { type: Object, state: true },   // { location, vars } or null
+    liveRunning: { type: Boolean, state: true },   // true while pipeline is running
   };
 
   static styles = css`
@@ -30,7 +34,7 @@ export class DebugApp extends LitElement {
 
     .layout {
       display: grid;
-      grid-template-rows: auto auto 1fr auto;
+      grid-template-rows: auto auto auto 1fr auto;
       height: 100vh;
     }
 
@@ -97,22 +101,10 @@ export class DebugApp extends LitElement {
       overflow: auto;
     }
 
-    .sidebar-view::-webkit-scrollbar {
-      width: 8px;
-    }
-
-    .sidebar-view::-webkit-scrollbar-track {
-      background: #1e1e1e;
-    }
-
-    .sidebar-view::-webkit-scrollbar-thumb {
-      background: #424242;
-      border-radius: 4px;
-    }
-
-    .sidebar-view::-webkit-scrollbar-thumb:hover {
-      background: #555;
-    }
+    .sidebar-view::-webkit-scrollbar { width: 8px; }
+    .sidebar-view::-webkit-scrollbar-track { background: #1e1e1e; }
+    .sidebar-view::-webkit-scrollbar-thumb { background: #424242; border-radius: 4px; }
+    .sidebar-view::-webkit-scrollbar-thumb:hover { background: #555; }
 
     .sidebar-view.active {
       display: block;
@@ -128,6 +120,31 @@ export class DebugApp extends LitElement {
     .error-msg {
       color: #f48771;
     }
+
+    .live-banner {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #1a2c1a;
+      border-bottom: 1px solid #2a4a2a;
+      padding: 6px 12px;
+      font-size: 12px;
+      color: #7ec87e;
+    }
+
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4ec94e;
+      animation: pulse 1.2s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
   `;
 
   constructor() {
@@ -137,6 +154,10 @@ export class DebugApp extends LitElement {
     this.currentWindow = null;
     this.visibleFileWindows = [];
     this.activeSidebarTab = 'trace';
+    this.serverMode = 'postMortem';
+    this.pausedState = null;
+    this.liveRunning = false;
+    this._ws = null;
   }
 
   async connectedCallback() {
@@ -144,16 +165,77 @@ export class DebugApp extends LitElement {
     await this.loadSessionData();
   }
 
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this._ws?.close();
+  }
+
   async loadSessionData() {
     try {
-      const session = await loadSession();
-      state.session = session;
-      state.fileWindows = buildFileWindows(session);
-      state.fileTreeFilterIndex = state.selectedIndex;
-      this.syncFromState();
+      // Check the server mode first
+      const mode = await loadMode();
+      this.serverMode = mode;
+
+      if (mode === 'stepping') {
+        // In stepping mode: load initial (possibly empty) session, then
+        // open a WebSocket and stream events as the pipeline runs.
+        const session = await loadSession();
+        state.session = session;
+        state.fileWindows = buildFileWindows(session);
+        this.syncFromState();
+        this.liveRunning = true;
+        this._connectLiveWS();
+      } else {
+        // Post-mortem: load the full completed session once.
+        const session = await loadSession();
+        state.session = session;
+        state.fileWindows = buildFileWindows(session);
+        state.fileTreeFilterIndex = state.selectedIndex;
+        this.syncFromState();
+      }
     } catch (err) {
       console.error('Failed to load session:', err);
     }
+  }
+
+  _connectLiveWS() {
+    this._ws = connectWebSocket({
+      onEvent: (envelope) => {
+        // Append event to the live session and refresh UI
+        if (state.session) {
+          state.session = {
+            ...state.session,
+            events: [...(state.session.events || []), envelope]
+          };
+          state.fileWindows = buildFileWindows(state.session);
+          this.syncFromState();
+        }
+      },
+      onPaused: (msg) => {
+        this.pausedState = msg;
+        this.liveRunning = false;
+        this.requestUpdate();
+      },
+      onCompleted: async () => {
+        this.liveRunning = false;
+        this.pausedState = null;
+        // Reload the full session now that the pipeline has finished
+        try {
+          const session = await loadSession();
+          state.session = session;
+          state.fileWindows = buildFileWindows(session);
+          this.syncFromState();
+        } catch (err) {
+          console.error('Failed to reload completed session:', err);
+        }
+      },
+      onOpen: () => {
+        console.log('[debug-app] WebSocket live session connected');
+      },
+      onClose: () => {
+        this.liveRunning = false;
+      }
+    });
   }
 
   syncFromState() {
@@ -190,6 +272,16 @@ export class DebugApp extends LitElement {
     this.syncFromState();
   }
 
+  handleStepperResume(e) {
+    const { mode } = e.detail;
+    if (this._ws && this._ws.readyState === WebSocket.OPEN) {
+      this._ws.send(JSON.stringify({ type: 'resume', mode }));
+    }
+    this.pausedState = null;
+    this.liveRunning = true;
+    this.requestUpdate();
+  }
+
   render() {
     if (!this.session) {
       return html`<div style="padding: 20px; color: #858585;">Loading session data...</div>`;
@@ -198,6 +290,16 @@ export class DebugApp extends LitElement {
     return html`
       <div class="layout">
         <header-bar .phases=${this.session.phases || []}></header-bar>
+
+        ${this.serverMode === 'stepping' && this.pausedState
+          ? html`<stepper-panel
+              .pausedState=${this.pausedState}
+              @resume=${this.handleStepperResume}
+            ></stepper-panel>`
+          : this.serverMode === 'stepping' && this.liveRunning
+            ? html`<div class="live-banner"><span class="live-dot"></span> Pipeline running — streaming events live…</div>`
+            : ''
+        }
         
         <summary-bar 
           .session=${this.session}

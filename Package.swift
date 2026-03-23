@@ -13,6 +13,9 @@ let package = Package(
         .library(name: "ModelHike", targets: ["ModelHike"]),
         .executable(name: "DevTester", targets: ["DevTester"])
     ],
+    dependencies: [
+        .package(url: "https://github.com/apple/swift-nio.git", from: "2.96.0"),
+    ],
     targets: [
         .target(
             name: "ModelHike",
@@ -31,7 +34,13 @@ let package = Package(
         ),
         .executableTarget(
             name: "DevTester",
-            dependencies: ["ModelHike"],
+            dependencies: [
+                "ModelHike",
+                .product(name: "NIOCore", package: "swift-nio"),
+                .product(name: "NIOHTTP1", package: "swift-nio"),
+                .product(name: "NIOPosix", package: "swift-nio"),
+                .product(name: "NIOWebSocket", package: "swift-nio"),
+            ],
             path: "DevTester",
             resources: [.process("Assets")]
         ),

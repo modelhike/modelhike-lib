@@ -65,9 +65,9 @@ modelhike/
 │   └── Pipelines/              # 6-phase pipeline orchestrator
 │
 ├── DevTester/                  # Executable target for development runs
-│   ├── DevMain.swift           # Entry point; runs codegen pipeline (or debug mode with --debug)
+│   ├── DevMain.swift           # Entry point; runs codegen pipeline (or debug mode with --debug / --debug-stepping)
 │   ├── Environment.swift       # Hardcoded dev/prod path configs
-│   ├── DebugServer/            # DebugHTTPServer, HTTPTypes
+│   ├── DebugServer/            # SwiftNIO server: DebugHTTPServer, DebugRouter, HTTPChannelHandler, WebSocket*, StreamingDebugRecorder
 │   └── Assets/
 │       └── debug-console/      # Modular browser UI (Lit web components)
 │
@@ -102,7 +102,7 @@ modelhike/
 | Swift tools version | 6.0 (strict concurrency enabled) |
 | Platforms | macOS 13+, iOS 16+, tvOS 13+, watchOS 6+ |
 | Products | `ModelHike` (library), `DevTester` (executable) |
-| External dependencies | **None** — zero-dependency design |
+| External dependencies | **ModelHike library: None** — zero-dependency design. **DevTester executable: SwiftNIO** (`NIOCore`, `NIOHTTP1`, `NIOPosix`, `NIOWebSocket`) for the debug server. |
 
 **Targets:**
 
@@ -736,11 +736,14 @@ Defines two `OutputConfig` presets:
 
 > **Note:** Both paths are hardcoded relative to `~/Documents/` using `SystemFolder.documents.path`. The `debug` config points outside the repo root to a sibling `modelhike-blueprints` repository that must be checked out separately.
 
-### Visual debugging (`--debug`)
+### Visual debugging
 
-When `--debug` is passed, `DevMain` switches to the visual debugging flow instead of the normal code-generation run. It captures a structured debug session, starts the local debug server, and can open the browser UI for inspection.
+Two debug modes are available:
 
-**Flags:** `--debug`, `--debug-port=<port>`, `--debug-dev` (serve HTML from Assets), `--no-open`
+- **`--debug`** — post-mortem mode: pipeline runs to completion, then the server starts and the browser is opened for inspection.
+- **`--debug-stepping`** — live streaming mode: server starts first, WebSocket clients can connect before the pipeline runs, and every debug event is broadcast over WebSocket in real time via `StreamingDebugRecorder`.
+
+**Flags:** `--debug`, `--debug-stepping`, `--debug-port=<port>`, `--debug-dev` (serve HTML from Assets), `--no-open`
 
 **Full reference:** [`Docs/debug/VISUALDEBUG.md`](Docs/debug/VISUALDEBUG.md) — runtime flow, architecture, integration inventory, event emission matrix, and troubleshooting.
 
@@ -748,7 +751,20 @@ When `--debug` is passed, `DevMain` switches to the visual debugging flow instea
 
 ## 12. Visual Debugging
 
-ModelHike includes a browser-based visual debugger for pipeline runs. The default experience is post-mortem inspection backed by a structured debug session, local debug server, and modular browser UI.
+ModelHike includes a browser-based visual debugger for pipeline runs. Two modes are available: post-mortem inspection and live event streaming.
+
+### Debug Server Architecture
+
+The debug server (`DevTester/DebugServer/`) is built on **SwiftNIO** (`NIOPosix` + `NIOHTTP1` + `NIOWebSocket`):
+
+| File | Role |
+|---|---|
+| `DebugHTTPServer.swift` | `ServerBootstrap` setup, channel pipeline configuration |
+| `DebugRouter.swift` | Actor; all HTTP routing and response logic |
+| `HTTPChannelHandler.swift` | NIO handler; assembles HTTP requests, bridges to `DebugRouter` |
+| `WebSocketClientManager.swift` | Actor; manages connected WebSocket clients, provides `broadcast(json:)` |
+| `WebSocketHandler.swift` | NIO handler; registers clients via `handlerAdded` (not `channelActive`), handles WS frames |
+| `StreamingDebugRecorder.swift` | Actor implementing `DebugRecorder`; broadcasts every event live over WebSocket |
 
 ### Debug Console Architecture
 
@@ -758,15 +774,16 @@ The debug console (`DevTester/Assets/debug-console/`) uses a modular architectur
 debug-console/
 ├── index.html          # Entry point
 ├── styles/             # CSS (base, layout, themes)
-├── components/         # 12 Lit web components
-│   ├── debug-app.js    # Root orchestrator
+├── components/         # 13 Lit web components
+│   ├── debug-app.js    # Root orchestrator (mode-aware: post-mortem vs stepping)
 │   ├── file-tree-panel.js  # File explorer
 │   ├── source-editor.js    # Template viewer
 │   ├── output-editor.js    # Generated output viewer
 │   ├── trace-panel.js      # Event trace
 │   ├── variables-panel.js  # Variable inspector
+│   ├── stepper-panel.js    # Live stepping controls (shown on "paused" WS message)
 │   └── ...
-└── utils/              # Pure functions (api, state, formatters)
+└── utils/              # Pure functions (api, state, formatters, WebSocket helpers)
 ```
 
 ### Key Features
@@ -778,11 +795,17 @@ debug-console/
 - **Model hierarchy**: Browse containers, modules, entities
 - **Expression evaluator**: Test expressions in footer input
 - **Resizable panels**: Drag handles between panels
+- **Live event streaming**: In `--debug-stepping` mode, events appear in real time via WebSocket
+- **Stepper panel**: Run / Step Over / Step Into / Step Out controls (UI complete; full stepping semantics in progress)
 
 ### Running the Debug Console
 
 ```bash
+# Post-mortem: pipeline runs first, then open the browser
 swift run DevTester --debug --debug-dev --no-open --debug-port=4800
+
+# Live streaming: server starts first, open browser, watch events arrive live
+swift run DevTester --debug-stepping --debug-dev --no-open --debug-port=4800
 ```
 
 Then open `http://localhost:4800` in a browser.
@@ -841,7 +864,7 @@ Used by `DevTester` (via `Environment.debug`) to run the full pipeline against r
 - ✅ Expression evaluator (boolean/arithmetic/comparison)
 - ✅ Scoped variable isolation (snapshot stack)
 - ✅ Debug hooks (event system in `CodeGenerationEvents`)
-- ✅ Visual debugger — post-mortem browser UI for pipeline runs (`swift run DevTester --debug`); see [Docs/debug/VISUALDEBUG.md](Docs/debug/VISUALDEBUG.md)
+- ✅ Visual debugger — post-mortem browser UI (`swift run DevTester --debug`) and live WebSocket event streaming (`swift run DevTester --debug-stepping`); SwiftNIO-based server with full HTTP + WebSocket upgrade pipeline; stepper-panel UI for future breakpoint-driven stepping; see [Docs/debug/VISUALDEBUG.md](Docs/debug/VISUALDEBUG.md)
 
 ### What Is Hardcoded / Needs Refactoring
 
@@ -973,4 +996,4 @@ No tests for:
 | **MethodObject** | A method member inside a class (prefix `~`). Has `parameters`, `returnType`, and `body`. |
 | **backend attribute** | `(backend)` on a property or field — marks it as server-side only, excluded from client schemas by blueprints that honour this convention. |
 | **MappingAnnotation** | The `@list-api` annotation value type: a list of `(key, value)` pairs expressed as `prop -> prop.sub; prop2 -> prop2`. |
-| **Visual Debugger** | Post-mortem browser-based inspection of pipeline runs. Run `swift run DevTester --debug`; captures events, source, variables, rendered output. Full docs in [Docs/debug/VISUALDEBUG.md](Docs/debug/VISUALDEBUG.md). |
+| **Visual Debugger** | Browser-based inspection of pipeline runs. Post-mortem: `swift run DevTester --debug`. Live streaming: `swift run DevTester --debug-stepping`. Full docs in [Docs/debug/VISUALDEBUG.md](Docs/debug/VISUALDEBUG.md). |

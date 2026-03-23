@@ -7,32 +7,23 @@ import ModelHike
 @main
 struct Development: Sendable {
     static func main() async {
-        let isDebug = CommandLine.arguments.contains("--debug")
+        let args = CommandLine.arguments
+        let isDebug = args.contains("--debug")
+        let isStepping = args.contains("--debug-stepping")
         do {
-            try await runTemplateStr()
-            // if isDebug {
-            //     try await runCodebaseGenerationWithDebug()
-            // } else {
-            //     try await runCodebaseGeneration()
-            // }
+            if isStepping {
+                try await runCodebaseGenerationWithStepping()
+            } else if isDebug {
+                try await runCodebaseGenerationWithDebug()
+            } else {
+                try await runCodebaseGeneration()
+            }
         } catch {
             print(error)
         }
     }
-    
-    static func runTemplateStr() async throws {
-        let templateStr = "{{ (var1 and var2) and var2}}"
-        let arr:[TestData] = await [TestData(name: "n1", age: 1),
-                          TestData(name: "n2", age: 2),
-                          TestData(name: "", age: 3)]
-        
-        let data: [String : Sendable] = ["list":arr, "var1" : true, "var2": false, "varstr": "test"]
-        
-        let ws = Pipelines.empty
-        if let result = try await ws.render(string: templateStr, data: data) {
-            print(result)
-        }
-    }
+
+    // MARK: - Post-mortem debug mode (--debug)
     
     static func runCodebaseGenerationWithDebug() async throws {
         let args = CommandLine.arguments
@@ -58,15 +49,15 @@ struct Development: Sendable {
             pipeline: pipeline,
             renderedOutputs: renderedOutputs,
             port: port,
-            devAssetsPath: devAssetsPath
+            devAssetsPath: devAssetsPath,
+            serverMode: .postMortem
         )
         try await server.start()
 
-        // Brief delay so the server is fully listening before opening the browser
         try? await Task.sleep(nanoseconds: 300_000_000)
 
         #if os(macOS)
-        if args.contains("--debug") && !noOpen {
+        if !noOpen {
             let url = URL(string: "http://localhost:\(port)")!
             let opened = openURL(url)
             if !opened {
@@ -82,6 +73,97 @@ struct Development: Sendable {
             try await Task.sleep(nanoseconds: 1_000_000_000)
         }
     }
+
+    // MARK: - Live stepping mode (--debug-stepping)
+
+    /// Starts the server BEFORE the pipeline so the browser can connect and set
+    /// breakpoints. Events are streamed via WebSocket as the pipeline runs.
+    /// Execution pauses at breakpoints until the browser sends a resume command.
+    static func runCodebaseGenerationWithStepping() async throws {
+        let args = CommandLine.arguments
+        let port = parseDebugPort(from: args) ?? 4800
+        let devAssetsPath = parseDebugDev(from: args)
+        let noOpen = args.contains("--no-open")
+
+        let wsManager = WebSocketClientManager()
+        let streamingRecorder = StreamingDebugRecorder(wsManager: wsManager)
+        let stepper = LiveDebugStepper()
+
+        // Wire the stepper's pause callback → broadcast WSPausedMessage to all clients
+        await stepper.setOnPause { location, vars in
+            await streamingRecorder.broadcastPaused(location: location, vars: vars)
+        }
+
+        let pipeline = Pipelines.codegen
+        var config = Environment.debug
+        config.containersToOutput = ["APIs"]
+        config.debugRecorder = streamingRecorder
+        config.debugStepper = stepper
+
+        // Provide an empty session so the server can start immediately.
+        // The full session will be fetched via /api/session once the pipeline completes.
+        let emptySession = DebugSession(
+            timestamp: Date(),
+            config: ConfigSnapshot(basePath: "", outputPath: "", containersToOutput: []),
+            phases: [],
+            model: ModelSnapshot(containers: []),
+            events: [],
+            sourceFiles: [],
+            files: [],
+            errors: [],
+            baseSnapshots: [],
+            deltaSnapshots: []
+        )
+
+        let server = DebugHTTPServer(
+            session: emptySession,
+            recorder: streamingRecorder.inner,
+            pipeline: pipeline,
+            renderedOutputs: [],
+            port: port,
+            devAssetsPath: devAssetsPath,
+            serverMode: .stepping,
+            wsManager: wsManager,
+            stepper: stepper
+        )
+
+        try await server.start()
+        print("🔌 Stepping server ready at http://localhost:\(port)")
+        print("   WebSocket: ws://localhost:\(port)/ws")
+        print("   Set breakpoints in the browser, then the pipeline will start in 4 seconds…")
+
+        #if os(macOS)
+        if !noOpen {
+            let url = URL(string: "http://localhost:\(port)")!
+            let opened = openURL(url)
+            if !opened {
+                print("⚠️ Could not open browser automatically. Visit http://localhost:\(port) manually.")
+            }
+        }
+        #endif
+
+        // Give the browser time to connect and optionally set breakpoints
+        try? await Task.sleep(nanoseconds: 4_000_000_000)
+
+        // Run the pipeline — it will pause at any breakpoints set from the browser
+        print("▶️  Running pipeline with live stepping enabled…")
+        try await pipeline.run(using: config)
+
+        // Pipeline finished — update the REST session and notify browser
+        let finalSession = await streamingRecorder.session(config: config)
+        let finalOutputs = await pipeline.state.renderedOutputRecords()
+        await server.updateSession(finalSession, renderedOutputs: finalOutputs)
+        await streamingRecorder.broadcastCompleted()
+
+        print("✅ Pipeline complete. Full session available at http://localhost:\(port)")
+        print("Press Ctrl+C to stop the server.")
+        signal(SIGINT) { _ in exit(0) }
+        while true {
+            try await Task.sleep(nanoseconds: 1_000_000_000)
+        }
+    }
+
+    // MARK: - Helpers
 
     #if os(macOS)
     private static func openURL(_ url: URL) -> Bool {
@@ -107,6 +189,8 @@ struct Development: Sendable {
         let devTesterDir = (filePath as NSString).deletingLastPathComponent
         return (devTesterDir as NSString).appendingPathComponent("Assets")
     }
+
+    // MARK: - Normal generation (no debug)
 
     static func runCodebaseGeneration() async throws {
         let pipeline = Pipelines.codegen
@@ -234,6 +318,19 @@ struct Development: Sendable {
             }
     }
     
+    static func runTemplateStr() async throws {
+        let templateStr = "{{ (var1 and var2) and var2}}"
+        let arr:[TestData] = await [TestData(name: "n1", age: 1),
+                          TestData(name: "n2", age: 2),
+                          TestData(name: "", age: 3)]
+        
+        let data: [String : Sendable] = ["list":arr, "var1" : true, "var2": false, "varstr": "test"]
+        
+        let ws = Pipelines.empty
+        if let result = try await ws.render(string: templateStr, data: data) {
+            print(result)
+        }
+    }
 }
 
 actor TestData : DynamicMemberLookup, HasAttributes_Actor {

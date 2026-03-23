@@ -10,18 +10,25 @@ The visual debugger replaces most ad-hoc `print()`-driven debugging with a struc
 
 At a high level it provides:
 
-- a `--debug` execution mode in `DevTester`
+- a `--debug` execution mode in `DevTester` for post-mortem inspection
+- a `--debug-stepping` execution mode for live event streaming and future breakpoint-driven stepping
 - a structured in-memory debug session
 - a local HTTP server that exposes the session and related derived views
+- a WebSocket endpoint (`/ws`) for real-time event streaming in stepping mode
 - a single-page browser UI for browsing phases, files, model snapshots, source, variables, and rendered outputs
 
-The current system is primarily post-mortem:
+**Post-mortem mode** (`--debug`):
 
 - the pipeline runs to completion first
-- debug data is captured during execution
+- debug data is captured during execution by `DefaultDebugRecorder`
 - the browser UI is opened after the run
 
-Live stepping support exists in the library as scaffolding, but `DevTester` currently installs a no-op stepper by default.
+**Live stepping mode** (`--debug-stepping`):
+
+- the HTTP server and WebSocket endpoint start *before* the pipeline runs
+- a `StreamingDebugRecorder` wraps `DefaultDebugRecorder` and broadcasts every captured event over WebSocket as it is emitted
+- the browser UI can be opened before the pipeline starts and receives events in real time
+- a `LiveDebugStepper` is installed for future breakpoint-driven execution control (run, step over, step into, step out)
 
 ## Entry Point
 
@@ -30,9 +37,10 @@ The main entry point is `DevTester/DevMain.swift`.
 When `DevTester` starts:
 
 - if `--debug` is absent, it runs the normal code-generation flow
-- if `--debug` is present, it runs `runCodebaseGenerationWithDebug()`
+- if `--debug` is present, it runs `runCodebaseGenerationWithDebug()` (post-mortem mode)
+- if `--debug-stepping` is present, it runs `runCodebaseGenerationWithStepping()` (live streaming mode)
 
-That debug path currently does this:
+### Post-mortem path (`--debug`)
 
 1. Builds `Pipelines.codegen`
 2. Creates a `DefaultDebugRecorder`
@@ -45,10 +53,24 @@ That debug path currently does this:
 9. Optionally opens the browser
 10. Keeps the process alive until Ctrl+C
 
+### Live stepping path (`--debug-stepping`)
+
+1. Creates a `WebSocketClientManager` actor
+2. Creates a `StreamingDebugRecorder` wrapping `DefaultDebugRecorder`, wired to the `WebSocketClientManager`
+3. Creates a `LiveDebugStepper`; installs a pause callback that broadcasts a `paused` WebSocket message to connected clients
+4. Stores both on `config.debugRecorder` and `config.debugStepper`
+5. **Starts `DebugHTTPServer` before the pipeline runs** — browser can connect and receive live events
+6. Optionally opens the browser; sleeps 4 s to allow a connection before events begin
+7. Runs the pipeline — every captured event is immediately broadcast over WebSocket
+8. After pipeline completion, calls `server.updateSession(_:renderedOutputs:)` to make the full session available for post-mortem REST API calls
+9. Broadcasts a `completed` WebSocket message
+10. Keeps the process alive until Ctrl+C
+
 Relevant flags:
 
-- `--debug`: enable debug mode
-- `--debug-port=<port>`: choose the HTTP server port
+- `--debug`: enable post-mortem debug mode
+- `--debug-stepping`: enable live streaming mode (server starts before pipeline)
+- `--debug-port=<port>`: choose the HTTP server port (default 4800)
 - `--debug-dev`: serve debug console directly from `DevTester/Assets/debug-console/`
 - `--no-open`: do not auto-open the browser
 
@@ -88,11 +110,27 @@ It collects:
 
 At the end of the run it produces a `DebugSession`, defined in `Sources/Debug/DebugSession.swift`.
 
-### 3. Local HTTP server
+### 3. Local HTTP server and WebSocket server
 
-`DevTester/DebugServer/DebugHTTPServer.swift` serves the debug UI and JSON endpoints over `Network.framework`.
+`DevTester/DebugServer/DebugHTTPServer.swift` serves the debug UI, JSON endpoints, and a WebSocket upgrade endpoint over **SwiftNIO** (`NIOPosix` + `NIOHTTP1` + `NIOWebSocket`).
 
-It is a small embedded HTTP server built around `NWListener` and `NWConnection`.
+It is built around a SwiftNIO `ServerBootstrap` that configures an HTTP/1.1 pipeline with `NIOWebSocketServerUpgrader`. Incoming connections are handled by:
+
+- `HTTPChannelHandler` — assembles `HTTPServerRequestPart` frames into complete requests and dispatches them to `DebugRouter`
+- `WebSocketHandler` — registers/deregisters with `WebSocketClientManager` and handles WebSocket frames; uses `handlerAdded(context:)` (not `channelActive`) because the handler is added to an already-active pipeline during the HTTP→WebSocket upgrade
+
+The server accepts a `DebugRouter`, `WebSocketClientManager`, and `LiveDebugStepper` at construction. In post-mortem mode the session is passed at construction time. In stepping mode the session is initially empty and updated after the pipeline completes via `updateSession(_:renderedOutputs:)`.
+
+**Key files:**
+
+| File | Role |
+|---|---|
+| `DebugHTTPServer.swift` | `ServerBootstrap` setup, channel pipeline, start/stop, `updateSession` |
+| `DebugRouter.swift` | Actor; all HTTP request routing and business logic |
+| `HTTPChannelHandler.swift` | NIO `ChannelInboundHandler`; assembles HTTP requests, writes responses |
+| `WebSocketClientManager.swift` | Actor; tracks connected WebSocket clients, provides `broadcast(json:)` |
+| `WebSocketHandler.swift` | NIO `ChannelInboundHandler`; registers clients in `handlerAdded`, handles frames |
+| `StreamingDebugRecorder.swift` | Actor implementing `DebugRecorder`; wraps `DefaultDebugRecorder`, broadcasts every event live via `WebSocketClientManager` |
 
 ### 4. Browser UI
 
@@ -102,7 +140,7 @@ It fetches the captured session and derives most of its UI state client-side. Se
 
 ## Main Data Flow
 
-The end-to-end data flow is:
+### Post-mortem mode (`--debug`)
 
 ```text
 Pipeline execution
@@ -111,8 +149,23 @@ Pipeline execution
   -> Pipeline completes
   -> recorder.session(config:) produces DebugSession
   -> pipeline.state.renderedOutputRecords() extracts in-memory generated contents
-  -> DebugHTTPServer serves both over HTTP
+  -> DebugHTTPServer starts, serves both over HTTP
   -> debug-console/ UI fetches and renders them
+```
+
+### Live stepping mode (`--debug-stepping`)
+
+```text
+DebugHTTPServer starts (HTTP + WebSocket)
+  -> Browser connects to /ws
+DevMain runs the pipeline
+  -> ContextDebugLog emits debug events
+  -> StreamingDebugRecorder stores events AND broadcasts each over WebSocket
+  -> debug-console/ receives live WSEventMessage frames; appends events in real time
+Pipeline completes
+  -> server.updateSession() makes full DebugSession available via REST endpoints
+  -> StreamingDebugRecorder broadcasts "completed" message
+  -> debug-console/ can now use REST endpoints for variable inspector, source, etc.
 ```
 
 There is no persistent debug database. Everything is in-memory for the lifetime of the `DevTester` process.
@@ -124,29 +177,49 @@ This section is intentionally file-oriented. It answers the question: "Where, ex
 ### `DevTester` layer
 
 - `DevTester/DevMain.swift`
-  - installs `DefaultDebugRecorder`
-  - installs `NoOpDebugStepper`
-  - runs the pipeline in debug mode
+  - `--debug` path: installs `DefaultDebugRecorder` + `NoOpDebugStepper`, runs pipeline, then starts server
+  - `--debug-stepping` path: installs `StreamingDebugRecorder` + `LiveDebugStepper`, starts server first, runs pipeline, updates session after completion
   - converts recorder state into `DebugSession`
   - extracts in-memory rendered outputs from retained sandboxes
-  - starts `DebugHTTPServer`
 
 - `DevTester/DebugServer/DebugHTTPServer.swift`
-  - serves HTML
-  - serves all JSON APIs
-  - reconstructs variables through the recorder
-  - evaluates expressions through the pipeline
-  - resolves source identifiers heuristically
-  - resolves generated output from in-memory `RenderedOutputRecord`s
+  - SwiftNIO `ServerBootstrap` — configures HTTP + WebSocket upgrade pipeline
+  - delegates all routing to `DebugRouter`
+  - wires `WebSocketClientManager` and `LiveDebugStepper` into NIO handlers
+  - exposes `updateSession(_:renderedOutputs:)` for stepping mode
 
-- `DevTester/DebugServer/HTTPTypes.swift`
-  - parses simple HTTP requests
-  - builds all responses
-  - injects no-cache headers to avoid stale console iterations in the browser
+- `DevTester/DebugServer/DebugRouter.swift`
+  - actor; all HTTP business logic and endpoint handlers
+  - serves HTML, all JSON APIs, static assets, expression evaluation
+  - `updateSession(_:renderedOutputs:)` allows live session refresh after pipeline completion
+
+- `DevTester/DebugServer/HTTPChannelHandler.swift`
+  - NIO `ChannelInboundHandler` — assembles `HTTPServerRequestPart` frames into complete requests
+  - dispatches to `DebugRouter` via `Task { await router.handle(request:) }`
+  - writes `HTTPRouteResponse` back to the NIO channel
+
+- `DevTester/DebugServer/WebSocketClientManager.swift`
+  - actor — tracks all active WebSocket clients
+  - each client is a `WebSocketClient` struct with a `@Sendable (String) -> Void` send closure
+  - `broadcast(json:)` sends a JSON string to all connected clients
+
+- `DevTester/DebugServer/WebSocketHandler.swift`
+  - NIO `ChannelInboundHandler` — registers with `WebSocketClientManager` in `handlerAdded(context:)` (not `channelActive`) because the handler joins an already-active pipeline during WebSocket upgrade
+  - deregisters on `handlerRemoved`
+  - forwards text frames to `LiveDebugStepper` for stepping commands (resume, breakpoints)
+
+- `DevTester/DebugServer/StreamingDebugRecorder.swift`
+  - actor implementing `DebugRecorder`
+  - wraps `DefaultDebugRecorder` for full session capture
+  - after every `record(_:)` call, broadcasts the event as a `WSEventMessage` JSON string via `WebSocketClientManager`
+  - `broadcastCompleted()` sends a final `{ "type": "completed" }` message
+  - `broadcastPaused(location:vars:)` sends pause state for future stepping UI
 
 - `DevTester/Assets/debug-console/`
   - modular Lit web components (no build step required)
-  - derives UI state from `DebugSession`
+  - derives UI state from `DebugSession` (post-mortem) or live WebSocket events (stepping mode)
+  - `debug-app.js` checks `/api/mode`; in `stepping` mode it connects WebSocket and appends live events
+  - `stepper-panel.js` shown when WebSocket sends a `paused` message; provides Run/Step Over/Step Into/Step Out buttons
   - builds file windows client-side
   - drives source/generated/variables/models panes
   - controls timeline/file-tree interaction
@@ -719,15 +792,35 @@ The debug server is intentionally small and local-only.
 
 ### Transport
 
-- `NWListener` accepts TCP connections
-- `NWConnection` reads one request, writes one response, then closes
-- requests are parsed by `HTTPRequest` in `HTTPTypes.swift`
-- responses are built by `HTTPResponse`
+The server is built on **SwiftNIO** (not `Network.framework`):
 
-One important consequence:
+- `ServerBootstrap` from `NIOPosix` binds the TCP port
+- `NIOHTTPServerPipelineHandlerConfiguration` configures HTTP/1.1 parsing
+- `NIOWebSocketServerUpgrader` handles `Upgrade: websocket` requests on any path, upgrading them to persistent WebSocket connections
+- `HTTPChannelHandler` assembles full HTTP requests and dispatches to `DebugRouter`
+- `WebSocketHandler` manages WebSocket lifecycle; registers clients in `handlerAdded(context:)` (not `channelActive`) because the handler is installed on an already-active pipeline after the HTTP→WebSocket upgrade
 
-- the `/ws` route only performs an upgrade handshake right now
-- there is no persistent WebSocket session management loop in the current server
+**Important implementation note — `handlerAdded` vs `channelActive`:**
+
+In NIO, `channelActive` is not re-fired for handlers added to an already-active channel (which is the case for WebSocket upgrade handlers). Registration with `WebSocketClientManager` must happen in `handlerAdded(context:)`, which fires when a handler joins the pipeline regardless of channel state. Using `channelActive` for upgrade handlers causes silent client registration failures.
+
+### WebSocket message protocol
+
+Messages broadcast from the server to clients are JSON objects with a `type` field:
+
+| Message type | When sent | Additional fields |
+|---|---|---|
+| `event` | After every `StreamingDebugRecorder.record(_:)` | `envelope` (contains `sequenceNo`, `timestamp`, `containerName`, `event`) |
+| `completed` | When `StreamingDebugRecorder.broadcastCompleted()` is called | — |
+| `paused` | When `LiveDebugStepper` hits a breakpoint | `location`, `vars` |
+
+Messages from client to server are JSON objects:
+
+| Message type | Effect |
+|---|---|
+| `resume` | Calls `LiveDebugStepper.resume(mode:)` with the specified `mode` (`run`, `stepOver`, `stepInto`, `stepOut`) |
+| `addBreakpoint` | Adds a location breakpoint (`fileIdentifier`, `lineNo` fields required) |
+| `removeBreakpoint` | Removes a location breakpoint (`fileIdentifier`, `lineNo` fields required) |
 
 ### HTTP caching policy
 
@@ -759,8 +852,10 @@ This was added specifically because stale browser caches were causing the user t
   - serves rendered generated-file content from in-memory snapshots
 - `POST /api/evaluate`
   - evaluates an expression against reconstructed variables using `pipeline.render`
-- `GET /ws`
-  - performs WebSocket upgrade handshake only
+- `GET /api/mode`
+  - returns `{ "mode": "postMortem" }` or `{ "mode": "stepping" }` depending on how the server was started
+- `GET /ws` (or any path with `Upgrade: websocket`)
+  - upgrades to a persistent WebSocket connection for live event streaming
 
 ### Exposed versus actively consumed endpoints
 
@@ -769,6 +864,7 @@ The server exposes more routes than the browser currently consumes.
 Exposed:
 
 - `/api/session`
+- `/api/mode`
 - `/api/model`
 - `/api/events`
 - `/api/files`
@@ -776,19 +872,23 @@ Exposed:
 - `/api/source/:identifier`
 - `/api/generated-file/:index`
 - `/api/evaluate`
+- `/ws`
 
 Actively consumed by the debug console:
 
 - `/api/session`
+- `/api/mode`
 - `/api/memory/:eventIndex`
 - `/api/source/:identifier`
 - `/api/generated-file/:index`
 - `/api/evaluate`
+- `/ws` (in stepping mode)
 
 Currently unused by the debug console:
 
 - `/api/model`
 - `/api/events`
+- `/api/files`
 - `/api/files`
 
 ### Security and scope note
@@ -842,7 +942,7 @@ The UI is a modular browser app using Lit web components loaded from CDN. No bui
 
 The console is organized into:
 - `index.html` - Entry point
-- `components/` - 12 Lit web components
+- `components/` - 13 Lit web components (including `stepper-panel.js` for live stepping UI)
 - `utils/` - Pure utility functions (api, state, formatters)
 - `styles/` - CSS split by concern (base, layout, themes)
 
@@ -1008,42 +1108,45 @@ if let stepper = await ctx.debugStepper {
 }
 ```
 
-### What is not enabled by default
+### What the `--debug` mode installs
 
-`DevMain` currently sets:
+`DevMain --debug` sets:
 
 ```swift
 config.debugStepper = NoOpDebugStepper()
 ```
 
-So the current shipped `--debug` experience is post-mortem only.
+So the `--debug` experience is post-mortem only; the stepper is a no-op.
 
-### What is still missing for true live stepping
+### What `--debug-stepping` mode installs
 
-- the server starting before or during execution
-- a real WebSocket message loop beyond handshake
-- browser-to-stepper resume commands
-- breakpoint management API
-- a UI that can drive paused execution
+`DevMain --debug-stepping` sets:
 
-So the stepping architecture is scaffolded, but not yet an active user-facing feature.
+```swift
+config.debugRecorder = StreamingDebugRecorder(wsManager: wsManager)
+config.debugStepper = stepper   // LiveDebugStepper
+await stepper.setOnPause { location, vars in
+    await streamingRecorder.broadcastPaused(location: location, vars: vars)
+}
+```
+
+This makes live event streaming fully active. Clients that connect to `/ws` receive all events in real time and are notified on pause/completion.
 
 ### Additional implementation caveats
 
-`LiveDebugStepper` is not just disabled by default; its stepping semantics are also incomplete.
+`LiveDebugStepper` stepping semantics are partially implemented:
 
 Current state:
 
-- it stores `mode`
-- it supports breakpoint sets
-- it exposes `setOnPause`
-- it suspends on exact file+line breakpoint matches
+- stores `mode`
+- supports breakpoint sets
+- exposes `setOnPause` (wired to `broadcastPaused` in stepping mode)
+- suspends on exact file+line breakpoint matches
 
-But today:
+Still incomplete:
 
-- `mode` is not used to implement true `stepOver`/`stepInto`/`stepOut`
-- `setOnPause` is not wired into a server/browser control loop
-- the browser has no active WebSocket client logic to drive resume commands
+- `mode` is not yet used to implement true `stepOver`/`stepInto`/`stepOut` semantics
+- the browser has a `stepper-panel` UI with buttons, but the server currently treats all resume commands identically (unconditional `resume()`)
 
 ## Tests
 
@@ -1066,7 +1169,7 @@ Current notable gap:
 - there are no end-to-end tests for source lookup or generated-output panes
 - there are no tests for rendered-output snapshot extraction
 - there are no tests for source-identifier heuristic matching
-- there are no tests for live stepping behavior
+- there are no tests for live stepping behavior or WebSocket broadcasting
 
 ## Current Limitations
 
@@ -1098,9 +1201,9 @@ The schema supports structured errors, but many actual runtime failures are stil
 
 Some debug recorder writes are intentionally fire-and-forget `Task` calls. That keeps instrumentation lightweight, but it means strict ordering and flush guarantees are weaker than they would be with fully awaited recording.
 
-### WebSocket support is incomplete
+### Stepping semantics are partially implemented
 
-The server can respond to upgrade requests, but there is no complete live stepping message protocol currently exposed.
+The WebSocket infrastructure is complete and events stream live in `--debug-stepping` mode. However `stepOver`/`stepInto`/`stepOut` are not yet semantically differentiated from `resume` — all resume commands cause unconditional continuation.
 
 ### Source-file identity can collide
 
@@ -1145,7 +1248,7 @@ If this system is extended further, the most natural next steps are:
 
 - normalize `eventIndex` semantics
 - add HTTP/API tests
-- add a real live stepping server loop
+- differentiate `stepOver`/`stepInto`/`stepOut` semantics in `LiveDebugStepper`
 - normalize source-file identity around stable full paths instead of name heuristics
 - wire model/config source registration into the active debug session
 - wire structured error capture into failure paths
@@ -1160,7 +1263,11 @@ Important current files:
 
 - `DevTester/DevMain.swift`
 - `DevTester/DebugServer/DebugHTTPServer.swift`
-- `DevTester/DebugServer/HTTPTypes.swift`
+- `DevTester/DebugServer/DebugRouter.swift`
+- `DevTester/DebugServer/HTTPChannelHandler.swift`
+- `DevTester/DebugServer/WebSocketClientManager.swift`
+- `DevTester/DebugServer/WebSocketHandler.swift`
+- `DevTester/DebugServer/StreamingDebugRecorder.swift`
 - `DevTester/Assets/debug-console/` (modular Lit web components)
 - `Sources/Debug/DebugRecorder.swift`
 - `Sources/Debug/DebugSession.swift`
@@ -1205,7 +1312,7 @@ Its most important design choices are:
 - reconstruct variable state from base snapshots, with delta support scaffolded but not yet broadly wired
 - derive file-centric browsing views from `GeneratedFileRecord`
 - serve rendered outputs from the in-memory output tree instead of disk
-- keep live stepping scaffolded but disabled by default
+- provide `--debug-stepping` mode with live WebSocket event streaming and a `stepper-panel` UI; full `stepOver`/`stepInto`/`stepOut` semantics still in progress
 - expose a schema that is slightly ahead of the currently emitted runtime behavior
 
-That makes it already useful as a practical debugging console, even though the fully interactive breakpoint-driven debugger is not yet fully turned on.
+That makes it useful as a practical debugging console. The `--debug-stepping` mode adds live event streaming over WebSocket, and the `stepper-panel` UI is ready to drive stepping once the full `stepOver`/`stepInto`/`stepOut` semantics are wired into `LiveDebugStepper`.

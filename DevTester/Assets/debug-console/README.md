@@ -15,11 +15,13 @@ The console uses a modular architecture with Lit web components loaded from CDN 
 ## Quick Start
 
 ```bash
-# Run pipeline with debug enabled
+# Post-mortem mode — pipeline runs first, then open the browser
 swift run DevTester --debug --debug-dev --no-open --debug-port=4800
-
-# Open browser
 open http://localhost:4800
+
+# Live stepping mode — server starts first, open browser, then pipeline events stream live
+swift run DevTester --debug-stepping --debug-dev --no-open --debug-port=4800
+open http://localhost:4800   # connect before or during the run
 ```
 
 ---
@@ -45,7 +47,7 @@ debug-console/
 │   ├── layout.css            # Grid definitions, panel classes
 │   └── themes.css            # VS Code dark theme colors
 ├── components/
-│   ├── debug-app.js          # Root orchestrator
+│   ├── debug-app.js          # Root orchestrator; mode-aware (post-mortem vs stepping)
 │   ├── header-bar.js         # Top bar with phases
 │   ├── summary-bar.js        # Metrics ribbon
 │   ├── file-tree-panel.js    # Left sidebar file explorer
@@ -56,9 +58,10 @@ debug-console/
 │   ├── models-panel.js       # Model hierarchy browser
 │   ├── footer-bar.js         # Timeline + expression eval
 │   ├── pane-resizer.js       # Draggable divider
+│   ├── stepper-panel.js      # Live stepping controls (shown when server sends "paused")
 │   └── code-panel.js         # Reusable code display
 └── utils/
-    ├── api.js                # Fetch wrappers for /api/* endpoints
+    ├── api.js                # Fetch wrappers for /api/* endpoints + WebSocket helpers
     ├── state.js              # Centralized AppState singleton
     ├── formatters.js         # escapeHtml, baseName, eventLabel, etc.
     ├── file-tree-builder.js  # buildFileWindows, buildFileTree
@@ -68,7 +71,7 @@ debug-console/
 ### Component Hierarchy
 
 ```
-<debug-app>                    ← Root: loads session, manages state
+<debug-app>                    ← Root: loads session, manages state, mode-aware
 ├── <header-bar>               ← Logo + phase indicators
 ├── <summary-bar>              ← Event/file/model counts
 ├── <file-tree-panel>          ← Left sidebar
@@ -82,6 +85,7 @@ debug-console/
 │   ├── <trace-panel>          ← Event list
 │   ├── <variables-panel>      ← Variable inspector
 │   └── <models-panel>         ← Model tree
+├── <stepper-panel>            ← Live stepping controls (visible only when paused)
 └── <footer-bar>               ← Timeline + eval input
 ```
 
@@ -96,10 +100,12 @@ debug-console/
 The root component that orchestrates the entire debug console.
 
 **Responsibilities:**
-- Fetches session data on mount via `loadSession()`
+- Fetches `/api/mode` on mount to determine post-mortem vs stepping mode
+- In post-mortem mode: fetches session data via `loadSession()`, builds file windows
+- In stepping mode: connects WebSocket via `connectWebSocket()`, appends live events as they arrive, shows `<stepper-panel>` when a `paused` message is received
 - Builds file windows from session using `buildFileWindows()`
 - Manages centralized state and syncs to child components
-- Handles all custom events from children (file-selected, event-selected, timeline-changed)
+- Handles all custom events from children (file-selected, event-selected, timeline-changed, resume)
 - Renders the main grid layout
 
 **Properties (internal state):**
@@ -110,11 +116,15 @@ The root component that orchestrates the entire debug console.
 | `currentWindow` | Object | Current file window (contains outputPath, startIndex, etc.) |
 | `visibleFileWindows` | Array | File windows visible at current timeline position |
 | `activeSidebarTab` | String | 'trace' \| 'variables' \| 'models' |
+| `serverMode` | String | 'postMortem' \| 'stepping' — set from `/api/mode` |
+| `pausedState` | Object \| null | `{ location, vars }` when paused, otherwise null |
+| `liveRunning` | Boolean | True while the pipeline is running in stepping mode |
 
 **Event Handlers:**
 - `@file-selected` → Updates selectedIndex to file's startIndex
 - `@event-selected` → Updates selectedIndex
 - `@timeline-changed` → Updates selectedIndex and fileTreeFilterIndex
+- `@resume` (from `<stepper-panel>`) → Sends resume/step command over WebSocket
 
 ---
 
@@ -307,6 +317,32 @@ Displays the model hierarchy (containers, modules, entities).
 
 ---
 
+### `<stepper-panel>` - Live Stepping Controls
+
+**File:** `components/stepper-panel.js`
+
+Overlay panel that appears when the server sends a `paused` WebSocket message during a `--debug-stepping` run. Provides execution control buttons.
+
+**Properties:**
+| Property | Type | Description |
+|----------|------|-------------|
+| `pausedState` | Object | Full paused message from server: `{ location: { fileIdentifier, lineNo, lineContent }, vars: {...} }` |
+
+**Events Emitted:**
+| Event | Detail | Description |
+|-------|--------|-------------|
+| `resume` | `{ mode: 'run' \| 'stepOver' \| 'stepInto' \| 'stepOut' }` | User clicked a stepping button |
+
+**Buttons:**
+- **Continue** — resumes execution (`run` mode)
+- **Step Over** — steps over current item (`stepOver`)
+- **Step Into** — steps into current item (`stepInto`)
+- **Step Out** — steps out of current scope (`stepOut`)
+
+**Note:** All four commands currently cause unconditional continuation in `LiveDebugStepper` until differentiated stepping semantics are implemented server-side.
+
+---
+
 ### `<footer-bar>` - Timeline & Expression Evaluator
 
 **File:** `components/footer-bar.js`
@@ -388,6 +424,23 @@ loadMemory(eventIndex)     // GET /api/memory/:index
 loadSourceFile(identifier) // GET /api/source/:id
 loadGeneratedFile(index)   // GET /api/generated-file/:index
 evaluateExpression(expr, eventIndex) // POST /api/evaluate
+loadMode()                 // GET /api/mode → { mode: 'postMortem' | 'stepping' }
+```
+
+WebSocket helpers (used in stepping mode):
+
+```javascript
+connectWebSocket({ onEvent, onPaused, onCompleted, onOpen, onClose })
+  // Connects to ws://host/ws
+  // onEvent(envelope)   — called for each live DebugEventEnvelope
+  // onPaused(msg)       — called when server sends { type: 'paused', location, vars }
+  // onCompleted()       — called when server sends { type: 'completed' }
+  // onOpen()            — called when WebSocket connects
+  // onClose()           — called when WebSocket disconnects
+
+sendResume(ws, mode='run') // sends { type: 'resume', mode }
+sendAddBreakpoint(ws, fileIdentifier, lineNo)    // sends { type: 'addBreakpoint', fileIdentifier, lineNo }
+sendRemoveBreakpoint(ws, fileIdentifier, lineNo) // sends { type: 'removeBreakpoint', fileIdentifier, lineNo }
 ```
 
 ### `utils/state.js` - Centralized State
@@ -605,12 +658,15 @@ html`<my-component .data=${this.myData}></my-component>`
 
 ## Server Integration
 
-`DebugHTTPServer.swift` serves the modular console:
-- `/` - Serves `debug-console/index.html`
-- `/styles/*` - CSS files with `text/css` MIME type
-- `/components/*` - JS modules with `application/javascript` MIME type
-- `/utils/*` - JS utility modules
-- `/api/*` - Debug session data endpoints
+`DebugHTTPServer.swift` (SwiftNIO — `NIOPosix` + `NIOHTTP1` + `NIOWebSocket`) serves the modular console:
+- `/` — Serves `debug-console/index.html`
+- `/styles/*` — CSS files
+- `/components/*` — JS modules
+- `/utils/*` — JS utility modules
+- `/api/*` — Debug session data endpoints
+- `/ws` — WebSocket upgrade endpoint (streaming mode)
+
+All routing and business logic lives in `DebugRouter.swift` (actor). `HTTPChannelHandler.swift` bridges the NIO channel to `DebugRouter`. `WebSocketHandler.swift` manages live connections via `WebSocketClientManager`.
 
 ### API Endpoints
 | Endpoint | Description |
@@ -622,7 +678,8 @@ html`<my-component .data=${this.myData}></my-component>`
 | `/api/memory/:index` | Variable state at event index |
 | `/api/source/:id` | Template source content |
 | `/api/generated-file/:index` | Generated file content |
-| `/api/evaluate` | Expression evaluation (POST)
+| `/api/evaluate` | Expression evaluation (POST) |
+| `/api/mode` | Server mode: `{ "mode": "postMortem" }` or `{ "mode": "stepping" }` |
 
 ## UI Features
 
@@ -659,10 +716,14 @@ html`<my-component .data=${this.myData}></my-component>`
 - **Variables**: Only captured when files are generated (not continuously tracked)
 - **No syntax highlighting**: Code shown as plain text with line numbers
 - **No search**: Cannot search within files or events yet
+- **Stepping semantics**: Step Over / Step Into / Step Out buttons are wired in the UI but all currently cause unconditional resume; differentiated semantics are not yet implemented in `LiveDebugStepper`
+- **Live file tree**: In stepping mode the file tree only populates after pipeline completion and a page refresh (or after the `completed` WebSocket message triggers a session reload)
 
 ## Future Enhancements
 
 Potential improvements:
+- Implement differentiated `stepOver`/`stepInto`/`stepOut` in `LiveDebugStepper`
+- Update file tree incrementally as files are generated in stepping mode
 - Add syntax highlighting (Prism.js or Shiki)
 - Add virtual scrolling for large event lists
 - Add search/filter capabilities
