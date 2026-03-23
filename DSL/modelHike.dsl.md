@@ -22,6 +22,7 @@ ModelHike DSL lets you capture **architecture, data models, and APIs** in a sing
 | `UIView` + `~~~~`  | **UIView** – UI component model       | Inside a module          |
 | `methodName(…)` + `------` | **Method** — setext header + dash underline | After properties in a class |
 | `~ methodName(…)` | **Method** — tilde-prefix style (no underline) | After properties in a class |
+| `>>> * param: Type …` | **Parameter metadata** — one line per parameter, immediately before method header | Before method header |
 | `---` / ` ``` ` / `'''` / `"""` | **Method logic fence** – wraps the logic body; tilde-style accepts 3+ repetitions of the fence character, opening and closing must match | After method header |
 
 | `**`               | **Primary key field**              | Property list            |
@@ -552,10 +553,47 @@ view-sql
 * Return type after `:` is optional; if omitted the method has return type `unKnown`.
 * Empty `()` may be omitted for paramless methods in both styles.
 * Parameters follow the same `name: Type` syntax as properties.
-* Produces a `MethodObject` with `parameters: [MethodParameter]` and `returnType: TypeInfo`.
+* Produces a `MethodObject` with `parameters: [MethodParameter]` and `returnType: TypeInfo`. Each `MethodParameter` carries a `metadata: ParameterMetadata` field (see §12.1).
 * A fenced logic body may follow — see [`codelogic.dsl.md`](codelogic.dsl.md).
 
+### 12.1 · Parameter metadata — `>>>` prefix
+
+To attach rich metadata to individual parameters, write one `>>>` line per parameter **immediately before** the method header (no blank lines between). The format mirrors the property syntax:
+
+```
+>>> <marker> <paramName>: <Type> [= default] [<validValueSet>] [{ constraints }] [(attributes)] [#tags]
+```
+
+| Marker | Meaning |
+| ------ | ------- |
+| `*` or `**` | Required parameter (`RequiredKind.yes`) |
+| `-` or any other | Optional parameter (`RequiredKind.no`) |
+
+The special tag `#output` marks a parameter as output/return-by-reference (`isOutput = true`).
+
+```modelhike
+>>> * customerId: Id
+>>> - notes: String = nil
+>>> * amount: Decimal = 0 { min = 0 } #output
+~ placeOrder(customerId: Id, notes: String, amount: Decimal) : Order
+```
+
+* Each `>>>` line is matched to its parameter by **name** (normalised to camelCase).
+* Parameters with no matching `>>>` line receive default metadata (`required = .no`, no constraints, no default).
+* Both tilde-prefix and setext-style methods support `>>>` blocks.
+* Valid value set, constraints, attributes, and tags use the same syntax as properties (see §5).
+* `MethodParameter.metadata` is a `ParameterMetadata` struct with fields: `required`, `isOutput`, `defaultValue`, `validValueSet: [String]`, `constraints`, `attribs`, `tags`.
+
 #### Mini‑cheatsheet
+
+````modelhike
+>>> * orderId: Id
+>>> - discount: Float = 0.0 { min = 0, max = 1 } (source=promo)
+>>> * result: Decimal #output
+~ applyPromo(orderId: Id, discount: Float, result: Decimal) : Boolean
+````
+
+#### Full example
 
 ````modelhike
 Order
@@ -566,6 +604,7 @@ Order
 calculateTotal() : Float
 -------------------------
 
+>>> * percent: Float = 0 { min = 0 }
 applyDiscount(percent: Float) : Order #admin
 ---------------------------------------------
 |> IF percent <= 0

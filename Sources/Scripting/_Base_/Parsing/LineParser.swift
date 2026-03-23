@@ -324,7 +324,20 @@ public actor GenericLineParser<T> : LineParser where T: Context {
 }
 
 public extension LineParser {
-    
+
+    /// Scans forward (starting at offset 1) and returns the first line that does **not** begin with
+    /// `prefix`, together with its lookahead offset. Returns `("", offset)` when every remaining
+    /// line has the prefix or no lines remain.
+    func lookAheadLine(skippingPrefix prefix: String) -> (line: String, offset: Int) {
+        var offset = 1
+        while true {
+            let line = lookAheadLine(by: offset)
+            if line.isEmpty { return ("", offset) }
+            if !line.hasPrefix(prefix) { return (line, offset) }
+            offset += 1
+        }
+    }
+
     func isCurrentLineEmptyOrCommented() -> Bool {
         return isCurrentLineEmpty() || isCurrentLineCommented()
     }

@@ -214,10 +214,13 @@ Modelling/
 - `C4Container` (actor) — `name`, `givenname`, `containerType` (unknown/microservices/webApp/mobileApp), `C4ComponentList`, `unresolvedMembers`.
 - `C4Component` (actor) — module; holds `CodeObject`s (domain objects, DTOs, UIViews) + submodules.
 - `DomainObject` (actor) — class with `[CodeMember]` (properties + methods), `mixins`, `attachedSections`, `Annotations`, `Attributes`, `Tags`. `properties` returns members that are `Property`; `methods` returns members that are `MethodObject`.
-- `MethodObject` (actor) — `name`, `givenname`, `parameters: [MethodParameter]`, `returnType: TypeInfo`, `logic: CodeLogic?`, `tags`. Parsed from `~ methodName(param: Type) : ReturnType` or paramless `~ methodName` (tilde-prefix), and from `methodName(...)\n------` or paramless `methodName\n------` (setext) lines. An optional fenced logic block (` ``` `, `'''`, or `"""` — 3+ chars, opening and closing must match) may follow a tilde-prefix method; setext methods use `---` as the closing fence.
+- `MethodObject` (actor) — `name`, `givenname`, `parameters: [MethodParameter]`, `returnType: TypeInfo`, `logic: CodeLogic?`, `tags`. Parsed from `~ methodName(param: Type) : ReturnType` or paramless `~ methodName` (tilde-prefix), and from `methodName(...)\n------` or paramless `methodName\n------` (setext) lines. An optional fenced logic block (` ``` `, `'''`, or `"""` — 3+ chars, opening and closing must match) may follow a tilde-prefix method; setext methods use `---` as the closing fence. Optionally preceded by one or more `>>>` parameter metadata lines (see DSL §12.1) — `canParse` uses `lookAheadLine(skippingPrefix:)` to verify a valid signature follows the block before committing.
+- `MethodParameter` (struct, `Sendable`) — `name: String`, `type: TypeInfo`, `metadata: ParameterMetadata`. The `metadata` field carries all rich parameter decoration.
+- `ParameterMetadata` (struct, public, `Sendable`) — `required: RequiredKind`, `isOutput: Bool`, `defaultValue: String?`, `validValueSet: [String]`, `constraints: [Constraint]`, `attribs: [Attribute]`, `tags: [Tag]`. Static factory methods: `parse(from: String) -> (name: String, metadata: ParameterMetadata)?` (parses one `>>>` line) and `parseMetadataBlockIfAny(from: LineParser) async -> [String: ParameterMetadata]` (consumes all consecutive `>>>` lines from a parser).
 - `DtoObject` (actor) — read-model; fields reference parent types.
 - `UIView` (actor) — UI component; `dataType = .ui`.
-- `Property` (actor) — `name`, `givenname`, `type: TypeInfo`, `required: RequiredKind`, `arrayMultiplicity: MultiplicityKind`, `isUnique`, `isObjectID`, `isSearchable`, regular `attribs`, separate `constraints`, `defaultValue`, `validValueSet`, `tags`.
+- `Property` (actor) — `name`, `givenname`, `type: TypeInfo`, `required: RequiredKind`, `arrayMultiplicity: MultiplicityKind`, `isUnique`, `isObjectID`, `isSearchable`, regular `attribs`, separate `constraints`, `defaultValue`, `validValueSet: [String]`, `tags`.
+- `ParserUtil` (class, static helpers) — shared parsing utilities. Value-returning sync helpers: `parseAttributes(from: String) -> [Attribute]`, `parseTags(from: String) -> [Tag]`, `parseValidValueSet(from: String?) -> [String]`, `parseConstraints(from: String?) -> [Constraint]`. Actor-populating async helpers: `populateAttributes(for:from:)`, `populateTags(for:from:)`, `populateConstraints(for:from:)` — the async variants delegate to their sync counterparts.
 - `PropertyKind` (enum) — full type system (see §4.3).
 - `TypeInfo` — `kind: PropertyKind`, `isArray: Bool`; helpers `isObject()`, `isNumeric`, `isDate`, `isReference()`, etc.
 - `APIType` (enum) — create, update, delete, getById, list, listByCustomProperties, getByCustomProperties, associate, deassosiate, activate, deactivate, pushData, pushDataList, getByUsingCustomLogic, listByUsingCustomLogic, mutationUsingCustomLogic.
@@ -356,7 +359,7 @@ Scripting/
     ├── Wrapper+DynamicMemberLookup.swift
     ├── Parsing/
     │   ├── FrontMatter.swift
-    │   ├── LineParser.swift
+    │   ├── LineParser.swift          # LineParser protocol + GenericLineParser actor; includes lookAheadLine(by:) and lookAheadLine(skippingPrefix:) utilities
     │   ├── ParsedInfo.swift
     │   └── ParserDirective.swift   TemplateSoup_ParsingError.swift
     └── Stmts+Config/
@@ -503,7 +506,7 @@ Holds `DomainObject`s, `DtoObject`s, `UIView`s. Has `submodules`. Inherits from 
 | `attribs` | `Attributes` | Regular property attributes such as `(backend)` |
 | `constraints` | `Constraints` | Property-only constraints such as `{ min = 0, max = 10 }` or `{ salary > 0 }`, stored as structured expressions |
 | `defaultValue` | `String?` | Scalar property default parsed from `= value` |
-| `validValueSet` | `String?` | Valid value set parsed from bare `<...>` after any default |
+| `validValueSet` | `[String]` | Valid value set parsed from bare `<...>` after any default; split via `ParserUtil.parseValidValueSet` |
 | `tags` | `Tags` | Free-form property tags |
 
 ### `APIType` enum
@@ -900,12 +903,16 @@ The blueprints (template files that drive actual code generation) live in a **se
 
 ### Test Coverage
 
-Only 2 test files exist:
-- Expression parsing (5 tests)
-- Template string rendering (4 tests)
+Test files (`Tests/`):
 
-No tests for:
-- DSL model parsing
+| File | What it covers |
+|---|---|
+| `ExpressionParsing_Tests` | `RegularExpressionEvaluator` — 5 boolean-expression tests |
+| `TemplateSoup_String_Tests` | End-to-end template string rendering — 4 tests |
+| `PropertyParser_Tests` | `Property` parsing: defaults, valid value sets (`[String]`), constraints, attributes |
+| `MethodParameterMetadata_Tests` | `>>>` parameter metadata parsing: required/optional markers, `#output` tag, `defaultValue`, constraints, attributes, valid value set, multi-param methods, setext methods |
+
+No tests yet for:
 - Pipeline phases
 - Hydration logic
 - Blueprint loading
@@ -951,6 +958,7 @@ No tests for:
 | `Member_Calculated` | `=` | Calculated/derived property |
 | `Member_Derived_For_Dto` | `.` | DTO field |
 | `Member_Method` | `~` | Method inside a class |
+| `Member_ParameterMetadata` | `>>>` | Parameter metadata line preceding a method header |
 | `Container_Member` | `+` | Module declaration inside container |
 | `External_Import_File` | `+` | File import (same prefix as container member) |
 | `AttachedSection` | `#` | API block or other attached section |
@@ -996,7 +1004,9 @@ No tests for:
 | **.ss** | SoupyScript file extension (`TemplateConstants.ScriptExtension = "ss"`). `main.ss` is the blueprint entry point. |
 | **teso** | A TemplateSoup template file (`.teso` extension) rendered against the generation context. |
 | **common.modelhike** | Special shared-types file in the model folder. Loaded into `model.commonModel`; types here are available as mixins/parents across all containers. |
-| **MethodObject** | A method member inside a class (prefix `~`). Has `parameters`, `returnType`, and `body`. |
+| **MethodObject** | A method member inside a class (`~` tilde-prefix or setext style). Has `parameters: [MethodParameter]`, `returnType: TypeInfo`, and `logic: CodeLogic?`. May be preceded by `>>>` parameter metadata lines. |
+| **MethodParameter** | A single method parameter: `name`, `type`, `metadata: ParameterMetadata`. |
+| **ParameterMetadata** | Rich decoration for a `MethodParameter` parsed from `>>>` lines: `required`, `isOutput`, `defaultValue`, `validValueSet: [String]`, `constraints`, `attribs`, `tags`. |
 | **backend attribute** | `(backend)` on a property or field — marks it as server-side only, excluded from client schemas by blueprints that honour this convention. |
 | **MappingAnnotation** | The `@list-api` annotation value type: a list of `(key, value)` pairs expressed as `prop -> prop.sub; prop2 -> prop2`. |
 | **Visual Debugger** | Browser-based inspection of pipeline runs. Post-mortem: `swift run DevTester --debug`. Live streaming: `swift run DevTester --debug-stepping`. Full docs in [Docs/debug/VISUALDEBUG.md](Docs/debug/VISUALDEBUG.md). |

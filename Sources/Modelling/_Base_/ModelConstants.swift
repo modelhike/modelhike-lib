@@ -18,6 +18,7 @@ public enum ModelConstants {
     
     public static let Member_Method = "~"
     public static let MethodUnderlineChar = "-"
+    public static let Member_ParameterMetadata = ">>>"
 
     public static let External_Import_File = "+"
     public static let Container_Member = "+"

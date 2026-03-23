@@ -215,7 +215,7 @@ public enum CommonRegEx {
         ":"
         whitespace
         Capture {
-            ModelRegEx.property_Type
+            ModelRegEx.parameter_Type
             Optionally("[]")
         } transform: { String($0) }
     }

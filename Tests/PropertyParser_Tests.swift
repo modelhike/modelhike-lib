@@ -6,7 +6,7 @@ import Testing
         let prop = try await parseProperty("* status : String = \"NEW\" { min = 1, max = 10 } (backend)", firstWord: "*")
 
         #expect(await prop.defaultValue == "\"NEW\"")
-        #expect(await prop.validValueSet == nil)
+        #expect(await prop.validValueSet.isEmpty)
         #expect(await prop.constraints.getString("min") == "1")
         #expect(await prop.constraints.getString("max") == "10")
         #expect(await prop.attribs.has("backend"))
@@ -18,7 +18,7 @@ import Testing
         let prop = try await parseProperty("- tags : String[*] <\"vip\", \"beta\"> { max = 10 } (backend)", firstWord: "-")
 
         #expect(await prop.defaultValue == nil)
-        #expect(await prop.validValueSet == "\"vip\", \"beta\"")
+        #expect(await prop.validValueSet == ["\"vip\"", "\"beta\""])
         #expect(await prop.constraints.getString("max") == "10")
         #expect(await prop.attribs.has("backend"))
     }
@@ -26,7 +26,7 @@ import Testing
     @Test func validValueSetAndDefaultCanCoexist() async throws {
         let prop = try await parseProperty("* status : String = \"NEW\" <\"NEW\", \"ACTIVE\", \"DONE\">", firstWord: "*")
 
-        #expect(await prop.validValueSet == "\"NEW\", \"ACTIVE\", \"DONE\"")
+        #expect(await prop.validValueSet == ["\"NEW\"", "\"ACTIVE\"", "\"DONE\""])
         #expect(await prop.defaultValue == "\"NEW\"")
     }
 

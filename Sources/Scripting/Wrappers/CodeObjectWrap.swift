@@ -156,8 +156,8 @@ public actor TypeProperty_Wrap: ObjectWrapper {
             case "is-required": await item.required == .yes
             case "default-value": await item.defaultValue ?? ""
             case "has-default-value": await item.defaultValue != nil
-            case "valid-value-set": await item.validValueSet ?? ""
-            case "has-valid-value-set": await item.validValueSet != nil
+            case "valid-value-set": await item.validValueSet.joined(separator: ", ")
+            case "has-valid-value-set": await item.validValueSet.isEmpty == false
             case "constraints": await constraintsList
             case "has-constraints": await constraintsList.isEmpty == false
             default:

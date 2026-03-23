@@ -21,7 +21,7 @@ public actor Property : CodeMember {
     public var required: RequiredKind = .no
     public var arrayMultiplicity: MultiplicityKind = .noBounds
     public private(set) var defaultValue: String?
-    public private(set) var validValueSet: String?
+    public private(set) var validValueSet: [String] = []
     public var comment: String?
     
     public static func parse(pInfo: ParsedInfo) async throws -> Property? {
@@ -166,7 +166,7 @@ public actor Property : CodeMember {
     }
 
     public func setValidValueSet(_ value: String?) {
-        self.validValueSet = value?.trim()
+        self.validValueSet = ParserUtil.parseValidValueSet(from: value)
     }
     
     public init(_ givenName: String, pInfo: ParsedInfo) {

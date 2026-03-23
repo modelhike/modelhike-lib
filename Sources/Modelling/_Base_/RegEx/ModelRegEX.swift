@@ -84,6 +84,24 @@ public enum ModelRegEx {
             )
         }
     }
+
+    /// Like `property_Type` but excludes comma, so it stops at the `,` separator between
+    /// parameters in a method signature (e.g. `func(x: Int, y: String)`).
+    nonisolated(unsafe)
+    public static let parameter_Type: Regex<Substring> = Regex {
+        CharacterClass(
+            ("A"..."Z"),
+            ("a"..."z")
+        )
+        ZeroOrMore {
+            CharacterClass(
+                .anyOf("_-@ .\""),
+                ("A"..."Z"),
+                ("a"..."z"),
+                ("0"..."9")
+            )
+        }
+    }
     
     nonisolated(unsafe)
     static let attributeSeparator: Regex<Substring> = Regex {
