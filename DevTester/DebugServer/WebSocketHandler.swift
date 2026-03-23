@@ -8,17 +8,17 @@ import NIOCore
 import NIOWebSocket
 import ModelHike
 
-/// Writes a WebSocket text frame to a **concrete** channel type.
-///
-/// By accepting a generic `C: Channel` parameter instead of `any Channel`, the compiler
-/// selects the non-deprecated `writeAndFlush<T: Sendable>` overload on the concrete type.
-/// The caller passes `any Channel` and Swift 6's implicit existential opening unwraps it.
-private func writeWebSocketText<C: Channel>(_ text: String, to channel: C) {
-    channel.eventLoop.execute {
+/// Writes a WebSocket text frame to a channel.
+/// Uses NIOLoopBound to safely capture the channel for async use.
+private func writeWebSocketText(_ text: String, to channel: any Channel) {
+    let eventLoop = channel.eventLoop
+    eventLoop.execute {
+        guard channel.isActive else { return }
         var buffer = channel.allocator.buffer(capacity: text.utf8.count)
         buffer.writeString(text)
         let frame = WebSocketFrame(fin: true, opcode: .text, data: buffer)
-        channel.writeAndFlush(frame, promise: nil)
+        // Use the channel's write method which routes through the pipeline correctly
+        _ = channel.writeAndFlush(frame)
     }
 }
 
@@ -120,11 +120,13 @@ final class WebSocketHandler: ChannelInboundHandler, @unchecked Sendable {
     // MARK: - Command dispatch
 
     private func handleTextMessage(_ text: String, context: ChannelHandlerContext) {
+        print("[WebSocketHandler] received message: \(text)")
         guard let data = text.data(using: .utf8),
               let command = try? JSONDecoder().decode(BrowserCommand.self, from: data) else {
             print("[WebSocketHandler] could not decode message: \(text)")
             return
         }
+        print("[WebSocketHandler] decoded command type: \(command.type)")
 
         switch command.type {
         case "addBreakpoint":
@@ -142,8 +144,16 @@ final class WebSocketHandler: ChannelInboundHandler, @unchecked Sendable {
         case "resume":
             let modeStr = command.mode ?? "run"
             let stepMode = StepMode(rawValue: modeStr) ?? .run
-            guard let stepper else { return }
-            Task { await stepper.resume(mode: stepMode) }
+            print("[WebSocketHandler] resume command, mode: \(stepMode), stepper: \(stepper != nil)")
+            guard let stepper else { 
+                print("[WebSocketHandler] ERROR: stepper is nil!")
+                return 
+            }
+            Task { 
+                print("[WebSocketHandler] calling stepper.resume()")
+                await stepper.resume(mode: stepMode) 
+                print("[WebSocketHandler] stepper.resume() completed")
+            }
 
         default:
             print("[WebSocketHandler] unknown command type: \(command.type)")

@@ -24,6 +24,7 @@ export class DebugApp extends LitElement {
     serverMode: { type: String, state: true },
     pausedState: { type: Object, state: true },   // { location, vars } or null
     liveRunning: { type: Boolean, state: true },   // true while pipeline is running
+    isStepping: { type: Boolean, state: true },   // true while waiting for next step
   };
 
   static styles = css`
@@ -198,22 +199,45 @@ export class DebugApp extends LitElement {
     }
   }
 
-  _connectLiveWS() {
+  async _connectLiveWS() {
+    // Store pause state from REST to show after WebSocket connects
+    let initialPauseState = null;
+    try {
+      const pauseResp = await fetch('/api/pause-state');
+      const pauseData = await pauseResp.json();
+      if (pauseData && pauseData.type === 'paused') {
+        console.log('[debug-app] Server already paused (from REST)');
+        initialPauseState = pauseData;
+      }
+    } catch (e) {
+      console.warn('[debug-app] Could not check pause state:', e);
+    }
+
     this._ws = connectWebSocket({
       onEvent: (envelope) => {
         // Append event to the live session and refresh UI
         if (state.session) {
+          const newEvents = [...(state.session.events || []), envelope];
           state.session = {
             ...state.session,
-            events: [...(state.session.events || []), envelope]
+            events: newEvents
           };
           state.fileWindows = buildFileWindows(state.session);
+          
+          // Auto-track: move timeline to latest event during live streaming
+          if (this.liveRunning) {
+            state.selectedIndex = newEvents.length - 1;
+            state.fileTreeFilterIndex = newEvents.length - 1;
+          }
+          
           this.syncFromState();
         }
       },
       onPaused: (msg) => {
+        console.log('[debug-app] Received PAUSED message:', msg);
         this.pausedState = msg;
         this.liveRunning = false;
+        this.isStepping = false;
         this.requestUpdate();
       },
       onCompleted: async () => {
@@ -231,6 +255,13 @@ export class DebugApp extends LitElement {
       },
       onOpen: () => {
         console.log('[debug-app] WebSocket live session connected');
+        // Now that WebSocket is connected, show the pause state if server was already paused
+        if (initialPauseState) {
+          console.log('[debug-app] Showing initial pause state now that WS is connected');
+          this.pausedState = initialPauseState;
+          this.liveRunning = false;
+          this.requestUpdate();
+        }
       },
       onClose: () => {
         this.liveRunning = false;
@@ -274,12 +305,27 @@ export class DebugApp extends LitElement {
 
   handleStepperResume(e) {
     const { mode } = e.detail;
+    console.log('[debug-app] handleStepperResume called with mode:', mode);
+    console.log('[debug-app] WebSocket state:', this._ws?.readyState, '(OPEN=1)');
     if (this._ws && this._ws.readyState === WebSocket.OPEN) {
-      this._ws.send(JSON.stringify({ type: 'resume', mode }));
+      const msg = JSON.stringify({ type: 'resume', mode });
+      console.log('[debug-app] Sending resume message:', msg);
+      this._ws.send(msg);
+    } else {
+      console.warn('[debug-app] WebSocket not open, cannot send resume');
     }
-    this.pausedState = null;
-    this.liveRunning = true;
-    this.requestUpdate();
+    
+    // For stepping (not "run"), keep the paused UI visible to avoid flicker
+    // The UI will update when the next pause message arrives
+    if (mode === 'run') {
+      this.pausedState = null;
+      this.liveRunning = true;
+      this.requestUpdate();
+    } else {
+      // For step modes, mark as stepping so UI can show a subtle indicator
+      this.isStepping = true;
+      this.requestUpdate();
+    }
   }
 
   render() {
@@ -291,14 +337,9 @@ export class DebugApp extends LitElement {
       <div class="layout">
         <header-bar .phases=${this.session.phases || []}></header-bar>
 
-        ${this.serverMode === 'stepping' && this.pausedState
-          ? html`<stepper-panel
-              .pausedState=${this.pausedState}
-              @resume=${this.handleStepperResume}
-            ></stepper-panel>`
-          : this.serverMode === 'stepping' && this.liveRunning
-            ? html`<div class="live-banner"><span class="live-dot"></span> Pipeline running — streaming events live…</div>`
-            : ''
+        ${this.serverMode === 'stepping' && this.liveRunning
+          ? html`<div class="live-banner"><span class="live-dot"></span> Pipeline running — streaming events live…</div>`
+          : ''
         }
         
         <summary-bar 
@@ -326,6 +367,7 @@ export class DebugApp extends LitElement {
               .session=${this.session}
               .selectedIndex=${this.selectedIndex}
               .currentWindow=${this.currentWindow}
+              .pausedState=${this.pausedState}
             ></source-editor>
 
             <output-editor
@@ -365,6 +407,7 @@ export class DebugApp extends LitElement {
             <variables-panel
               class="sidebar-view ${this.activeSidebarTab === 'variables' ? 'active' : ''}"
               .selectedIndex=${this.selectedIndex}
+              .pausedState=${this.pausedState}
             ></variables-panel>
 
             <models-panel
@@ -387,6 +430,15 @@ export class DebugApp extends LitElement {
           .fileWindowsCount=${state.fileWindows.length}
           @timeline-changed=${this.handleTimelineChanged}
         ></footer-bar>
+
+        ${this.serverMode === 'stepping' && this.pausedState
+          ? html`<stepper-panel
+              .pausedState=${this.pausedState}
+              .isStepping=${this.isStepping}
+              @resume=${this.handleStepperResume}
+            ></stepper-panel>`
+          : ''
+        }
       </div>
     `;
   }

@@ -443,6 +443,41 @@ sendAddBreakpoint(ws, fileIdentifier, lineNo)    // sends { type: 'addBreakpoint
 sendRemoveBreakpoint(ws, fileIdentifier, lineNo) // sends { type: 'removeBreakpoint', fileIdentifier, lineNo }
 ```
 
+**WebSocket Message Protocol:**
+
+Server → Client messages:
+| Type | Fields | Description |
+|------|--------|-------------|
+| `event` | `envelope` (contains `sequenceNo`, `timestamp`, `containerName`, `event`) | Live debug event during pipeline execution |
+| `paused` | `location` (`fileIdentifier`, `lineNo`, `lineContent`), `vars` | Execution paused at breakpoint |
+| `completed` | — | Pipeline finished |
+
+Client → Server messages:
+| Type | Fields | Description |
+|------|--------|-------------|
+| `resume` | `mode` (`run`, `stepOver`, `stepInto`, `stepOut`) | Continue execution |
+| `addBreakpoint` | `fileIdentifier`, `lineNo` | Add a breakpoint |
+| `removeBreakpoint` | `fileIdentifier`, `lineNo` | Remove a breakpoint |
+
+**Example — adding a breakpoint from browser console:**
+
+```javascript
+// Get the WebSocket connection (if debug-app exposed it)
+const ws = new WebSocket('ws://localhost:4800/ws');
+ws.onopen = () => {
+  // Add breakpoint at main.ss line 10
+  ws.send(JSON.stringify({ 
+    type: 'addBreakpoint', 
+    fileIdentifier: 'main.ss', 
+    lineNo: 10 
+  }));
+};
+```
+
+**New client synchronization:** When connecting while execution is paused, the server immediately sends the current `paused` message so late-joining clients display the correct state.
+
+> **Full protocol reference:** See [`Docs/debug/WEBSOCKET_PROTOCOL.md`](../../../Docs/debug/WEBSOCKET_PROTOCOL.md) for comprehensive message formats, field definitions, sequence diagrams, and implementation details.
+
 ### `utils/state.js` - Centralized State
 
 Singleton `AppState` class managing global state:

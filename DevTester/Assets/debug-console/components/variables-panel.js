@@ -5,6 +5,7 @@ import { escapeHtml } from '../utils/formatters.js';
 export class VariablesPanel extends LitElement {
   static properties = {
     selectedIndex: { type: Number },
+    pausedState: { type: Object },  // stepping mode: { location, vars }
     variables: { type: Object, state: true },
     loading: { type: Boolean, state: true },
     lastLoadedIndex: { type: Number, state: true }
@@ -96,25 +97,32 @@ export class VariablesPanel extends LitElement {
   }
 
   render() {
-    const varCount = this.variables ? Object.keys(this.variables).length : 0;
+    // Prioritize showing paused state variables when stepping
+    const displayVars = this.pausedState?.vars ?? this.variables;
+    const varCount = displayVars ? Object.keys(displayVars).length : 0;
+    const isPaused = !!this.pausedState?.vars;
     
-    if (this.loading) {
+    const subtitle = isPaused 
+      ? `Paused at ${this.pausedState?.location?.fileIdentifier || '?'}:${this.pausedState?.location?.lineNo || '?'}`
+      : `Event index: ${this.selectedIndex}`;
+    
+    if (this.loading && !isPaused) {
       return html`
         <div class="panel-title">Variables</div>
-        <div class="panel-subtitle">Event index: ${this.selectedIndex}</div>
+        <div class="panel-subtitle">${subtitle}</div>
         <em>Loading...</em>
       `;
     }
 
-    if (!this.variables || varCount === 0) {
+    if (!displayVars || varCount === 0) {
       return html`
         <div class="panel-title">Variables</div>
-        <div class="panel-subtitle">Event index: ${this.selectedIndex} · No variables captured at this point</div>
+        <div class="panel-subtitle">${subtitle} · No variables captured at this point</div>
         <em>Variables are captured when files are generated. Select an event after file generation starts.</em>
       `;
     }
 
-    const rows = Object.entries(this.variables)
+    const rows = Object.entries(displayVars)
       .filter(([k]) => !k.startsWith('@'))
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([k, v]) => html`
@@ -126,7 +134,7 @@ export class VariablesPanel extends LitElement {
 
     return html`
       <div class="panel-title">Variables</div>
-      <div class="panel-subtitle">Event index: ${this.selectedIndex} · ${varCount} variables</div>
+      <div class="panel-subtitle">${subtitle} · ${varCount} variables</div>
       <table class="vars-table">
         <tr>
           <th>Variable</th>

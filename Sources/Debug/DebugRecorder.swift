@@ -64,6 +64,16 @@ public actor DefaultDebugRecorder: DebugRecorder {
         await sourceFileMap.register(identifier: file.identifier, content: file.content, fullPath: file.fullPath, fileType: file.fileType)
     }
 
+    /// Get a source file by identifier (for live source lookup during stepping mode).
+    public func getSourceFile(identifier: String) async -> SourceFile? {
+        await sourceFileMap.file(for: identifier)
+    }
+
+    /// Get all registered source files (for live source lookup during stepping mode).
+    public func getAllSourceFiles() async -> [SourceFile] {
+        await sourceFileMap.allFiles()
+    }
+
     public func setContainerName(_ name: String?) async {
         containerName = name
     }

@@ -812,7 +812,7 @@ Messages broadcast from the server to clients are JSON objects with a `type` fie
 |---|---|---|
 | `event` | After every `StreamingDebugRecorder.record(_:)` | `envelope` (contains `sequenceNo`, `timestamp`, `containerName`, `event`) |
 | `completed` | When `StreamingDebugRecorder.broadcastCompleted()` is called | — |
-| `paused` | When `LiveDebugStepper` hits a breakpoint | `location`, `vars` |
+| `paused` | When `LiveDebugStepper` hits a breakpoint, or when a new client connects while paused | `location`, `vars` |
 
 Messages from client to server are JSON objects:
 
@@ -821,6 +821,86 @@ Messages from client to server are JSON objects:
 | `resume` | Calls `LiveDebugStepper.resume(mode:)` with the specified `mode` (`run`, `stepOver`, `stepInto`, `stepOut`) |
 | `addBreakpoint` | Adds a location breakpoint (`fileIdentifier`, `lineNo` fields required) |
 | `removeBreakpoint` | Removes a location breakpoint (`fileIdentifier`, `lineNo` fields required) |
+
+**New client synchronization:** When a WebSocket client connects while execution is paused at a breakpoint, the server immediately sends the current `paused` message. This ensures late-joining clients display the correct state.
+
+> **Full protocol reference:** See [`Docs/debug/WEBSOCKET_PROTOCOL.md`](WEBSOCKET_PROTOCOL.md) for comprehensive message formats, field definitions, sequence diagrams, and implementation details.
+
+### Programmatic breakpoints (Swift)
+
+Breakpoints can also be added programmatically in Swift code before or during pipeline execution. This is useful for:
+
+- Setting up test breakpoints in `DevMain.swift`
+- Creating automated debugging scenarios
+- Pre-configuring breakpoints based on configuration
+
+**API:**
+
+```swift
+// BreakpointLocation identifies a file and line
+public struct BreakpointLocation: Hashable, Codable, Sendable {
+    public let fileIdentifier: String  // e.g., "main.ss", "{{entity.name}}Controller.java"
+    public let lineNo: Int
+}
+
+// LiveDebugStepper manages breakpoints and execution control
+public actor LiveDebugStepper: DebugStepper {
+    public func addBreakpoint(_ bp: BreakpointLocation)
+    public func removeBreakpoint(_ bp: BreakpointLocation)
+    public func resume(mode: StepMode = .run)
+    public func setOnPause(_ callback: StepperPauseCallback?)
+    public func getPauseState() -> PauseState?  // Returns current pause state if paused
+}
+
+// StepMode for resume behavior
+public enum StepMode: String, Codable, Sendable {
+    case run       // Continue until next breakpoint
+    case stepOver  // Step over current item (semantics in progress)
+    case stepInto  // Step into current item (semantics in progress)
+    case stepOut   // Step out of current scope (semantics in progress)
+}
+
+// Snapshot of pause state (used for new client synchronization)
+public struct PauseState: Sendable {
+    public let location: SourceLocation
+    public let vars: [String: String]
+}
+```
+
+**Example — adding a test breakpoint in DevMain.swift:**
+
+```swift
+static func runCodebaseGenerationWithStepping() async throws {
+    let wsManager = WebSocketClientManager()
+    let streamingRecorder = StreamingDebugRecorder(wsManager: wsManager)
+    let stepper = LiveDebugStepper()
+
+    // Wire pause callback to broadcast over WebSocket
+    await stepper.setOnPause { location, vars in
+        await streamingRecorder.broadcastPaused(location: location, vars: vars)
+    }
+
+    // Add a programmatic breakpoint at main.ss line 10
+    await stepper.addBreakpoint(BreakpointLocation(fileIdentifier: "main.ss", lineNo: 10))
+
+    // ... continue with pipeline setup ...
+}
+```
+
+When the pipeline reaches `main.ss:10`, execution will pause and a `paused` WebSocket message will be broadcast to all connected clients. The browser's stepper-panel will appear, allowing the user to resume.
+
+**Finding valid file identifiers:**
+
+File identifiers are the names used when templates/scripts are registered with the debug recorder. To find valid identifiers:
+
+1. Run the pipeline once in `--debug` mode
+2. Query `/api/session` and inspect `sourceFiles[].identifier`
+3. Or check the session in the browser's debug console
+
+Common identifiers include:
+- `main.ss` — the blueprint entry-point script
+- Template filenames like `{{entity.name}}Controller.java`
+- Other `.teso` and `.ss` files in the blueprint
 
 ### HTTP caching policy
 
@@ -1261,6 +1341,12 @@ If this system is extended further, the most natural next steps are:
 
 Important current files:
 
+**Documentation:**
+- `Docs/debug/VISUALDEBUG.md` — this file; architecture and troubleshooting
+- `Docs/debug/WEBSOCKET_PROTOCOL.md` — comprehensive WebSocket debugging protocol reference
+- `DevTester/Assets/debug-console/README.md` — browser UI component documentation
+
+**DevTester:**
 - `DevTester/DevMain.swift`
 - `DevTester/DebugServer/DebugHTTPServer.swift`
 - `DevTester/DebugServer/DebugRouter.swift`

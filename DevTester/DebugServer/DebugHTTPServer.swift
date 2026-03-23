@@ -38,7 +38,8 @@ actor DebugHTTPServer {
             recorder: recorder,
             pipeline: pipeline,
             devAssetsPath: devAssetsPath,
-            serverMode: serverMode
+            serverMode: serverMode,
+            stepper: stepper
         )
     }
 
@@ -67,10 +68,14 @@ actor DebugHTTPServer {
         let channel = try await ServerBootstrap(group: group)
             .serverChannelOption(.socketOption(.so_reuseaddr), value: 1)
             .childChannelInitializer { ch in
-                ch.pipeline.configureHTTPServerPipeline(
-                    withServerUpgrade: (upgraders: [upgrader], completionHandler: { _ in })
+                let httpHandler = HTTPChannelHandler(router: router)
+                return ch.pipeline.configureHTTPServerPipeline(
+                    withServerUpgrade: (upgraders: [upgrader], completionHandler: { ctx in
+                        // Remove our HTTP handler when WebSocket upgrade completes
+                        ctx.pipeline.removeHandler(httpHandler, promise: nil)
+                    })
                 ).flatMap {
-                    ch.pipeline.addHandler(HTTPChannelHandler(router: router))
+                    ch.pipeline.addHandler(httpHandler)
                 }
             }
             .bind(host: "127.0.0.1", port: Int(self.port))

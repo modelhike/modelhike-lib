@@ -797,6 +797,9 @@ debug-console/
 - **Resizable panels**: Drag handles between panels
 - **Live event streaming**: In `--debug-stepping` mode, events appear in real time via WebSocket
 - **Stepper panel**: Run / Step Over / Step Into / Step Out controls (UI complete; full stepping semantics in progress)
+- **Programmatic breakpoints**: Add breakpoints in Swift via `stepper.addBreakpoint(BreakpointLocation(fileIdentifier:lineNo:))`
+- **WebSocket debugging protocol**: Add/remove breakpoints and send resume commands via WebSocket JSON messages; see [`Docs/debug/WEBSOCKET_PROTOCOL.md`](Docs/debug/WEBSOCKET_PROTOCOL.md) for full reference
+- **New client sync**: Late-joining WebSocket clients automatically receive current pause state
 
 ### Running the Debug Console
 

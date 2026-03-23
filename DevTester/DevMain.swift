@@ -94,6 +94,10 @@ struct Development: Sendable {
             await streamingRecorder.broadcastPaused(location: location, vars: vars)
         }
 
+        // TEST: Add a breakpoint at main.ss line 10 to demonstrate pause/resume
+        await stepper.addBreakpoint(BreakpointLocation(fileIdentifier: "main.ss", lineNo: 10))
+        print("🔴 Test breakpoint set at main.ss:10")
+
         let pipeline = Pipelines.codegen
         var config = Environment.debug
         config.containersToOutput = ["APIs"]

@@ -17,7 +17,8 @@ import { LitElement, html, css } from 'https://cdn.jsdelivr.net/npm/lit@3/+esm';
  */
 export class StepperPanel extends LitElement {
   static properties = {
-    pausedState: { type: Object }
+    pausedState: { type: Object },
+    isStepping: { type: Boolean }  // true while waiting for next pause
   };
 
   static styles = css`
@@ -127,6 +128,31 @@ export class StepperPanel extends LitElement {
       padding-right: 4px;
       flex-shrink: 0;
     }
+
+    /* Stepping indicator */
+    .bar.stepping {
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
+    .bar.stepping .paused-badge {
+      background: #7f8c8d;
+    }
+
+    .stepping-indicator {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border: 2px solid #9cdcfe;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 6px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
   `;
 
   _resume(mode) {
@@ -147,8 +173,11 @@ export class StepperPanel extends LitElement {
       : '?';
 
     return html`
-      <div class="bar">
-        <span class="paused-badge">Paused</span>
+      <div class="bar ${this.isStepping ? 'stepping' : ''}">
+        ${this.isStepping 
+          ? html`<span class="stepping-indicator"></span><span class="paused-badge">Stepping...</span>`
+          : html`<span class="paused-badge">Paused</span>`
+        }
 
         <span class="location">
           <span class="file">${fileName}</span>

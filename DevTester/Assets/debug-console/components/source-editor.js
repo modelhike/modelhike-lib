@@ -8,6 +8,7 @@ export class SourceEditor extends LitElement {
     session: { type: Object },
     selectedIndex: { type: Number },
     currentWindow: { type: Object },
+    pausedState: { type: Object },  // stepping mode: { location: { fileIdentifier, lineNo, lineContent } }
     sourceContent: { type: String, state: true },
     sourceIdentifier: { type: String, state: true },
     highlightLine: { type: Number, state: true },
@@ -51,6 +52,11 @@ export class SourceEditor extends LitElement {
   }
 
   getDisplaySourceLocation() {
+    // Priority 1: Show paused stepping location
+    if (this.pausedState && this.pausedState.location) {
+      return this.pausedState.location;
+    }
+    
     if (!this.session) return null;
     const selectedEvent = this.session.events[this.selectedIndex];
     const selectedLocation = selectedEvent ? getSourceLocation(selectedEvent) : null;
@@ -66,18 +72,23 @@ export class SourceEditor extends LitElement {
   }
 
   sourceIdentifierForWindow(loc) {
+    // For paused state, use the location's fileIdentifier directly
+    if (this.pausedState && this.pausedState.location) {
+      return this.pausedState.location.fileIdentifier;
+    }
     if (this.currentWindow && this.currentWindow.templateName) return this.currentWindow.templateName;
     return loc && loc.fileIdentifier ? loc.fileIdentifier : '';
   }
 
   async updated(changedProperties) {
-    if (changedProperties.has('selectedIndex') || changedProperties.has('currentWindow') || changedProperties.has('session')) {
+    if (changedProperties.has('selectedIndex') || changedProperties.has('currentWindow') || changedProperties.has('session') || changedProperties.has('pausedState')) {
       await this.loadSource();
     }
   }
 
   async loadSource() {
-    if (!this.session) return;
+    // In stepping mode with paused state, we don't need a session
+    if (!this.session && !this.pausedState) return;
 
     const loc = this.getDisplaySourceLocation();
     const identifier = this.sourceIdentifierForWindow(loc);
@@ -97,10 +108,17 @@ export class SourceEditor extends LitElement {
       const file = await loadSourceFile(identifier);
       if (token !== this.renderToken) return;
       this.sourceContent = file.content;
-      this.highlightLine = loc && loc.fileIdentifier === file.identifier ? loc.lineNo : 0;
+      // Match by checking if identifiers are the same or one ends with the other
+      const locId = loc?.fileIdentifier || '';
+      const fileId = file.identifier || '';
+      const identifiersMatch = locId === fileId || 
+        locId.endsWith('/' + fileId) || fileId.endsWith('/' + locId) ||
+        locId.endsWith(fileId) || fileId.endsWith(locId);
+      this.highlightLine = loc && identifiersMatch ? loc.lineNo : 0;
       this.sourceIdentifier = file.identifier + (this.highlightLine > 0 ? ' · line ' + this.highlightLine : '');
-    } catch {
+    } catch (err) {
       if (token !== this.renderToken) return;
+      console.warn('[source-editor] Failed to load source:', identifier, err);
       this.sourceIdentifier = identifier + ' · missing';
       this.sourceContent = '';
       this.highlightLine = 0;

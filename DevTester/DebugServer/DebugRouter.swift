@@ -60,6 +60,7 @@ actor DebugRouter {
     private let pipeline: Pipeline?
     private let devAssetsPath: String?
     private let serverMode: DebugServerMode
+    private let stepper: LiveDebugStepper?
 
     init(
         session: DebugSession,
@@ -67,7 +68,8 @@ actor DebugRouter {
         recorder: DefaultDebugRecorder? = nil,
         pipeline: Pipeline? = nil,
         devAssetsPath: String? = nil,
-        serverMode: DebugServerMode = .postMortem
+        serverMode: DebugServerMode = .postMortem,
+        stepper: LiveDebugStepper? = nil
     ) {
         self.session = session
         self.renderedOutputs = renderedOutputs
@@ -75,6 +77,7 @@ actor DebugRouter {
         self.pipeline = pipeline
         self.devAssetsPath = devAssetsPath
         self.serverMode = serverMode
+        self.stepper = stepper
     }
 
     // MARK: - Session update (used in --debug-stepping after pipeline completes)
@@ -117,7 +120,7 @@ actor DebugRouter {
 
         if pathWithoutQuery.hasPrefix("/api/source/") {
             let raw = String(pathWithoutQuery.dropFirst("/api/source/".count))
-            return serveSource(identifier: raw.removingPercentEncoding ?? raw)
+            return await serveSource(identifier: raw.removingPercentEncoding ?? raw)
         }
 
         if pathWithoutQuery.hasPrefix("/api/generated-file/") {
@@ -141,6 +144,8 @@ actor DebugRouter {
             return serveFiles()
         case "/api/mode":
             return serveMode()
+        case "/api/pause-state":
+            return await servePauseState()
         default:
             if pathWithoutQuery.hasPrefix("/styles/") ||
                pathWithoutQuery.hasPrefix("/components/") ||
@@ -168,6 +173,27 @@ actor DebugRouter {
     private func serveMode() -> HTTPRouteResponse {
         let modeString = "\"\(serverMode.rawValue)\""
         return .ok(body: modeString)
+    }
+
+    private func servePauseState() async -> HTTPRouteResponse {
+        guard let stepper = stepper else {
+            return .ok(body: "null")
+        }
+        guard let pauseState = await stepper.getPauseState() else {
+            return .ok(body: "null")
+        }
+        // Return same structure as WSPausedMessage
+        struct PauseResponse: Encodable {
+            let type: String = "paused"
+            let location: SourceLocation
+            let vars: [String: String]
+        }
+        let response = PauseResponse(location: pauseState.location, vars: pauseState.vars)
+        if let data = try? JSONEncoder().encode(response),
+           let json = String(data: data, encoding: .utf8) {
+            return .ok(body: json)
+        }
+        return .ok(body: "null")
     }
 
     private func serveIndexHTML() -> HTTPRouteResponse {
@@ -272,8 +298,8 @@ actor DebugRouter {
         return .ok(body: data)
     }
 
-    private func serveSource(identifier: String) -> HTTPRouteResponse {
-        guard let file = sourceFile(for: identifier) else {
+    private func serveSource(identifier: String) async -> HTTPRouteResponse {
+        guard let file = await sourceFile(for: identifier) else {
             return .notFound()
         }
         struct SourceResponse: Encodable {
@@ -358,18 +384,34 @@ actor DebugRouter {
 
     // MARK: - Helpers
 
-    private func sourceFile(for identifier: String) -> SourceFile? {
-        if let file = session.sourceFiles.first(where: { $0.identifier == identifier }) {
+    private func sourceFile(for identifier: String) async -> SourceFile? {
+        // Gather all source files: session (finalized) + recorder (live)
+        var allSourceFiles = session.sourceFiles
+        if let recorder = recorder {
+            let liveFiles = await recorder.getAllSourceFiles()
+            allSourceFiles.append(contentsOf: liveFiles)
+        }
+        return Self.findSourceFile(identifier: identifier, in: allSourceFiles)
+    }
+    
+    /// Non-isolated helper to search source files without triggering async closure inference.
+    private nonisolated static func findSourceFile(identifier: String, in files: [SourceFile]) -> SourceFile? {
+        // Exact match
+        if let file = files.first(where: { $0.identifier == identifier }) {
             return file
         }
+        
         let normalized = identifier.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        let matches = session.sourceFiles.filter { file in
+        
+        // Partial path match
+        let matches = files.filter { file in
             let c = file.identifier.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
             return c == normalized || c.hasSuffix("/" + normalized) || normalized.hasSuffix("/" + c)
         }
         if matches.count == 1 { return matches[0] }
 
-        let extMatches = session.sourceFiles.filter { file in
+        // Extension-added match
+        let extMatches = files.filter { file in
             let c = file.identifier.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
             return c == normalized + ".teso" || c == normalized + ".ss"
                 || c.hasSuffix("/" + normalized + ".teso") || c.hasSuffix("/" + normalized + ".ss")

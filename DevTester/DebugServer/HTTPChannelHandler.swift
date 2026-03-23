@@ -10,7 +10,7 @@ import NIOHTTP1
 /// Assembles a complete HTTP request from NIO's incremental `HTTPServerRequestPart`
 /// delivery, then dispatches asynchronously to `DebugRouter` and writes the response
 /// back onto the channel.
-final class HTTPChannelHandler: ChannelInboundHandler, @unchecked Sendable {
+final class HTTPChannelHandler: ChannelInboundHandler, RemovableChannelHandler, @unchecked Sendable {
     typealias InboundIn = HTTPServerRequestPart
     typealias OutboundOut = HTTPServerResponsePart
 
