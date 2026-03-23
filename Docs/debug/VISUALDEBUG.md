@@ -49,7 +49,7 @@ Relevant flags:
 
 - `--debug`: enable debug mode
 - `--debug-port=<port>`: choose the HTTP server port
-- `--debug-dev`: serve `debug-console.html` directly from `DevTester/Assets`
+- `--debug-dev`: serve debug console directly from `DevTester/Assets/debug-console/`
 - `--no-open`: do not auto-open the browser
 
 ## Runtime Architecture
@@ -96,9 +96,9 @@ It is a small embedded HTTP server built around `NWListener` and `NWConnection`.
 
 ### 4. Browser UI
 
-`DevTester/Assets/debug-console.html` is a self-contained HTML/CSS/JS app.
+`DevTester/Assets/debug-console/` is a modular browser app using Lit web components.
 
-It fetches the captured session and derives most of its UI state client-side.
+It fetches the captured session and derives most of its UI state client-side. See `DevTester/Assets/debug-console/README.md` for the full component architecture.
 
 ## Main Data Flow
 
@@ -112,7 +112,7 @@ Pipeline execution
   -> recorder.session(config:) produces DebugSession
   -> pipeline.state.renderedOutputRecords() extracts in-memory generated contents
   -> DebugHTTPServer serves both over HTTP
-  -> debug-console.html fetches and renders them
+  -> debug-console/ UI fetches and renders them
 ```
 
 There is no persistent debug database. Everything is in-memory for the lifetime of the `DevTester` process.
@@ -144,7 +144,8 @@ This section is intentionally file-oriented. It answers the question: "Where, ex
   - builds all responses
   - injects no-cache headers to avoid stale console iterations in the browser
 
-- `DevTester/Assets/debug-console.html`
+- `DevTester/Assets/debug-console/`
+  - modular Lit web components (no build step required)
   - derives UI state from `DebugSession`
   - builds file windows client-side
   - drives source/generated/variables/models panes
@@ -741,7 +742,7 @@ This was added specifically because stale browser caches were causing the user t
 ### Implemented endpoints
 
 - `GET /`
-  - serves `debug-console.html`
+  - serves `debug-console/index.html`
 - `GET /api/session`
   - serves full `DebugSession`
 - `GET /api/model`
@@ -776,7 +777,7 @@ Exposed:
 - `/api/generated-file/:index`
 - `/api/evaluate`
 
-Actively consumed by `debug-console.html`:
+Actively consumed by the debug console:
 
 - `/api/session`
 - `/api/memory/:eventIndex`
@@ -784,7 +785,7 @@ Actively consumed by `debug-console.html`:
 - `/api/generated-file/:index`
 - `/api/evaluate`
 
-Currently unused by the browser UI:
+Currently unused by the debug console:
 
 - `/api/model`
 - `/api/events`
@@ -833,18 +834,28 @@ The heuristics are compensating for real mismatches in:
 
 ## Browser UI Internals
 
-`DevTester/Assets/debug-console.html`
+`DevTester/Assets/debug-console/`
 
-The UI is a single-file SPA with no framework dependency.
+The UI is a modular browser app using Lit web components loaded from CDN. No build step is required.
+
+### Architecture
+
+The console is organized into:
+- `index.html` - Entry point
+- `components/` - 12 Lit web components
+- `utils/` - Pure utility functions (api, state, formatters)
+- `styles/` - CSS split by concern (base, layout, themes)
+
+See `DevTester/Assets/debug-console/README.md` for the full component hierarchy.
 
 ### Initial load
 
-On load it:
+On load the root `<debug-app>` component:
 
 1. fetches `/api/session`
-2. stores it in `state.session`
+2. stores it in centralized `state` (utils/state.js)
 3. derives `state.fileWindows` from `session.files`
-4. renders the whole UI
+4. renders child components with reactive property binding
 
 The UI is intentionally thin:
 
@@ -1051,7 +1062,7 @@ Current test coverage verifies:
 Current notable gap:
 
 - there are no tests for the HTTP server
-- there are no tests for the browser UI
+- there are no tests for the debug console components
 - there are no end-to-end tests for source lookup or generated-output panes
 - there are no tests for rendered-output snapshot extraction
 - there are no tests for source-identifier heuristic matching
@@ -1150,7 +1161,7 @@ Important current files:
 - `DevTester/DevMain.swift`
 - `DevTester/DebugServer/DebugHTTPServer.swift`
 - `DevTester/DebugServer/HTTPTypes.swift`
-- `DevTester/Assets/debug-console.html`
+- `DevTester/Assets/debug-console/` (modular Lit web components)
 - `Sources/Debug/DebugRecorder.swift`
 - `Sources/Debug/DebugSession.swift`
 - `Sources/Debug/DebugEvent.swift`

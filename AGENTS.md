@@ -68,7 +68,8 @@ modelhike/
 │   ├── DevMain.swift           # Entry point; runs codegen pipeline (or debug mode with --debug)
 │   ├── Environment.swift       # Hardcoded dev/prod path configs
 │   ├── DebugServer/            # DebugHTTPServer, HTTPTypes
-│   └── Assets/                 # debug-console.html (browser UI)
+│   └── Assets/
+│       └── debug-console/      # Modular browser UI (Lit web components)
 │
 ├── Tests/                      # Test suites
 │
@@ -747,9 +748,46 @@ When `--debug` is passed, `DevMain` switches to the visual debugging flow instea
 
 ## 12. Visual Debugging
 
-ModelHike includes a browser-based visual debugger for pipeline runs. The current default experience is post-mortem inspection backed by a structured debug session, local debug server, and single-page browser UI.
+ModelHike includes a browser-based visual debugger for pipeline runs. The default experience is post-mortem inspection backed by a structured debug session, local debug server, and modular browser UI.
 
-Live stepping is scaffolded in the library but not enabled by default in `DevTester`. See [`Docs/debug/VISUALDEBUG.md`](Docs/debug/VISUALDEBUG.md) for the full architecture, data flow, implementation inventory, limitations, and troubleshooting guidance.
+### Debug Console Architecture
+
+The debug console (`DevTester/Assets/debug-console/`) uses a modular architecture with Lit web components loaded from CDN:
+
+```
+debug-console/
+├── index.html          # Entry point
+├── styles/             # CSS (base, layout, themes)
+├── components/         # 12 Lit web components
+│   ├── debug-app.js    # Root orchestrator
+│   ├── file-tree-panel.js  # File explorer
+│   ├── source-editor.js    # Template viewer
+│   ├── output-editor.js    # Generated output viewer
+│   ├── trace-panel.js      # Event trace
+│   ├── variables-panel.js  # Variable inspector
+│   └── ...
+└── utils/              # Pure functions (api, state, formatters)
+```
+
+### Key Features
+
+- **File tree**: Scrollable list of generated files with folder hierarchy
+- **Split view**: Template source and generated output side by side
+- **Event trace**: Click events to see source location
+- **Variable inspector**: View captured variable state (at file generation points)
+- **Model hierarchy**: Browse containers, modules, entities
+- **Expression evaluator**: Test expressions in footer input
+- **Resizable panels**: Drag handles between panels
+
+### Running the Debug Console
+
+```bash
+swift run DevTester --debug --debug-dev --no-open --debug-port=4800
+```
+
+Then open `http://localhost:4800` in a browser.
+
+See [`DevTester/Assets/debug-console/README.md`](DevTester/Assets/debug-console/README.md) for detailed component documentation and [`Docs/debug/VISUALDEBUG.md`](Docs/debug/VISUALDEBUG.md) for the full architecture and troubleshooting guidance.
 
 ---
 

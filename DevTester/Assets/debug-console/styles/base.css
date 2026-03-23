@@ -1,0 +1,37 @@
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  --left-sidebar-width: 280px;
+  --right-sidebar-width: 320px;
+}
+
+body {
+  margin: 0;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Global scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e1e1e;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #424242;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}

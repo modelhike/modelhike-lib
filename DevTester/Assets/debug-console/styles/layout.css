@@ -1,0 +1,74 @@
+.layout {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto auto;
+  height: 100vh;
+}
+
+.main {
+  display: grid;
+  grid-template-columns: minmax(220px, var(--left-sidebar-width)) 6px minmax(0, 1fr) 6px minmax(240px, var(--right-sidebar-width));
+  min-height: 0;
+}
+
+.panel {
+  border-right: 1px solid #333;
+  overflow: auto;
+  padding: 8px;
+}
+
+.panel-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #9cdcfe;
+}
+
+.panel-subtitle {
+  font-size: 11px;
+  color: #858585;
+  margin-bottom: 8px;
+}
+
+.panel-meta {
+  font-size: 11px;
+  color: #858585;
+  margin-bottom: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.left-sidebar {
+  padding: 0;
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  min-height: 0;
+}
+
+.right-sidebar {
+  padding: 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 0;
+}
+
+.sidebar {
+  padding: 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 0;
+}
+
+.editor-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+}
+
+.editor-pane {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  min-height: 0;
+}

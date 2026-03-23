@@ -164,9 +164,14 @@ actor DebugHTTPServer {
         case "/api/files":
             return serveFiles()
         default:
-            break
+            if pathWithoutQuery.hasPrefix("/styles/") || 
+               pathWithoutQuery.hasPrefix("/components/") || 
+               pathWithoutQuery.hasPrefix("/utils/") || 
+               pathWithoutQuery.hasPrefix("/lib/") {
+                return serveStaticFile(path: pathWithoutQuery)
+            }
+            return HTTPResponse.notFound()
         }
-        return HTTPResponse.notFound()
     }
 
     private func handlePost(path: String, body: Data?) async -> Data {
@@ -180,25 +185,25 @@ actor DebugHTTPServer {
 
     private func serveIndexHTML() -> Data {
         if let devPath = devAssetsPath {
-            let url = URL(fileURLWithPath: devPath).appendingPathComponent("debug-console.html")
+            let url = URL(fileURLWithPath: devPath).appendingPathComponent("debug-console/index.html")
             if let data = try? Data(contentsOf: url),
                let html = String(data: data, encoding: .utf8) {
-                trace("serving debug-console.html from dev assets: \(url.path), bytes=\(data.count)")
+                trace("serving index.html from dev assets: \(url.path), bytes=\(data.count)")
                 return HTTPResponse.ok(body: html, contentType: "text/html")
             }
             trace("failed to load dev asset html from \(url.path)")
         }
 
         let bundleCandidates: [URL?] = [
-            Bundle.module.url(forResource: "debug-console", withExtension: "html", subdirectory: "Assets"),
-            Bundle.module.url(forResource: "debug-console", withExtension: "html")
+            Bundle.module.url(forResource: "index", withExtension: "html", subdirectory: "Assets/debug-console"),
+            Bundle.module.url(forResource: "debug-console/index", withExtension: "html", subdirectory: "Assets")
         ]
 
         for candidate in bundleCandidates {
             if let url = candidate,
                let data = try? Data(contentsOf: url),
                let html = String(data: data, encoding: .utf8) {
-                trace("serving debug-console.html from bundle: \(url.path), bytes=\(data.count)")
+                trace("serving index.html from bundle: \(url.path), bytes=\(data.count)")
                 return HTTPResponse.ok(body: html, contentType: "text/html")
             }
         }
@@ -210,6 +215,51 @@ actor DebugHTTPServer {
         </body></html>
         """
         return HTTPResponse.ok(body: fallback, contentType: "text/html")
+    }
+
+    private func serveStaticFile(path: String) -> Data {
+        let cleanPath = path.hasPrefix("/") ? String(path.dropFirst()) : path
+        
+        if let devPath = devAssetsPath {
+            let url = URL(fileURLWithPath: devPath).appendingPathComponent("debug-console/\(cleanPath)")
+            if let data = try? Data(contentsOf: url) {
+                let contentType = mimeType(forPath: cleanPath)
+                trace("serving static file from dev assets: \(url.path), bytes=\(data.count), type=\(contentType)")
+                return HTTPResponse.ok(body: data, contentType: contentType)
+            }
+        }
+
+        let bundleCandidates: [URL?] = [
+            Bundle.module.url(forResource: cleanPath, withExtension: nil, subdirectory: "Assets/debug-console"),
+            Bundle.module.url(forResource: "debug-console/\(cleanPath)", withExtension: nil, subdirectory: "Assets")
+        ]
+
+        for candidate in bundleCandidates {
+            if let url = candidate,
+               let data = try? Data(contentsOf: url) {
+                let contentType = mimeType(forPath: cleanPath)
+                trace("serving static file from bundle: \(url.path), bytes=\(data.count), type=\(contentType)")
+                return HTTPResponse.ok(body: data, contentType: contentType)
+            }
+        }
+
+        trace("static file not found: \(cleanPath)")
+        return HTTPResponse.notFound()
+    }
+
+    private func mimeType(forPath path: String) -> String {
+        let ext = (path as NSString).pathExtension.lowercased()
+        switch ext {
+        case "html": return "text/html; charset=utf-8"
+        case "css": return "text/css; charset=utf-8"
+        case "js", "mjs": return "application/javascript; charset=utf-8"
+        case "json": return "application/json; charset=utf-8"
+        case "svg": return "image/svg+xml"
+        case "png": return "image/png"
+        case "jpg", "jpeg": return "image/jpeg"
+        case "woff", "woff2": return "font/woff2"
+        default: return "application/octet-stream"
+        }
     }
 
     private func serveSession() -> Data {
