@@ -8,6 +8,31 @@ export class CodePanel extends LitElement {
     emptyMessage: { type: String }
   };
 
+  constructor() {
+    super();
+    this._lastScrolledLine = 0;
+  }
+
+  updated(changedProperties) {
+    if (changedProperties.has('highlightLine') && this.highlightLine > 0) {
+      // Only scroll if the line changed (not just a re-render)
+      if (this.highlightLine !== this._lastScrolledLine) {
+        this._lastScrolledLine = this.highlightLine;
+        this._scrollToHighlight();
+      }
+    }
+  }
+
+  _scrollToHighlight() {
+    // Use requestAnimationFrame to ensure DOM is updated
+    requestAnimationFrame(() => {
+      const highlighted = this.renderRoot.querySelector('.source-line.highlight');
+      if (highlighted) {
+        highlighted.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+  }
+
   static styles = css`
     :host {
       display: block;

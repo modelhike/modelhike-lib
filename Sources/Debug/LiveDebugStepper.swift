@@ -81,6 +81,7 @@ public actor LiveDebugStepper: DebugStepper {
         guard let itemWithInfo = item as? TemplateItemWithParsedInfo else { return }
         let pInfo = itemWithInfo.pInfo
         let loc = BreakpointLocation(fileIdentifier: pInfo.identifier, lineNo: pInfo.lineNo)
+        let isSameFile = pInfo.identifier == stepStartFile
         
         // Determine if we should pause
         let shouldPause: Bool
@@ -89,14 +90,16 @@ public actor LiveDebugStepper: DebugStepper {
             // Only pause at explicit breakpoints
             shouldPause = breakpoints.contains(loc)
         case .stepInto:
-            // Pause at every line
+            // Pause at every line (goes into render-file calls)
             shouldPause = true
         case .stepOver:
-            // Pause at same level or shallower (not when stepping into nested templates/functions)
-            shouldPause = pInfo.level <= stepStartLevel
+            // Pause at the next line in the SAME file
+            // This enters loop bodies but skips into render-file/function calls
+            shouldPause = isSameFile
         case .stepOut:
-            // Pause when we return to a shallower level
-            shouldPause = pInfo.level < stepStartLevel
+            // Pause when we return to the calling file at shallower level
+            // If we're in a nested file, don't pause until we return
+            shouldPause = isSameFile && pInfo.level < stepStartLevel
         }
         
         guard shouldPause else { return }
@@ -112,7 +115,7 @@ public actor LiveDebugStepper: DebugStepper {
         // Store current pause state so new WebSocket clients can receive it
         currentPauseState = PauseState(location: sourceLoc, vars: vars)
         
-        // Remember the level for next step operation
+        // Remember the level and file for next step operation
         stepStartLevel = pInfo.level
         stepStartFile = pInfo.identifier
         

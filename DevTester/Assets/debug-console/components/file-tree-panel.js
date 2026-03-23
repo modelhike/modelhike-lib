@@ -17,11 +17,12 @@ export class FileTreePanel extends LitElement {
       display: block;
       padding: 0;
       height: 100%;
-      overflow: auto;
+      overflow: auto;  /* both vertical and horizontal */
     }
 
     :host::-webkit-scrollbar {
       width: 8px;
+      height: 8px;  /* for horizontal scrollbar */
     }
 
     :host::-webkit-scrollbar-track {
@@ -36,24 +37,33 @@ export class FileTreePanel extends LitElement {
     :host::-webkit-scrollbar-thumb:hover {
       background: #555;
     }
+    
+    :host::-webkit-scrollbar-corner {
+      background: #1e1e1e;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 8px 0;
+      margin-bottom: 8px;
+    }
 
     .panel-title {
       font-weight: 600;
-      margin-bottom: 8px;
       color: #9cdcfe;
-      padding: 8px 8px 0;
     }
 
-    .panel-subtitle {
+    .panel-count {
       font-size: 11px;
       color: #858585;
-      margin-bottom: 8px;
-      padding: 0 8px;
     }
 
     .tree-root {
       font-size: 12px;
       padding: 0 0 6px;
+      min-width: max-content;  /* allow horizontal scroll */
     }
 
     .tree-node {
@@ -65,9 +75,11 @@ export class FileTreePanel extends LitElement {
       align-items: center;
       gap: 4px;
       padding: 2px 8px;
+      padding-right: 16px;  /* extra space for horizontal scroll */
       min-height: 22px;
       border-radius: 0;
       cursor: pointer;
+      white-space: nowrap;
     }
 
     .tree-row:hover {
@@ -89,8 +101,6 @@ export class FileTreePanel extends LitElement {
 
     .tree-label {
       white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
 
     .tree-meta {
@@ -232,21 +242,23 @@ export class FileTreePanel extends LitElement {
 
     if (!visibleCount) {
       return html`
-        <div class="panel-title">Generated Files</div>
-        <div class="panel-subtitle">No files generated yet at this timeline position</div>
+        <div class="panel-header">
+          <span class="panel-title">Generated Files</span>
+          <span class="panel-count">0 files</span>
+        </div>
         <div class="tree-root">
-          <div class="tree-empty">No generated files recorded</div>
+          <div class="tree-empty">No generated files yet</div>
         </div>
       `;
     }
 
-    const metaText = `Root: ${baseName(rootPath) || 'output'} · showing ${visibleCount} of ${this.totalFileWindows} files${this.currentWindow ? ' · selected: ' + baseName(this.currentWindow.outputPath) : ''}`;
-
     const tree = buildFileTree(this.session, this.visibleFileWindows);
 
     return html`
-      <div class="panel-title">Generated Files</div>
-      <div class="panel-subtitle">${metaText}</div>
+      <div class="panel-header">
+        <span class="panel-title">Generated Files</span>
+        <span class="panel-count">${visibleCount} of ${this.totalFileWindows}</span>
+      </div>
       <div class="tree-root">
         ${this.renderTreeNode(tree, false)}
       </div>

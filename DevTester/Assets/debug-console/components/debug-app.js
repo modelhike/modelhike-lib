@@ -35,7 +35,7 @@ export class DebugApp extends LitElement {
 
     .layout {
       display: grid;
-      grid-template-rows: auto auto auto 1fr auto;
+      grid-template-rows: auto auto 1fr auto;
       height: 100vh;
     }
 
@@ -238,6 +238,13 @@ export class DebugApp extends LitElement {
         this.pausedState = msg;
         this.liveRunning = false;
         this.isStepping = false;
+        
+        // Update file tree to show all files generated so far
+        if (state.session && state.session.events) {
+          state.fileTreeFilterIndex = state.session.events.length - 1;
+          this.visibleFileWindows = state.getVisibleFileWindows();
+        }
+        
         this.requestUpdate();
       },
       onCompleted: async () => {
@@ -335,18 +342,12 @@ export class DebugApp extends LitElement {
 
     return html`
       <div class="layout">
-        <header-bar .phases=${this.session.phases || []}></header-bar>
+        <header-bar .phases=${this.session.phases || []} .session=${this.session}></header-bar>
 
         ${this.serverMode === 'stepping' && this.liveRunning
           ? html`<div class="live-banner"><span class="live-dot"></span> Pipeline running — streaming events live…</div>`
           : ''
         }
-        
-        <summary-bar 
-          .session=${this.session}
-          .currentWindow=${this.currentWindow}
-          .fileWindowsCount=${state.fileWindows.length}
-        ></summary-bar>
 
         <div class="main">
           <file-tree-panel

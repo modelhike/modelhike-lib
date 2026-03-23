@@ -104,11 +104,15 @@ struct Development: Sendable {
         config.debugRecorder = streamingRecorder
         config.debugStepper = stepper
 
-        // Provide an empty session so the server can start immediately.
-        // The full session will be fetched via /api/session once the pipeline completes.
-        let emptySession = DebugSession(
+        // Provide an initial session with config so the server knows the output path.
+        // Events/files will be populated as the pipeline runs.
+        let initialSession = DebugSession(
             timestamp: Date(),
-            config: ConfigSnapshot(basePath: "", outputPath: "", containersToOutput: []),
+            config: ConfigSnapshot(
+                basePath: config.basePath.string,
+                outputPath: config.output.path.string,
+                containersToOutput: config.containersToOutput
+            ),
             phases: [],
             model: ModelSnapshot(containers: []),
             events: [],
@@ -120,7 +124,7 @@ struct Development: Sendable {
         )
 
         let server = DebugHTTPServer(
-            session: emptySession,
+            session: initialSession,
             recorder: streamingRecorder.inner,
             pipeline: pipeline,
             renderedOutputs: [],
