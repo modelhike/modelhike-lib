@@ -110,6 +110,8 @@ public actor StreamingDebugRecorder: DebugRecorder {
         await inner.captureDelta(eventIndex: eventIndex, variable: variable, oldValue: oldValue, newValue: newValue)
     }
 
+    public var currentEventCount: Int { sequenceNo }
+
     public func captureError(
         category: String,
         message: String,
@@ -130,11 +132,19 @@ public actor StreamingDebugRecorder: DebugRecorder {
     }
 
     public func recordPhaseStarted(name: String) async {
-        await inner.recordPhaseStarted(name: name)
+        let now = Date()
+        await inner.markPhaseStarted(name: name, timestamp: now)
+        await recordEvent(.phaseStarted(name: name, timestamp: now))
     }
 
     public func recordPhaseCompleted(name: String, success: Bool, errorMessage: String?) async {
-        await inner.recordPhaseCompleted(name: name, success: success, errorMessage: errorMessage)
+        let now = Date()
+        let duration = await inner.markPhaseCompleted(name: name, success: success, errorMessage: errorMessage, completedAt: now)
+        if success {
+            await recordEvent(.phaseCompleted(name: name, duration: duration))
+        } else {
+            await recordEvent(.phaseFailed(name: name, error: errorMessage ?? "Unknown phase error"))
+        }
     }
 
     public func session(config: any OutputConfig) async -> DebugSession {

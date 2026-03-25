@@ -14,7 +14,7 @@ public actor Mocking_Wrap : DynamicMemberLookup {
         let value: Sendable = switch propname {
             case "object-id": item.randomObjectId_MongoDb()
             default:
-            throw TemplateSoup_ParsingError.invalidPropertyNameUsedInCall(propname, pInfo)
+            throw Suggestions.invalidPropertyInCall(propname, candidates: ["object-id"], pInfo: pInfo)
         }
 
         return value

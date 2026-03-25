@@ -78,7 +78,7 @@ public actor ResourceBlueprint: Blueprint {
         if !loadPathExists() {
             let pInfo = await ParsedInfo.dummyForAppState(with: context)
             throw EvaluationError.invalidAppState(
-                "Blueprint resource root folder not found!!!", pInfo)
+                "Blueprint resource root folder was not found.", pInfo)
         }
 
         return hasFolder("")  //check blueprint path
@@ -99,6 +99,19 @@ public actor ResourceBlueprint: Blueprint {
         } catch {
             return false
         }
+    }
+
+    public func hasFile(_ filename: String) -> Bool {
+        let file = filename as NSString
+        let name = file.deletingPathExtension
+        let ext = file.pathExtension
+        let fileExt: String? = ext.isEmpty ? nil : ext
+
+        return bundle.url(
+            forResource: name,
+            withExtension: fileExt,
+            subdirectory: blueprintPath
+        ) != nil
     }
 
     public func listFiles(inFolder foldername: String) -> [String] {
@@ -318,7 +331,7 @@ public actor ResourceBlueprint: Blueprint {
 
 }
 
-public struct ResourceReadingError: ErrorWithMessageAndParsedInfo {
+public struct ResourceReadingError: ErrorWithMessageAndParsedInfo, ErrorCodeProviding {
     let resName: String
     public let pInfo: ParsedInfo
 
@@ -326,19 +339,23 @@ public struct ResourceReadingError: ErrorWithMessageAndParsedInfo {
         return "Resource \(resName) reading error."
     }
 
+    public var errorCode: String { "E701" }
+
     public init(resName: String, pInfo: ParsedInfo) {
         self.resName = resName
         self.pInfo = pInfo
     }
 }
 
-public struct ResourceDoesNotExist: ErrorWithMessageAndParsedInfo {
+public struct ResourceDoesNotExist: ErrorWithMessageAndParsedInfo, ErrorCodeProviding {
     let resName: String
     public let pInfo: ParsedInfo
 
     public var info: String {
         return "Resource \(resName) does not exist."
     }
+
+    public var errorCode: String { "E702" }
 
     public init(resName: String, pInfo: ParsedInfo) {
         self.resName = resName

@@ -48,7 +48,8 @@ public struct PrintExpressionContent: ContentLineItem {
         } else {
             //if expression is printing a single variable or object value
             if expression.isPattern(CommonRegEx.variableOrObjectProperty) {
-                throw TemplateSoup_ParsingError.invalidExpression_VariableOrObjPropNotFound(expression, pInfo)
+                let candidates = await ctx.variables.keySnapshot
+                throw Suggestions.variableOrPropertyNotFound(expression, candidates: candidates, pInfo: pInfo)
             } else {
                 throw TemplateSoup_ParsingError.invalidExpression(expression, pInfo)
             }

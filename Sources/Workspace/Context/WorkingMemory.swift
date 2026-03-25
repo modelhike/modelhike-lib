@@ -38,5 +38,10 @@ public actor WorkingMemory: _DictionaryAsyncSequence {
     public func snapshot() -> [String: Sendable] {
         return items
     }
+
+    /// Returns all variable names currently in scope (for suggestions/diagnostics).
+    public var keySnapshot: [String] {
+        Array(items.keys)
+    }
 }
 

@@ -63,7 +63,7 @@ extension FileSystemItem {
     }
 
     public var description: String {
-        let typeName = String(describing: type(of: self))
+        let typeName = runtimeTypeName(of: self)
         return "\(typeName)(name: \(name), path: \(path))"
     }
 

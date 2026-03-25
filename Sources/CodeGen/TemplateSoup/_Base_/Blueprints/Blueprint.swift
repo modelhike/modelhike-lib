@@ -19,6 +19,7 @@ public protocol InputFileRepository: Actor {
 
     func readTextContents(filename: String, with pInfo: ParsedInfo) async throws -> String
     func hasFolder(_ foldername: String) async -> Bool
+    func hasFile(_ filename: String) -> Bool
 
     /// Returns the filenames (including extension) of all files directly inside `foldername`.
     /// Implementations that do not support filesystem enumeration (e.g. resource-bundle loaders)

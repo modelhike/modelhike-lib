@@ -29,7 +29,15 @@ public actor InlineBlueprintFinder: BlueprintFinder {
 
     public func blueprint(named name: String, with pInfo: ParsedInfo) async throws -> any Blueprint {
         guard let loader = loaders[name] else {
-            throw EvaluationError.blueprintDoesNotExist(name, pInfo)
+            throw EvaluationError.invalidInput(
+                Suggestions.lookupFailureMessage(
+                    "There is no blueprint called '\(name)'.",
+                    for: name,
+                    in: blueprintsAvailable,
+                    availableOptionsLabel: "available blueprints"
+                ),
+                pInfo
+            )
         }
         return loader
     }

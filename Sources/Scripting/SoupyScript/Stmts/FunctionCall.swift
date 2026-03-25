@@ -48,7 +48,8 @@ public struct FunctionCallStmt: LineTemplateStmt, CallStackable, CustomDebugStri
             await ctx.popCallStack()
             return body
         } else {
-            throw TemplateSoup_ParsingError.templateFunctionNotFound(FnName, pInfo)
+            let candidates = Array((await ctx.templateFunctions.snapshot()).keys)
+            throw Suggestions.templateFunctionNotFound(FnName, candidates: candidates, pInfo: pInfo)
         }
     }
     

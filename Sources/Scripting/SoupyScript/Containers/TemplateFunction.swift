@@ -39,8 +39,8 @@ public actor TemplateFunction: SoupyScriptStmtContainer {
             if let eval = try? await ctx.evaluate(value: "\(arg.value)", with: pInfo) {
                 await ctx.variables.set(arg.name, value: eval)
             } else {
-                throw TemplateSoup_ParsingError.invalidExpression_VariableOrObjPropNotFound(
-                    arg.value, pInfo)
+                let candidates = await ctx.variables.keySnapshot
+                throw Suggestions.variableOrPropertyNotFound(arg.value, candidates: candidates, pInfo: pInfo)
             }
         }
 

@@ -39,29 +39,30 @@ public struct ConsoleLogStmt: LineTemplateStmt, CustomDebugStringConvertible {
     public func execute(with ctx: Context) async throws -> String? {
         guard Expression.isNotEmpty else { return nil }
         
+        var logValue = "🏷️🎈[Line no: \(lineNo)] - nothing to show"
+        
         //see if it is an object
         if let expn = try? await ctx.evaluate(value: Expression, with: pInfo) {
             if expn is String {
-                print("🏷️ [Line \(lineNo)] \(expn)")
+                logValue = "🏷️ [Line \(lineNo)] \(expn)"
             } else if let obj = deepUnwrap(expn) {
-                //log to stdout
-                
                 if let debugInfo = obj as? CustomDebugStringConvertible {
-                    print("🏷️ [Line \(lineNo)] \(debugInfo.debugDescription)")
+                    logValue = "🏷️ [Line \(lineNo)] \(debugInfo.debugDescription)"
                 } else {
-                    print("🏷️ [Line \(lineNo)] \(obj)")
+                    logValue = "🏷️ [Line \(lineNo)] \(obj)"
                 }
             }
-            return nil
+        } else if let expn = try? await ctx.evaluate(expression: Expression, with: pInfo) {
+            logValue = "🏷️ [Line \(lineNo)] \(expn)"
         }
         
-        //see if it is an expression
-        if let expn = try? await ctx.evaluate(expression: Expression, with: pInfo) {
-            print("🏷️ [Line \(lineNo)] \(expn)")
-            return nil
-        }
-            
-        print("🏷️🎈[Line no: \(lineNo)] - nothing to show")
+        print(logValue)
+        // Emit to debug console so console-log output appears in the event timeline
+        await ctx.debugLog.recordEvent(.consoleLog(
+            value: logValue,
+            source: SourceLocation(fileIdentifier: pInfo.identifier, lineNo: pInfo.lineNo,
+                                   lineContent: pInfo.line, level: pInfo.level)
+        ))
         return nil
     }
     

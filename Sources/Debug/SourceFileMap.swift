@@ -44,6 +44,15 @@ public struct SourceLocation: Codable, Sendable, Equatable {
         self.lineContent = lineContent
         self.level = level
     }
+
+    public init(from pInfo: ParsedInfo) {
+        self.init(
+            fileIdentifier: pInfo.identifier,
+            lineNo: pInfo.lineNo,
+            lineContent: pInfo.line,
+            level: pInfo.level
+        )
+    }
 }
 
 // MARK: - Source File

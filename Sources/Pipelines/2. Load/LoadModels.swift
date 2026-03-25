@@ -25,14 +25,24 @@ public struct LoadModelsPass: LoadingPass {
 
                 let domainTypesCount = await ws.model.containers.types.count
                 let commonTypesCount = await ws.model.commonModel.types.count
+                let containerCount = await ws.model.containers.snapshot().count
                 print(
                     "💡 Loaded domain types: \(domainTypesCount), common types: \(commonTypesCount)")
+
+                // Emit modelLoaded debug event
+                if let recorder = await ws.config.debugRecorder {
+                    await recorder.recordEvent(.modelLoaded(
+                        containerCount: containerCount,
+                        typeCount: domainTypesCount,
+                        commonTypeCount: commonTypesCount
+                    ))
+                }
 
                 return true
 
             } else {
                 await ws.isModelsLoaded(false)
-                print("❌❌ No Model Found!!!")
+                print("❌ No model found.")
                 return false
             }
         } catch let err {

@@ -25,12 +25,22 @@ public actor UIObject_Wrap: ObjectWrapper {
         return value
     }
 
+    private func propertyCandidates() async -> [String] {
+        let attributes = await item.attribs.attributesList
+        let attributeNames = attributes.map { $0.givenKey }
+        return ["name", "given-name"] + attributeNames
+    }
+
     private func resolveFallbackProperty(propname: String, pInfo: ParsedInfo) async throws -> Sendable {
         let attribs = await item.attribs
         if await attribs.has(propname) {
             return await attribs[propname]
         } else {
-            throw TemplateSoup_ParsingError.invalidPropertyNameUsedInCall(propname, pInfo)
+            throw Suggestions.invalidPropertyInCall(
+                propname,
+                candidates: await propertyCandidates(),
+                pInfo: pInfo
+            )
         }
     }
     

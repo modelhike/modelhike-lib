@@ -58,7 +58,8 @@ public struct RenderFolderStmt: LineTemplateStmt, CallStackable, CustomDebugStri
         
         guard let fromFolder = try? await ctx.evaluate(value: FromFolder, with: pInfo) as? String
         else {
-            throw TemplateSoup_ParsingError.invalidExpression_VariableOrObjPropNotFound(FromFolder, pInfo)
+            let candidates = await ctx.variables.keySnapshot
+            throw Suggestions.variableOrPropertyNotFound(FromFolder, candidates: candidates, pInfo: pInfo)
         }
         
         try await context.fileGenerator.setRelativePath(ctx.workingDirectoryString)
@@ -69,9 +70,17 @@ public struct RenderFolderStmt: LineTemplateStmt, CallStackable, CustomDebugStri
             foldername = fromFolder
 
         } else {
-            guard let toFolder = try? await ctx.evaluate(value: ToFolder, with: pInfo) as? String
-                                                                        else { return nil }
-            
+            let rawToValue = try await ctx.evaluate(value: ToFolder, with: pInfo)
+            guard let toFolder = rawToValue as? String else {
+                let actualType = runtimeTypeName(of: rawToValue)
+                throw TemplateSoup_EvaluationError.invalidFileSystemPath(
+                    operation: "render-folder",
+                    argument: "to",
+                    expression: ToFolder,
+                    actualType: actualType,
+                    pInfo
+                )
+            }
             foldername = toFolder
         }
         

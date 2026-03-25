@@ -17,7 +17,7 @@ public actor ForLoop_Wrap : DynamicMemberLookup, SendableDebugStringConvertible 
             case "last" : LAST_IN_LOOP
             
            default:
-            throw TemplateSoup_ParsingError.invalidPropertyNameUsedInCall(propname, pInfo)
+            throw Suggestions.invalidPropertyInCall(propname, candidates: ["first", "last"], pInfo: pInfo)
         }
         
         return value

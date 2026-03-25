@@ -41,9 +41,10 @@ public actor ScriptFileExecutor: SoupyScriptExecutor {
                 ctx.debugLog.scriptFileExecutionStarting(name: await lineParser.identifier, pInfo: pInfo)
                 try await ctx.events.onBeforeExecuteScriptFile?(lineParser.identifier, ctx)
 
-                if let body = try await containers.execute(with: ctx) {
-                    return body
-                }
+                let scriptName = await lineParser.identifier
+                let body = try await containers.execute(with: ctx)
+                ctx.debugLog.recordEvent(.scriptCompleted(name: scriptName))
+                return body
             }
         } catch let err {
             if let parseErr = err as? TemplateSoup_ParsingError {

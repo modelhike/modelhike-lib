@@ -89,12 +89,49 @@ public actor API_Wrap : ObjectWrapper {
         return value
     }
 
+    private func propertyCandidates() async -> [String] {
+        let attributes = await item.attribs.attributesList
+        let attributeNames = attributes.map { $0.givenKey }
+        return [
+            "entity",
+            "return-type",
+            "input-type",
+            "has-path",
+            "path",
+            "name",
+            "type",
+            "givenname",
+            "base-url",
+            "version",
+            "query-params",
+            "is-create",
+            "is-update",
+            "is-delete",
+            "is-get-by-id",
+            "is-get-by-custom-props",
+            "is-list",
+            "is-list-by-custom-props",
+            "is-push-data",
+            "is-push-datalist",
+            "is-get-by-custom-logic",
+            "is-list-by-custom-logic",
+            "is-mutation-by-custom-logic",
+            "properties-involved",
+            "is-and-condition-for-properties-involved",
+            "custom-params"
+        ] + attributeNames
+    }
+
     private func resolveFallbackProperty(propname: String, pInfo: ParsedInfo) async throws -> Sendable {
         let attribs = await item.attribs
         if await attribs.has(propname) {
             return await attribs[propname]
         } else {
-            throw TemplateSoup_ParsingError.invalidPropertyNameUsedInCall(propname, pInfo)
+            throw Suggestions.invalidPropertyInCall(
+                propname,
+                candidates: await propertyCandidates(),
+                pInfo: pInfo
+            )
         }
     }
     
@@ -120,7 +157,11 @@ public actor APIParam_Wrap : DynamicMemberLookup, Sendable {
             case "second-param-name" : item.queryParam.SecondName
             case "has-multiple-params" : item.queryParam.canHaveMultipleValues
             default:
-            throw TemplateSoup_ParsingError.invalidPropertyNameUsedInCall(propname, pInfo)
+            throw Suggestions.invalidPropertyInCall(
+                propname,
+                candidates: ["prop-mapping-first", "param-name", "has-second-param-name", "second-param-name", "has-multiple-params"],
+                pInfo: pInfo
+            )
         }
 
         return value
@@ -141,7 +182,11 @@ public actor APICustomParameter_Wrap : DynamicMemberLookup, Sendable {
         case "type" : item.type
         case "is-array" : item.type.isArray
         default:
-            throw TemplateSoup_ParsingError.invalidPropertyNameUsedInCall(propname, pInfo)
+            throw Suggestions.invalidPropertyInCall(
+                propname,
+                candidates: ["name", "type", "is-array"],
+                pInfo: pInfo
+            )
         }
         
         return value

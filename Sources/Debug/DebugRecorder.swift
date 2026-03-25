@@ -16,11 +16,94 @@ public protocol DebugRecorder: Actor, Sendable {
     func captureModel(_ model: AppModel) async
     func captureBaseSnapshot(label: String, variables: [String: String]) async
     func captureDelta(eventIndex: Int, variable: String, oldValue: String?, newValue: String) async
+    var currentEventCount: Int { get async }
     func captureError(category: String, message: String, source: SourceLocation, callStack: [SourceLocation], memoryDump: [String: String]?) async
     func addGeneratedFile(outputPath: String, templateName: String?, objectName: String?, workingDir: String) async
+    /// Records phase lifecycle into the phase summary and event timeline.
     func recordPhaseStarted(name: String) async
+    /// Records phase completion/failure into the phase summary and event timeline.
     func recordPhaseCompleted(name: String, success: Bool, errorMessage: String?) async
     func session(config: OutputConfig) async -> DebugSession
+}
+
+public extension DebugRecorder {
+    /// Captures an error with source, call stack, and memory for both session and timeline views.
+    func recordErrorWithStackAndMemory(_ error: ErrorWithMessageAndParsedInfo, category: String) async {
+        let ctx = error.pInfo.ctx
+        let stackItems = await ctx.debugLog.stack.snapshot()
+        let callStack = stackItems.map { item -> SourceLocation in
+            if let pInfo = item.callStackItem.pInfo {
+                return SourceLocation(
+                    fileIdentifier: pInfo.identifier,
+                    lineNo: pInfo.lineNo,
+                    lineContent: pInfo.line,
+                    level: pInfo.level
+                )
+            }
+            return SourceLocation(
+                fileIdentifier: "",
+                lineNo: 0,
+                lineContent: item.callStackItem.renderForDisplay(),
+                level: 0
+            )
+        }
+        let source = SourceLocation(
+            fileIdentifier: error.pInfo.identifier,
+            lineNo: error.pInfo.lineNo,
+            lineContent: error.pInfo.line,
+            level: error.pInfo.level
+        )
+        let memoryDump = await ctx.variablesForDebug()
+
+        await captureError(
+            category: category,
+            message: error.infoWithCode,
+            source: source,
+            callStack: callStack,
+            memoryDump: memoryDump
+        )
+        await recordEvent(.error(
+            category: category,
+            code: error.code,
+            message: error.info,
+            source: source,
+            callStack: callStack
+        ))
+    }
+
+    /// Records file generation with context-derived object name, working dir, and memory snapshot.
+    func recordFileGeneratedWithContext(
+        _ context: Context,
+        outputPath: String,
+        templateName: String,
+        pInfo: ParsedInfo
+    ) async {
+        let workingDir = await context.workingDirectoryString
+
+        var objectName: String?
+        if let entityWrap = await context.variables["entity"] as? CodeObject_Wrap {
+            objectName = await entityWrap.item.name
+        } else if let moduleWrap = await context.variables["module"] as? C4Component_Wrap {
+            objectName = await moduleWrap.item.name
+        }
+
+        let vars = await context.variables.snapshot()
+        await captureBaseSnapshot(label: "file-gen", variables: vars.mapValues(debugValueString))
+
+        let source = SourceLocation(
+            fileIdentifier: pInfo.identifier,
+            lineNo: pInfo.lineNo,
+            lineContent: pInfo.line,
+            level: pInfo.level
+        )
+        await recordGeneratedFile(
+            outputPath: outputPath,
+            templateName: templateName,
+            objectName: objectName,
+            workingDir: workingDir,
+            source: source
+        )
+    }
 }
 
 public actor DefaultDebugRecorder: DebugRecorder {
@@ -93,6 +176,8 @@ public actor DefaultDebugRecorder: DebugRecorder {
         deltaSnapshots.append(delta)
     }
 
+    public var currentEventCount: Int { events.count }
+
     public func captureError(category: String, message: String, source: SourceLocation, callStack: [SourceLocation], memoryDump: [String: String]?) async {
         let record = ErrorRecord(category: category, message: message, source: source, callStack: callStack, memoryDump: memoryDump)
         errors.append(record)
@@ -122,24 +207,49 @@ public actor DefaultDebugRecorder: DebugRecorder {
     }
 
     public func recordPhaseStarted(name: String) async {
-        currentPhaseStart = Date()
-        phaseRecords.append(PhaseRecord(name: name, startedAt: Date(), completedAt: nil, duration: nil, success: false, errorMessage: nil))
+        let now = Date()
+        markPhaseStarted(name: name, timestamp: now)
+        await recordEvent(.phaseStarted(name: name, timestamp: now))
     }
 
     public func recordPhaseCompleted(name: String, success: Bool, errorMessage: String?) async {
         let now = Date()
-        let duration = currentPhaseStart.map { now.timeIntervalSince($0) }
+        let duration = markPhaseCompleted(name: name, success: success, errorMessage: errorMessage, completedAt: now)
+        if success {
+            await recordEvent(.phaseCompleted(name: name, duration: duration))
+        } else {
+            await recordEvent(.phaseFailed(name: name, error: errorMessage ?? "Unknown phase error"))
+        }
+    }
+
+    /// Update phase summary state only (no event emission).
+    public func markPhaseStarted(name: String, timestamp: Date) {
+        currentPhaseStart = timestamp
+        phaseRecords.append(PhaseRecord(name: name, startedAt: timestamp, completedAt: nil, duration: nil, success: false, errorMessage: nil))
+    }
+
+    /// Update phase summary state only (no event emission), returning computed duration.
+    public func markPhaseCompleted(name: String, success: Bool, errorMessage: String?, completedAt: Date) -> Double {
+        let duration = currentPhaseStart.map { completedAt.timeIntervalSince($0) } ?? 0
         if let lastIndex = phaseRecords.indices.last {
-            phaseRecords[lastIndex] = PhaseRecord(name: name, startedAt: phaseRecords[lastIndex].startedAt, completedAt: now, duration: duration, success: success, errorMessage: errorMessage)
+            phaseRecords[lastIndex] = PhaseRecord(
+                name: name,
+                startedAt: phaseRecords[lastIndex].startedAt,
+                completedAt: completedAt,
+                duration: duration,
+                success: success,
+                errorMessage: errorMessage
+            )
         }
         currentPhaseStart = nil
+        return duration
     }
 
     public func session(config: OutputConfig) async -> DebugSession {
         let configSnapshot = ConfigSnapshot(
-            basePath: await config.basePath.string,
-            outputPath: await config.output.path.string,
-            containersToOutput: await config.containersToOutput
+            basePath: config.basePath.string,
+            outputPath: config.output.path.string,
+            containersToOutput: config.containersToOutput
         )
         return DebugSession(
             timestamp: Date(),
@@ -214,25 +324,18 @@ public actor DefaultDebugRecorder: DebugRecorder {
                 returnType: await method.returnType.objectString()
             ))
         }
-        var annotations: [String] = []
-        if let hasAnnotations = obj as? any HasAnnotations_Actor {
-            let anns = await hasAnnotations.annotations.annotationsList
-            annotations = anns.map { $0.name }
-        }
+        let anns = await obj.annotations.annotationsList
+        let annotations = anns.map { $0.name }
         var tags: [String] = []
-        if let hasTags = obj as? any HasTags_Actor {
-            var tagNames: [String] = []
-            try? await hasTags.tags.processEach { tag in
-                tagNames.append(tag.name)
-                return tag
-            }
-            tags = tagNames
+        try? await obj.tags.processEach { tag in
+            tags.append(tag.name)
+            return tag
         }
         var apis: [APISnapshot] = []
         for artifact in await obj.attached {
             if let api = artifact as? GenericAPI {
                 let state = await api.state
-                let typeStr = String(describing: await state.type)
+                let typeStr = String(describing: state.type)
                 apis.append(APISnapshot(name: await api.name, type: typeStr))
             }
         }

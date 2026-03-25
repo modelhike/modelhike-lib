@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum ParsingError: ErrorWithMessageAndParsedInfo {
+public enum ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeProviding {
     case invalidLine(ParsedInfo, ErrorWithMessage)
     //case invalidLineWithInfo_HavingLineno(ParsedInfo, ErrorWithMessage)
     case invalidLineWithoutErr(String, ParsedInfo)
@@ -27,7 +27,22 @@ public enum ParsingError: ErrorWithMessageAndParsedInfo {
         case .invalidParsingDirective(let pInfo) :
             return "invalid Parsing Directive '\(pInfo.line)"
         case .featureNotImplementedYet(let pInfo) :
-            return "feature not implemented yet!!! : \(pInfo.line) "
+            return "Feature not implemented yet: \(pInfo.line)"
+        }
+    }
+
+    public var errorCode: String {
+        switch self {
+        case .invalidLine(_, let err):
+            return err.code ?? "E401"
+        case .invalidLineWithoutErr:
+            return "E402"
+        case .unrecognisedParsingDirective:
+            return "E403"
+        case .invalidParsingDirective:
+            return "E404"
+        case .featureNotImplementedYet:
+            return "E405"
         }
     }
     

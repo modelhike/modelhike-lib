@@ -52,7 +52,8 @@ public struct ForStmt: BlockTemplateStmt {
               await children.count != 0 else { return nil }
 
         guard let loopItems = try await ctx.valueOf(variableOrObjProp: InArrayVar, with: pInfo) as? [Sendable] else {
-            throw TemplateSoup_ParsingError.invalidExpression_VariableOrObjPropNotFound(InArrayVar, pInfo)
+            let candidates = await ctx.variables.keySnapshot
+            throw Suggestions.variableOrPropertyNotFound(InArrayVar, candidates: candidates, pInfo: pInfo)
         }
         
         let loopVariableName = ForVar

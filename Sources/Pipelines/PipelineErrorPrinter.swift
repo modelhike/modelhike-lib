@@ -66,7 +66,7 @@ public struct PipelineErrorPrinter {
             let pInfo = parseErr.pInfo
             let msg = """
                       🐞🐞 ERROR WHILE PARSING 🐞🐞
-                       \(pInfo.identifier) [\(pInfo.lineNo)] \(parseErr.info)
+                       \(pInfo.identifier) [\(pInfo.lineNo)] \(parseErr.infoWithCode)
                       
                       \(extraInfo)
                       
@@ -77,7 +77,7 @@ public struct PipelineErrorPrinter {
             let pInfo = parseErr.pInfo
             let msg = """
                       🐞🐞 ERROR WHILE PARSING MODELS 🐞🐞
-                       \(pInfo.identifier) [\(pInfo.lineNo)] \(parseErr.info)
+                       \(pInfo.identifier) [\(pInfo.lineNo)] \(parseErr.infoWithCode)
                       
                       \(extraInfo)
                       
@@ -89,11 +89,11 @@ public struct PipelineErrorPrinter {
             
             var info = ""
             if case let .invalidAppState(string, _) = evalErr {
-                info = string
+                info = ErrorCodes.format(message: string, code: evalErr.code)
             } else if case let .invalidInput(string, _) = evalErr {
-                info = string
+                info = ErrorCodes.format(message: string, code: evalErr.code)
             } else {
-                info = evalErr.info
+                info = evalErr.infoWithCode
             }
             let msg = """
                   🐞🐞 ERROR DURING EVAL 🐞🐞
@@ -104,10 +104,30 @@ public struct PipelineErrorPrinter {
                   """
             print(msg)
             //print(Thread.callStackSymbols)
+        } else if let tsParseErr = err as? TemplateSoup_ParsingError {
+            let pInfo = tsParseErr.pInfo
+            let msg = """
+                  🐞🐞 TEMPLATE SYNTAX ERROR 🐞🐞
+                   \(pInfo.identifier) [\(pInfo.lineNo)] \(tsParseErr.infoWithCode)
+                  
+                  \(extraInfo)
+                  
+                  """
+            print(msg)
+        } else if let tsEvalErr = err as? TemplateSoup_EvaluationError {
+            let pInfo = tsEvalErr.pInfo
+            let msg = """
+                  🐞🐞 TEMPLATE EVALUATION ERROR 🐞🐞
+                   \(pInfo.identifier) [\(pInfo.lineNo)] \(tsEvalErr.infoWithCode)
+                  
+                  \(extraInfo)
+                  
+                  """
+            print(msg)
         } else if let err = err as? ErrorWithMessageAndParsedInfo {
             let msg = """
-                  🐞🐞 UNKNOWN ERROR 🐞🐞
-                   \(err.info)
+                  🐞🐞 UNHANDLED ERROR (\(type(of: err))) 🐞🐞
+                   \(err.infoWithCode)
                   
                   \(extraInfo)
                   
@@ -115,7 +135,7 @@ public struct PipelineErrorPrinter {
             print(msg)
             //print(Thread.callStackSymbols)
         } else {
-            print("❌❌ UNKNOWN INTERNAL ERROR ❌❌")
+            print("❌❌ UNKNOWN INTERNAL ERROR (\(type(of: err))) ❌❌")
             print(err)
         }
         

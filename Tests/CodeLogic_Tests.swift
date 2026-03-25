@@ -629,8 +629,10 @@ import Testing
         #expect(await obj.properties.count == 2)
         let methods = await obj.methods
         #expect(methods.count == 2)
-        #expect(await (try await requireLogic(of: methods[0])).statements.count == 1)
-        #expect(await (try await requireLogic(of: methods[1])).statements.count == 2)
+        let method0Logic = try await requireLogic(of: methods[0])
+        let method1Logic = try await requireLogic(of: methods[1])
+        #expect(method0Logic.statements.count == 1)
+        #expect(method1Logic.statements.count == 2)
     }
 
     // MARK: Tilde-prefix syntax
@@ -787,8 +789,10 @@ import Testing
         #expect(methods.count == 2)
         #expect(await methods[0].name == "calculateTax")
         #expect(await methods[1].name == "applyDiscount")
-        #expect(await (try await requireLogic(of: methods[0])).statements.count == 1)
-        #expect(await (try await requireLogic(of: methods[1])).statements.count == 2)
+        let method0Logic = try await requireLogic(of: methods[0])
+        let method1Logic = try await requireLogic(of: methods[1])
+        #expect(method0Logic.statements.count == 1)
+        #expect(method1Logic.statements.count == 2)
     }
 
     @Test func tildeMethodBlankLineBefore() async throws {

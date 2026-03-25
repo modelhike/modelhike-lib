@@ -6,8 +6,10 @@
 
 import Foundation
 
-public enum Model_ParsingError: ErrorWithMessageAndParsedInfo {
-    case objectNotFound(String, ParsedInfo)
+public enum Model_ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeProviding {
+    case objectTypeNotFound(String, ParsedInfo)
+    case invalidPropertyInType(String, ParsedInfo)
+    case invalidPropertyUsedInApi(String, ParsedInfo)
     case invalidMapping(String, ParsedInfo)
     case invalidPropertyLine(ParsedInfo)
     case invalidMethodLine(ParsedInfo)
@@ -22,12 +24,12 @@ public enum Model_ParsingError: ErrorWithMessageAndParsedInfo {
     case invalidAnnotationLine(ParsedInfo)
     case invalidAttachedSection(ParsedInfo)
     case invalidApiLine(ParsedInfo)
-    case invalidPropertyUsedInApi(String, ParsedInfo)
-    case moduleNameEmpty(ParsedInfo)
 
     public var info: String {
         switch self {
-        case .objectNotFound(let obj, _): return "object: \(obj) not found"
+        case .objectTypeNotFound(let message, _): return message
+        case .invalidPropertyInType(let message, _): return message
+        case .invalidPropertyUsedInApi(let message, _): return message
         case .invalidPropertyLine(let pInfo): return "invalid property: \(pInfo.line)"
         case .invalidDerivedProperty(let msg, _): return "invalid derived property: \(msg)"
         case .invalidMethodLine(let pInfo): return "invalid method: \(pInfo.line)"
@@ -48,16 +50,36 @@ public enum Model_ParsingError: ErrorWithMessageAndParsedInfo {
         case .invalidUIViewLine(let pInfo): return "invalid ui view: \(pInfo.line)"
 
         case .invalidApiLine(let pInfo): return "invalid api: \(pInfo.line)"
-        case .invalidPropertyUsedInApi(let prop, let pInfo):
-            return "invalid property \(prop) used in '\(pInfo.line)'"
+        }
+    }
 
-        case .moduleNameEmpty(_): return "module Name Empty"
+    public var errorCode: String {
+        switch self {
+        case .objectTypeNotFound: return "E601"
+        case .invalidPropertyInType: return "E602"
+        case .invalidPropertyUsedInApi: return "E603"
+        case .invalidMapping: return "E604"
+        case .invalidPropertyLine: return "E605"
+        case .invalidMethodLine: return "E606"
+        case .invalidDerivedProperty: return "E607"
+        case .invalidContainerMemberLine: return "E608"
+        case .invalidContainerLine: return "E609"
+        case .invalidModuleLine: return "E610"
+        case .invalidSubModuleLine: return "E611"
+        case .invalidDomainObjectLine: return "E612"
+        case .invalidDtoObjectLine: return "E613"
+        case .invalidUIViewLine: return "E614"
+        case .invalidAnnotationLine: return "E615"
+        case .invalidAttachedSection: return "E616"
+        case .invalidApiLine: return "E617"
         }
     }
 
     public var pInfo: ParsedInfo {
         return switch self {
-        case .objectNotFound(_, let pInfo): pInfo
+        case .objectTypeNotFound(_, let pInfo): pInfo
+        case .invalidPropertyInType(_, let pInfo): pInfo
+        case .invalidPropertyUsedInApi(_, let pInfo): pInfo
         case .invalidPropertyLine(let pInfo): pInfo
         case .invalidDerivedProperty(_, let pInfo): pInfo
         case .invalidMethodLine(let pInfo): pInfo
@@ -76,9 +98,6 @@ public enum Model_ParsingError: ErrorWithMessageAndParsedInfo {
         case .invalidUIViewLine(let pInfo): pInfo
 
         case .invalidApiLine(let pInfo): pInfo
-        case .invalidPropertyUsedInApi(_, let pInfo): pInfo
-
-        case .moduleNameEmpty(let pInfo): pInfo
         }
     }
 }

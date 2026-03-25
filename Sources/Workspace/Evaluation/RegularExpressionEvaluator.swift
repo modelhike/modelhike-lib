@@ -47,7 +47,8 @@ public actor RegularExpressionEvaluator {
             }
             
             guard let infix = await ctx.symbols.template.infixOperators.first(where: { $0.name == op }) else {
-                throw TemplateSoup_ParsingError.infixOperatorNotFound(op, pInfo)
+                let candidates = (await ctx.symbols.template.infixOperators).map { $0.name }
+                throw Suggestions.infixOperatorNotFound(op, candidates: candidates, pInfo: pInfo)
             }
                  
             accumulated = try infix.applyTo(lhs: accumulated, rhs: rhsResult, pInfo: pInfo)
@@ -65,7 +66,13 @@ public actor RegularExpressionEvaluator {
         let ctx = pInfo.ctx        
         let lhs = arr.removeFirst()
         
-        guard var result = try await ctx.evaluate(value: lhs, with: pInfo) else { return nil }
+        guard var result = try await ctx.evaluate(value: lhs, with: pInfo) else {
+            if lhs.isPattern(CommonRegEx.variableOrObjectProperty) {
+                let candidates = await ctx.variables.keySnapshot
+                throw Suggestions.expressionOperandNotFound(lhs, candidates: candidates, pInfo: pInfo)
+            }
+            return nil
+        }
         
         while arr.count > 0 {
             //in the parsed array list, every even item is an operator
@@ -78,11 +85,16 @@ public actor RegularExpressionEvaluator {
             let rhs = arr.removeFirst()
             
             guard let rhsResult = try await ctx.evaluate(value: rhs, with: pInfo) else {
+                if rhs.isPattern(CommonRegEx.variableOrObjectProperty) {
+                    let candidates = await ctx.variables.keySnapshot
+                    throw Suggestions.expressionOperandNotFound(rhs, candidates: candidates, pInfo: pInfo)
+                }
                 throw TemplateSoup_EvaluationError.objectNotFound(rhs, pInfo)
             }
             
             guard let infix = await ctx.symbols.template.infixOperators.first(where: { $0.name == op }) else {
-                throw TemplateSoup_ParsingError.infixOperatorNotFound(op, pInfo)
+                let candidates = (await ctx.symbols.template.infixOperators).map { $0.name }
+                throw Suggestions.infixOperatorNotFound(op, candidates: candidates, pInfo: pInfo)
             }
                 
             result = try infix.applyTo(lhs: result, rhs: rhsResult, pInfo: pInfo)

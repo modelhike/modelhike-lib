@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum EvaluationError: ErrorWithMessageAndParsedInfo {
+public enum EvaluationError: ErrorWithMessageAndParsedInfo, ErrorCodeProviding {
     case invalidLine(ParsedInfo, ErrorWithMessage)
     //case invalidLineWithInfo_HavingLineno(ParsedInfo, ErrorWithMessage)
     case invalidInput(String, ParsedInfo)
@@ -16,7 +16,6 @@ public enum EvaluationError: ErrorWithMessageAndParsedInfo {
     case templateDoesNotExist(ParsedInfo, ErrorWithMessage)
     case scriptFileDoesNotExist(ParsedInfo, ErrorWithMessage)
 
-    case blueprintDoesNotExist(String, ParsedInfo)
     case readingError(ParsedInfo, ErrorWithMessage)
     case templateRenderingError(ParsedInfo, ErrorWithMessage)
 
@@ -32,10 +31,31 @@ public enum EvaluationError: ErrorWithMessageAndParsedInfo {
         case .templateDoesNotExist(_, let err) : return err.info
         case .scriptFileDoesNotExist(_, let err) : return err.info
 
-        case .blueprintDoesNotExist(let blueprint, _) :
-            return "There is no blueprint called \(blueprint)"
         case .readingError(_, let err) : return err.info
         case .templateRenderingError(_, let err) : return err.info
+        }
+    }
+
+    public var errorCode: String {
+        switch self {
+        case .invalidLine(_, let err):
+            return err.code ?? "E501"
+        case .invalidInput:
+            return "E502"
+        case .invalidAppState:
+            return "E503"
+        case .failedWriteOperation:
+            return "E504"
+        case .workingDirectoryNotSet(_, let err):
+            return err.code ?? "E505"
+        case .templateDoesNotExist(_, let err):
+            return err.code ?? "E506"
+        case .scriptFileDoesNotExist(_, let err):
+            return err.code ?? "E507"
+        case .readingError(_, let err):
+            return err.code ?? "E508"
+        case .templateRenderingError(_, let err):
+            return err.code ?? "E509"
         }
     }
 
@@ -50,7 +70,6 @@ public enum EvaluationError: ErrorWithMessageAndParsedInfo {
         case .templateDoesNotExist(let pInfo, _) : pInfo
         case .scriptFileDoesNotExist(let pInfo, _) : pInfo
 
-        case .blueprintDoesNotExist(_, let pInfo) : pInfo
         case .readingError(let pInfo, _) : pInfo
         case .templateRenderingError(let pInfo, _) : pInfo
         }

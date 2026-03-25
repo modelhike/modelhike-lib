@@ -50,12 +50,27 @@ public struct Pipeline: Sendable {
         } catch let err {
             if let errWithPInfo = err as? ErrorWithMessageAndParsedInfo {
                 await printError(err, errWithPInfo.pInfo.ctx)
+                // Capture error into debug session so it appears in the visual debugger
+                if let recorder = config.debugRecorder {
+                    await recorder.recordErrorWithStackAndMemory(errWithPInfo, category: errorCategory(for: err))
+                }
             } else if let errWithMessageOnly = err as? ErrorWithMessage {
-                print( errWithMessageOnly.info )
+                print( errWithMessageOnly.infoWithCode )
             }
             
             print("❌❌❌ TERMINATED DUE TO ERROR ❌❌❌")
             return false
+        }
+    }
+
+    private func errorCategory(for err: Error) -> String {
+        switch err {
+        case is ParsingError: return "parsing"
+        case is Model_ParsingError: return "model-parsing"
+        case is EvaluationError: return "evaluation"
+        case is TemplateSoup_ParsingError: return "template-syntax"
+        case is TemplateSoup_EvaluationError: return "template-evaluation"
+        default: return "unknown"
         }
     }
     
@@ -69,7 +84,7 @@ public struct Pipeline: Sendable {
             if let errWithPInfo = err as? ErrorWithMessageAndParsedInfo {
                 await printError(err, errWithPInfo.pInfo.ctx)
             } else if let errWithMessageOnly = err as? ErrorWithMessage {
-                print( errWithMessageOnly.info )
+                print( errWithMessageOnly.infoWithCode )
             }
 
             print("❌❌❌ TERMINATED DUE TO ERROR ❌❌❌")

@@ -57,7 +57,8 @@ public struct RenderTemplateFileStmt: LineTemplateStmt, CallStackable, CustomDeb
         
         guard let fromTemplate = try? await ctx.evaluate(value: FromTemplate, with: pInfo) as? String
         else {
-            throw TemplateSoup_ParsingError.invalidExpression_VariableOrObjPropNotFound(FromTemplate, pInfo)
+            let candidates = await ctx.variables.keySnapshot
+            throw Suggestions.variableOrPropertyNotFound(FromTemplate, candidates: candidates, pInfo: pInfo)
         }
         
         try await context.fileGenerator.setRelativePath(ctx.workingDirectoryString)
@@ -67,8 +68,17 @@ public struct RenderTemplateFileStmt: LineTemplateStmt, CallStackable, CustomDeb
         if ToFile.isEmpty {
             filename = fromTemplate
         } else {
-            guard let toFile = try? await ctx.evaluate(value: ToFile, with: pInfo) as? String
-                                                                        else { return nil }
+            let rawToValue = try await ctx.evaluate(value: ToFile, with: pInfo)
+            guard let toFile = rawToValue as? String else {
+                let actualType = runtimeTypeName(of: rawToValue)
+                throw TemplateSoup_EvaluationError.invalidFileSystemPath(
+                    operation: "render-file",
+                    argument: "as",
+                    expression: ToFile,
+                    actualType: actualType,
+                    pInfo
+                )
+            }
             filename = toFile
         }
         
@@ -100,20 +110,22 @@ public struct RenderTemplateFileStmt: LineTemplateStmt, CallStackable, CustomDeb
         outputPath: String,
         templateName: String
     ) async {
-        let workingDir = await context.workingDirectoryString
-        var objectName: String?
-        if let entityWrap = await context.variables["entity"] as? CodeObject_Wrap {
-            objectName = await entityWrap.item.name
-        } else if let moduleWrap = await context.variables["module"] as? C4Component_Wrap {
-            objectName = await moduleWrap.item.name
+        if let recorder = await context.debugRecorder {
+            await recorder.recordFileGeneratedWithContext(
+                context,
+                outputPath: outputPath,
+                templateName: templateName,
+                pInfo: pInfo
+            )
+            return
         }
-        let vars = await context.variables.snapshot()
-        context.debugLog.captureVariablesForDebug(vars)
+
+        // No attached recorder: keep emitting the event through the debug log.
         await context.debugLog.recordFileGenerated(
             outputPath: outputPath,
             templateName: templateName,
-            objectName: objectName,
-            workingDir: workingDir,
+            objectName: nil,
+            workingDir: await context.workingDirectoryString,
             source: SourceLocation(fileIdentifier: pInfo.identifier, lineNo: pInfo.lineNo, lineContent: pInfo.line, level: pInfo.level)
         )
     }

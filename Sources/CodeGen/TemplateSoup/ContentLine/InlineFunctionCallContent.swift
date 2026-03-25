@@ -47,7 +47,7 @@ public struct InlineFunctionCallContent: ContentLineItem {
         } else {
             let str =  """
         INLINE CALL Function (level: \(level))
-        !!!! Invalid Syntax !!!!!
+        Invalid syntax.
         
         """
             

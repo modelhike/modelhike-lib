@@ -11,27 +11,35 @@ public struct GenerateCodePass : RenderingPass {
 
         if await !phase.context.model.isModelsLoaded {
             let pInfo = await ParsedInfo.dummyForAppState(with: phase.context)
-            throw EvaluationError.invalidAppState("No models Loaded!!!", pInfo)
+            throw EvaluationError.invalidAppState("No models are loaded.", pInfo)
         }
         
         return true
     }
     
     public func runIn(_ sandbox: GenerationSandbox, phase: RenderPhase) async throws -> Bool {
-        
         var templatesRepo: Blueprint
         
-        let blueprint = "api-nestjs-monorepo"
-        //let blueprint = "api-springboot-monorepo"
+        //let blueprintName = "api-nestjs-monorepo"
+        let blueprintName = "api-springboot-monorepo"
         
-        if blueprint == "api-nestjs-monorepo" {
+        if blueprintName == "api-nestjs-monorepo" {
             try await sandbox.loadSymbols([.typescript, .mongodb_typescript])
-        } else if blueprint == "api-springboot-monorepo" {
+        } else if blueprintName == "api-springboot-monorepo" {
             try await sandbox.loadSymbols([.java])
         }
         
         let pInfo = await ParsedInfo.dummyForAppState(with: sandbox.context)
-        templatesRepo = try await sandbox.context.blueprint(named: blueprint, with: pInfo)
+        templatesRepo = try await sandbox.context.blueprint(named: blueprintName, with: pInfo)
+
+        if await !hasRequiredEntryPointScript(
+            in: templatesRepo,
+            blueprintName: blueprintName,
+            sandbox: sandbox,
+            pInfo: pInfo
+        ) {
+            return false
+        }
         
         if await phase.config.outputItemType == .container {
             //if there is only one container in the model, generate for that container
@@ -60,6 +68,37 @@ public struct GenerateCodePass : RenderingPass {
         let rendering = try await sandbox.generateFilesFor(container: container, usingBlueprintsFrom: blueprintLoader)
         
         return rendering
+    }
+
+    private func hasRequiredEntryPointScript(
+        in templatesRepo: Blueprint,
+        blueprintName: String,
+        sandbox: GenerationSandbox,
+        pInfo: ParsedInfo
+    ) async -> Bool {
+        // Blueprint pre-flight: verify main.ss exists before committing to generation
+        let mainScriptName = TemplateConstants.MainScriptFile + "." + TemplateConstants.ScriptExtension
+        if await !templatesRepo.hasFile(mainScriptName) {
+            // Try a direct load to see if it exists (most reliable check)
+            let mainExists: Bool
+            do {
+                let _ = try await templatesRepo.loadScriptFile(fileName: TemplateConstants.MainScriptFile, with: pInfo)
+                mainExists = true
+            } catch {
+                mainExists = false
+            }
+            if !mainExists {
+                await sandbox.context.debugLog.recordDiagnostic(
+                    .error,
+                    code: "E101",
+                    "Blueprint '\(blueprintName)' is missing required entry-point '\(mainScriptName)'. Generation cannot proceed.",
+                    pInfo: pInfo
+                )
+                return false
+            }
+        }
+
+        return true
     }
     
     public init() {

@@ -59,7 +59,7 @@ public func CheckSendable(value: Any, pInfo: ParsedInfo) throws -> Sendable? {
     case let v as Data:
         return v
     default:
-        let errDisplay = "\(String(describing: type(of: value))) \(value)"
+        let errDisplay = "\(runtimeTypeName(of: value)) \(value)"
         throw TemplateSoup_EvaluationError.nonSendableValueFound(errDisplay, pInfo)
     }
 }

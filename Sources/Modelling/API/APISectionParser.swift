@@ -8,6 +8,10 @@ import Foundation
 import RegexBuilder
 
 public enum APISectionParser {
+    private static func propertyCandidates(for obj: CodeObject) async -> [String] {
+        await obj.properties.asyncThrowingMap { await $0.givenname }
+    }
+
     public static func parse(for obj: CodeObject, lineParser parser: LineParser) async throws
         -> [Artifact]
     {
@@ -50,13 +54,23 @@ public enum APISectionParser {
                     if let property1 = await obj.getProp(prop1.trim(), isCaseSensitive: false) {
                         await api.append(property: property1)
                     } else {
-                        throw Model_ParsingError.invalidPropertyUsedInApi(prop1, pInfo)
+                        throw Suggestions.invalidPropertyUsedInApi(
+                            prop1,
+                            line: pInfo.line,
+                            candidates: await propertyCandidates(for: obj),
+                            pInfo: pInfo
+                        )
                     }
 
                     if let property2 = await obj.getProp(prop2.trim(), isCaseSensitive: false) {
                         await api.append(property: property2)
                     } else {
-                        throw Model_ParsingError.invalidPropertyUsedInApi(prop2, pInfo)
+                        throw Suggestions.invalidPropertyUsedInApi(
+                            prop2,
+                            line: pInfo.line,
+                            candidates: await propertyCandidates(for: obj),
+                            pInfo: pInfo
+                        )
                     }
 
                     apis.append(api)
@@ -69,7 +83,12 @@ public enum APISectionParser {
                     if let property1 = await obj.getProp(prop1.trim(), isCaseSensitive: false) {
                         await api.append(property: property1)
                     } else {
-                        throw Model_ParsingError.invalidPropertyUsedInApi(prop1, pInfo)
+                        throw Suggestions.invalidPropertyUsedInApi(
+                            prop1,
+                            line: pInfo.line,
+                            candidates: await propertyCandidates(for: obj),
+                            pInfo: pInfo
+                        )
                     }
 
                     apis.append(api)

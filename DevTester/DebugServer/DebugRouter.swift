@@ -142,6 +142,8 @@ actor DebugRouter {
             return serveEvents()
         case "/api/files":
             return serveFiles()
+        case "/api/diagnostics":
+            return serveDiagnostics()
         case "/api/mode":
             return serveMode()
         case "/api/pause-state":
@@ -293,6 +295,63 @@ actor DebugRouter {
     private func serveFiles() -> HTTPRouteResponse {
         let encoder = JSONEncoder()
         guard let data = try? encoder.encode(session.files) else {
+            return .ok(body: "[]")
+        }
+        return .ok(body: data)
+    }
+
+    /// Returns only `diagnostic` and `error` events from the session, with a simplified
+    /// structure suitable for the Problems panel. Supports optional `?severity=error|warning|info|hint`
+    /// query-parameter filtering.
+    private func serveDiagnostics() -> HTTPRouteResponse {
+        struct DiagnosticItem: Encodable {
+            let sequenceNo: Int
+            let containerName: String?
+            let timestamp: Date
+            let severity: String
+            let code: String?
+            let message: String
+            let fileIdentifier: String?
+            let lineNo: Int?
+            let suggestions: [DiagnosticSuggestion]
+        }
+
+        var items: [DiagnosticItem] = []
+
+        for envelope in session.events {
+            switch envelope.event {
+            case .diagnostic(let severity, let code, let message, let source, let suggestions):
+                items.append(DiagnosticItem(
+                    sequenceNo: envelope.sequenceNo,
+                    containerName: envelope.containerName,
+                    timestamp: envelope.timestamp,
+                    severity: severity.rawValue,
+                    code: code,
+                    message: message,
+                    fileIdentifier: source.fileIdentifier.isEmpty ? nil : source.fileIdentifier,
+                    lineNo: source.lineNo > 0 ? source.lineNo : nil,
+                    suggestions: suggestions
+                ))
+            case .error(let category, let code, let message, let source, _):
+                items.append(DiagnosticItem(
+                    sequenceNo: envelope.sequenceNo,
+                    containerName: envelope.containerName,
+                    timestamp: envelope.timestamp,
+                    severity: "error",
+                    code: code ?? category,
+                    message: message,
+                    fileIdentifier: source.fileIdentifier.isEmpty ? nil : source.fileIdentifier,
+                    lineNo: source.lineNo > 0 ? source.lineNo : nil,
+                    suggestions: []
+                ))
+            default:
+                break
+            }
+        }
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        guard let data = try? encoder.encode(items) else {
             return .ok(body: "[]")
         }
         return .ok(body: data)

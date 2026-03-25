@@ -37,12 +37,34 @@ public actor CodeGenerationSandbox : GenerationSandbox {
         
         if try await !blueprint.exists() {
             let pInfo = await ParsedInfo.dummyForAppState(with: context)
-            throw await EvaluationError.blueprintDoesNotExist(blueprint.blueprintName, pInfo)
+            let blueprintName = await blueprint.blueprintName
+            throw EvaluationError.invalidInput(
+                "Blueprint '\(blueprintName)' could not be loaded from the configured blueprint roots.",
+                pInfo
+            )
         }
         
         guard let container = await model.container(named: container) else {
             let pInfo = await ParsedInfo.dummyForAppState(with: context)
-            throw EvaluationError.invalidInput("There is no container called \(container)", pInfo)
+            var candidates: [String] = []
+            for existingContainer in await model.containers.snapshot() {
+                candidates.append(await existingContainer.name)
+                candidates.append(await existingContainer.givenname)
+            }
+            throw EvaluationError.invalidInput(
+                Suggestions.lookupFailureMessage(
+                    "There is no container called '\(container)'.",
+                    for: container,
+                    in: candidates,
+                    availableOptionsLabel: "known containers"
+                ),
+                pInfo
+            )
+        }
+
+        // Tag all subsequent debug events with this container name
+        if let recorder = await context.debugRecorder {
+            await recorder.setContainerName(await container.name)
         }
                 
         let variables : [String: Sendable] = [
@@ -76,7 +98,7 @@ public actor CodeGenerationSandbox : GenerationSandbox {
             await context.popCallStack()
 
         } else {
-            print("⚠️ Didn't find 'Root' folder in Blueprint !!!")
+            print("⚠️ Blueprint does not contain the expected root folder.")
         }
 
         return try await templateSoup.startMainScript(with: pInfo)

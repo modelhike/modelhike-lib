@@ -56,7 +56,7 @@ public struct RunShellCmdStmt: LineTemplateStmt, CustomDebugStringConvertible {
                 print(stderr)
                 print("")
             }
-            print("❌ Failed to finish the shell command!!!")
+            print("❌ Failed to finish the shell command.")
         } else {
             if let stdout = result.stdout, stdout.isNotEmpty {
                 print(stdout)

@@ -25,7 +25,7 @@ public struct DiscoverModelsPass : DiscoveringPass {
         }
         
         if !repo.probeForModelFiles() {
-            print("❌❌ No Model Files Found!!!")
+            print("❌ No model files found.")
             return false
         }
         

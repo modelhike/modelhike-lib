@@ -62,5 +62,54 @@ public enum DebugEvent: Codable, Sendable {
     case parsedTreeDumped(treeName: String, treeDescription: String)
 
     // Errors
-    case error(category: String, message: String, source: SourceLocation, callStack: [SourceLocation])
+    case error(category: String, code: String?, message: String, source: SourceLocation, callStack: [SourceLocation])
+
+    // Non-fatal diagnostics (warnings, hints, info)
+    case diagnostic(severity: DiagnosticSeverity, code: String?, message: String, source: SourceLocation, suggestions: [DiagnosticSuggestion])
+}
+
+/// Severity level for non-fatal diagnostics emitted during pipeline execution.
+public enum DiagnosticSeverity: String, Codable, Sendable, CaseIterable {
+    case error
+    case warning
+    case info
+    case hint
+
+    public var icon: String {
+        switch self {
+        case .error:   return "❌"
+        case .warning: return "⚠️"
+        case .info:    return "ℹ️"
+        case .hint:    return "💡"
+        }
+    }
+}
+
+/// Semantic structure for a user-facing diagnostic suggestion.
+public enum DiagnosticSuggestionKind: String, Codable, Sendable, CaseIterable {
+    case didYouMean
+    case availableOptions
+    case note
+}
+
+/// A structured suggestion attached to a diagnostic.
+public struct DiagnosticSuggestion: Codable, Sendable, Equatable {
+    public let kind: DiagnosticSuggestionKind
+    public let message: String
+    public let replacement: String?
+    public let options: [String]
+
+    public init(
+        kind: DiagnosticSuggestionKind,
+        message: String,
+        replacement: String? = nil,
+        options: [String] = []
+    ) {
+        self.kind = kind
+        self.message = message
+        self.replacement = replacement
+        self.options = options
+    }
+
+    public var displayText: String { message }
 }

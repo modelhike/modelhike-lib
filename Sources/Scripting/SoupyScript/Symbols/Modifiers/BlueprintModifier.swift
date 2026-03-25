@@ -54,7 +54,7 @@ public struct BlueprintModifierWithoutParams: ModifierWithoutArgsProtocol, Modif
     public func applyTo(value: Sendable, with pInfo: ParsedInfo) async throws -> Sendable? {
         guard inputType.accepts(value) else {
             throw TemplateSoup_ParsingError.modifierCalledOnwrongType(
-                name, String(describing: type(of: value)), pInfo)
+                name, runtimeTypeName(of: value), pInfo)
         }
         
         return try await templateSoup.renderTemplate(
@@ -107,7 +107,7 @@ public struct BlueprintModifierWithParams: ModifierWithUnNamedArgsProtocol, Modi
     public func applyTo(value: Sendable, with pInfo: ParsedInfo) async throws -> Sendable? {
         guard inputType.accepts(value) else {
             throw TemplateSoup_ParsingError.modifierCalledOnwrongType(
-                name, String(describing: type(of: value)), pInfo)
+                name, runtimeTypeName(of: value), pInfo)
         }
 
         var data: StringDictionary = [inputVarName: value]

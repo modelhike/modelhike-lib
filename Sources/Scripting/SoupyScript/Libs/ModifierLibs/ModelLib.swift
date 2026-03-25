@@ -22,7 +22,8 @@ public struct ModelLib {
             if let obj = await sandbox.model.types.get(for: objectName) {
                 return CodeObject_Wrap(obj)
             } else {
-                throw TemplateSoup_ParsingError.objectTypeNotFound(objectName, pInfo)
+                let candidates = await sandbox.model.types.items.asyncThrowingMap { await $0.name }
+                throw Suggestions.objectTypeNotFound(objectName, candidates: candidates, pInfo: pInfo)
             }
         }
     }
@@ -38,9 +39,17 @@ public struct ModelLib {
                 if let prop = await obj.getLastPropInRecursive(propName, appModel: appModel) {
                     return TypeProperty_Wrap(prop)
                 }
+                let candidates = await obj.properties.asyncThrowingMap { await $0.name }
+                throw Suggestions.invalidPropertyInType(
+                    propName,
+                    typeName: objectName,
+                    candidates: candidates,
+                    pInfo: pInfo
+                )
             }
 
-            throw TemplateSoup_ParsingError.invalidPropertyNameUsedInType(propName, objectName, pInfo)
+            let typeCandidates = await sandbox.model.types.items.asyncThrowingMap { await $0.name }
+            throw Suggestions.objectTypeNotFound(objectName, candidates: typeCandidates, pInfo: pInfo)
         }
     }
 

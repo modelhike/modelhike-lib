@@ -64,6 +64,30 @@ public actor ExpressionEvaluator {
         if let result = try await evaluate(expression: expression, pInfo: pInfo) {
             return getEvaluatedBoolValueFor(result)
         } else {
+            // Expression resolved to nil — likely a typo or undefined variable.
+            // Emit a warning so the user knows this happened; do not throw (non-breaking).
+            let trimmed = expression.trim()
+            if !trimmed.contains(" ") && !trimmed.contains(".") {
+                let candidates = await pInfo.ctx.variables.keySnapshot
+                await pInfo.ctx.debugLog.recordLookupDiagnostic(
+                    .warning,
+                    code: "W201",
+                    "Condition '\(expression)' resolved to nil — treating as false. "
+                        + "Check for typos in variable or property names.",
+                    lookup: trimmed,
+                    in: candidates,
+                    availableOptionsLabel: "variables in scope",
+                    pInfo: pInfo
+                )
+            } else {
+                await pInfo.ctx.debugLog.recordDiagnostic(
+                    .warning,
+                    code: "W201",
+                    "Condition '\(expression)' resolved to nil — treating as false. "
+                        + "Check for typos in variable or property names.",
+                    pInfo: pInfo
+                )
+            }
             return false
         }
     }

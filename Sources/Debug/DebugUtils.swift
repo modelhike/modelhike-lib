@@ -6,8 +6,12 @@
 
 import Foundation
 
-private func sourceLocation(from pInfo: ParsedInfo) -> SourceLocation {
-    SourceLocation(fileIdentifier: pInfo.identifier, lineNo: pInfo.lineNo, lineContent: pInfo.line, level: pInfo.level)
+func debugValueString(_ value: any Sendable) -> String {
+    if let string = value as? String { return string }
+    if let int = value as? Int { return String(int) }
+    if let bool = value as? Bool { return String(bool) }
+    if let double = value as? Double { return String(double) }
+    return String(describing: value)
 }
 
 public final class ContextDebugLog: Sendable {
@@ -20,9 +24,86 @@ public final class ContextDebugLog: Sendable {
         self.recorder = recorder
     }
 
-    private func recordEvent(_ event: DebugEvent) {
+    /// Emit a debug event into the recorder (fire-and-forget; does nothing when no recorder is attached).
+    public func recordEvent(_ event: DebugEvent) {
         guard let recorder else { return }
         Task { await recorder.recordEvent(event) }
+    }
+
+    /// Emit a non-fatal diagnostic (warning/info/hint) that is surfaced in the debug console
+    /// without stopping the pipeline. Warnings are also printed to stdout.
+    public func recordDiagnostic(
+        _ severity: DiagnosticSeverity,
+        code: String? = nil,
+        _ message: String,
+        source: SourceLocation,
+        suggestions: [DiagnosticSuggestion] = []
+    ) {
+        recordEvent(.diagnostic(severity: severity, code: code, message: message,
+                                source: source, suggestions: suggestions))
+        if flags.printDiagnosticsToStdout, severity == .warning || severity == .error {
+            let codeStr = code.map { "[\($0)] " } ?? ""
+            let suggStr = suggestions.isEmpty
+                ? ""
+                : "\n   = \(suggestions.map(\.displayText).joined(separator: "\n   = "))"
+            print("\(severity.icon) \(codeStr)\(message)\(suggStr)")
+        }
+    }
+
+    /// Convenience overload accepting ParsedInfo for location.
+    public func recordDiagnostic(
+        _ severity: DiagnosticSeverity,
+        code: String? = nil,
+        _ message: String,
+        pInfo: ParsedInfo,
+        suggestions: [DiagnosticSuggestion] = []
+    ) {
+        recordDiagnostic(severity, code: code, message, source: SourceLocation(from: pInfo), suggestions: suggestions)
+    }
+
+    /// Convenience overload for lookup-driven diagnostics that need "did you mean?"
+    /// and optional "available options" suggestions.
+    public func recordLookupDiagnostic(
+        _ severity: DiagnosticSeverity,
+        code: String? = nil,
+        _ message: String,
+        lookup query: String,
+        in candidates: [String],
+        availableOptionsLabel: String? = nil,
+        source: SourceLocation
+    ) {
+        recordDiagnostic(
+            severity,
+            code: code,
+            message,
+            source: source,
+            suggestions: Suggestions.lookupSuggestions(
+                for: query,
+                in: candidates,
+                availableOptionsLabel: availableOptionsLabel
+            )
+        )
+    }
+
+    /// Convenience overload accepting ParsedInfo for location.
+    public func recordLookupDiagnostic(
+        _ severity: DiagnosticSeverity,
+        code: String? = nil,
+        _ message: String,
+        lookup query: String,
+        in candidates: [String],
+        availableOptionsLabel: String? = nil,
+        pInfo: ParsedInfo
+    ) {
+        recordLookupDiagnostic(
+            severity,
+            code: code,
+            message,
+            lookup: query,
+            in: candidates,
+            availableOptionsLabel: availableOptionsLabel,
+            source: SourceLocation(from: pInfo)
+        )
     }
 
     /// Records file generation and adds to session.files for traceability.
@@ -43,13 +124,7 @@ public final class ContextDebugLog: Sendable {
     /// Capture current variables as base snapshot for time-travel. Pass variables from context.
     public func captureVariablesForDebug(_ variables: [String: Sendable]) {
         guard let recorder else { return }
-        let serialized: [String: String] = variables.mapValues { v in
-            if let s = v as? String { return s }
-            if let n = v as? Int { return String(n) }
-            if let b = v as? Bool { return String(b) }
-            if let d = v as? Double { return String(d) }
-            return String(describing: v)
-        }
+        let serialized: [String: String] = variables.mapValues(debugValueString)
         Task { await recorder.captureBaseSnapshot(label: "file-gen", variables: serialized) }
     }
 
@@ -65,28 +140,28 @@ public final class ContextDebugLog: Sendable {
     }
     
     public func parseLines(ended endKeyWord: String, pInfo: ParsedInfo) {
-        recordEvent(.parseBlockEnded(keyword: endKeyWord, source: sourceLocation(from: pInfo)))
+        recordEvent(.parseBlockEnded(keyword: endKeyWord, source: SourceLocation(from: pInfo)))
         if flags.lineByLineParsing || flags.blockByBlockParsing {
             print("[\(pInfo.lineNo)] PARSE LINES ENDED>> \(endKeyWord)")
         }
     }
     
     public func stmtDetected(keyWord: String, pInfo: ParsedInfo) {
-        recordEvent(.statementDetected(keyword: keyWord, source: sourceLocation(from: pInfo)))
+        recordEvent(.statementDetected(keyword: keyWord, source: SourceLocation(from: pInfo)))
         if flags.lineByLineParsing {
             print("[\(pInfo.lineNo)] STMT DETECT>> \(keyWord)")
         }
     }
     
     public func multiBlockDetected(keyWord: String, pInfo: ParsedInfo) {
-        recordEvent(.multiBlockDetected(keyword: keyWord, source: sourceLocation(from: pInfo)))
+        recordEvent(.multiBlockDetected(keyword: keyWord, source: SourceLocation(from: pInfo)))
         if flags.lineByLineParsing || flags.blockByBlockParsing {
             print("[\(pInfo.lineNo)] MULTIBLOCK DETECT>> \(keyWord)")
         }
     }
     
     public func multiBlockDetectFailed(pInfo: ParsedInfo) {
-        recordEvent(.multiBlockFailed(source: sourceLocation(from: pInfo)))
+        recordEvent(.multiBlockFailed(source: SourceLocation(from: pInfo)))
         if flags.lineByLineParsing || flags.blockByBlockParsing {
             print("[\(pInfo.lineNo)] FAILED MULTIBLOCK PARSE>> \(pInfo.line) ")
         }
@@ -97,7 +172,7 @@ public final class ContextDebugLog: Sendable {
     }
     
     public func content(_ line: String, pInfo: ParsedInfo) {
-        recordEvent(.textContent(text: line, source: sourceLocation(from: pInfo)))
+        recordEvent(.textContent(text: line, source: SourceLocation(from: pInfo)))
         if flags.lineByLineParsing {
             print("[\(pInfo.lineNo)] --txt-- \(line)")
         }
@@ -110,7 +185,7 @@ public final class ContextDebugLog: Sendable {
     }
     
     public func inlineFunctionCall(_ line: String, pInfo: ParsedInfo) {
-        recordEvent(.functionCallEvaluated(expression: line, source: sourceLocation(from: pInfo)))
+        recordEvent(.functionCallEvaluated(expression: line, source: SourceLocation(from: pInfo)))
         if flags.lineByLineParsing {
             print("[\(pInfo.lineNo)] -------={{ \(line) }}=")
         }
@@ -152,26 +227,26 @@ public final class ContextDebugLog: Sendable {
         let desc = await containers.debugDescription
         recordEvent(.parsedTreeDumped(treeName: "containers", treeDescription: desc))
         if flags.printParsedTree {
-            await print(desc)
+            print(desc)
         }
     }
     
     public func ifConditionSatisfied(condition: String, pInfo: ParsedInfo) {
-        recordEvent(.controlFlow(branch: .ifTrue, condition: condition, satisfied: true, source: sourceLocation(from: pInfo)))
+        recordEvent(.controlFlow(branch: .ifTrue, condition: condition, satisfied: true, source: SourceLocation(from: pInfo)))
         if flags.lineByLineParsing || flags.blockByBlockParsing || flags.controlFlow {
             print("[\(pInfo.lineNo)] IF Condition Satisfied>> \(pInfo.line)")
         }
     }
     
     public func elseIfConditionSatisfied(condition: String, pInfo: ParsedInfo) {
-        recordEvent(.controlFlow(branch: .elseIfTrue, condition: condition, satisfied: true, source: sourceLocation(from: pInfo)))
+        recordEvent(.controlFlow(branch: .elseIfTrue, condition: condition, satisfied: true, source: SourceLocation(from: pInfo)))
         if flags.lineByLineParsing || flags.blockByBlockParsing || flags.controlFlow {
             print("[\(pInfo.lineNo)] ELSE IF Condition Satisfied>> \(pInfo.line)")
         }
     }
     
     public func elseBlockExecuting(_ pInfo: ParsedInfo) {
-        recordEvent(.controlFlow(branch: .elseBlock, condition: "", satisfied: true, source: sourceLocation(from: pInfo)))
+        recordEvent(.controlFlow(branch: .elseBlock, condition: "", satisfied: true, source: SourceLocation(from: pInfo)))
         if flags.lineByLineParsing || flags.blockByBlockParsing || flags.controlFlow {
             print("[\(pInfo.lineNo)] ELSE Block executing>> \(pInfo.line)")
         }
@@ -186,7 +261,7 @@ public final class ContextDebugLog: Sendable {
     
     public func templateExecutionStarting(name: String = "", pInfo: ParsedInfo? = nil) {
         if name.isNotEmpty, let pInfo {
-            recordEvent(.templateStarted(name: name, source: sourceLocation(from: pInfo)))
+            recordEvent(.templateStarted(name: name, source: SourceLocation(from: pInfo)))
         }
         if flags.lineByLineParsing || flags.blockByBlockParsing {
             print("\n\n\n\nTEMPLATE EXECTION START -------------\n")
@@ -202,36 +277,40 @@ public final class ContextDebugLog: Sendable {
     
     public func scriptFileExecutionStarting(name: String = "", pInfo: ParsedInfo? = nil) {
         if name.isNotEmpty, let pInfo {
-            recordEvent(.scriptStarted(name: name, source: sourceLocation(from: pInfo)))
+            recordEvent(.scriptStarted(name: name, source: SourceLocation(from: pInfo)))
         }
         if flags.lineByLineParsing || flags.blockByBlockParsing {
             print("\n\n\n\nSCRIPT TEMPLATE EXECTION START -------------\n")
         }
     }
     
-    public func workingDirectoryChanged(_ path: String) {
-        recordEvent(.workingDirChanged(from: "", to: path, source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)))
+    public func workingDirectoryChanged(_ path: String, pInfo: ParsedInfo? = nil) {
+        let src = pInfo.map { SourceLocation(from: $0) }
+            ?? SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)
+        recordEvent(.workingDirChanged(from: "", to: path, source: src))
         if flags.changesInWorkingDirectory {
             print("Working Dir: \(path)")
         }
     }
     
     public func stopRenderingCurrentFile(_ filepath: String, pInfo: ParsedInfo) {
-        recordEvent(.fileRenderStopped(path: filepath, source: sourceLocation(from: pInfo)))
+        recordEvent(.fileRenderStopped(path: filepath, source: SourceLocation(from: pInfo)))
         if flags.renderingStoppedInFiles {
             print("⚠️ Stop Rendering \(filepath) ...")
         }
     }
     
     public func throwErrorFromCurrentFile(_ filepath: String, err: String, pInfo: ParsedInfo) {
-        recordEvent(.fatalError(message: err, source: sourceLocation(from: pInfo)))
+        recordEvent(.fatalError(message: err, source: SourceLocation(from: pInfo)))
         if flags.errorThrownInFiles {
             print("🚨 Error '\(err)' Thrown From \(filepath) ...")
         }
     }
     
-    public func excludingFile(_ filepath: String) {
-        recordEvent(.fileExcluded(path: filepath, reason: "include-if", source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)))
+    public func excludingFile(_ filepath: String, pInfo: ParsedInfo? = nil) {
+        let src = pInfo.map { SourceLocation(from: $0) }
+            ?? SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)
+        recordEvent(.fileExcluded(path: filepath, reason: "include-if", source: src))
         if flags.excludedFiles {
             print("⚠️ Excluding \(filepath) ...")
         }
@@ -300,10 +379,12 @@ public final class ContextDebugLog: Sendable {
         }
     }
     
-    public func fileNotGenerated(_ filepath: String, with template: String) {
-        recordEvent(.fileSkipped(path: filepath, templateName: template, reason: "not generated", source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)))
+    public func fileNotGenerated(_ filepath: String, with template: String, pInfo: ParsedInfo? = nil) {
+        let src = pInfo.map { SourceLocation(from: $0) }
+            ?? SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)
+        recordEvent(.fileSkipped(path: filepath, templateName: template, reason: "not generated", source: src))
         if flags.fileGeneration {
-            print("⚠️ File \(filepath) [template \(template)] not Generated!!!...")
+            print("⚠️ File \(filepath) [template \(template)] was not generated.")
         }
     }
     
@@ -314,7 +395,7 @@ public final class ContextDebugLog: Sendable {
             templateName: template,
             objectName: nil,
             workingDir: folder.pathString,
-            source: sourceLocation(from: pInfo)
+            source: SourceLocation(from: pInfo)
         )
         if flags.fileGeneration {
             print("[ \(folder.pathString) ] Generating \(filepath) [template \(template)] ...")
@@ -324,34 +405,35 @@ public final class ContextDebugLog: Sendable {
     public func fileNotGeneratedInFolder(_ filepath: String, with template: String, folder: LocalFolder) {
         recordEvent(.fileSkipped(path: filepath, templateName: template, reason: "not generated", source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)))
         if flags.fileGeneration {
-            print("⚠️ [ \(folder.pathString) ]  File \(filepath) [template \(template)] not Generated!!!...")
+            print("⚠️ [ \(folder.pathString) ] File \(filepath) [template \(template)] was not generated.")
         }
     }
     
     public func fileNotGenerated(_ filepath: String) {
         recordEvent(.fileSkipped(path: filepath, templateName: nil, reason: "not generated", source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)))
         if flags.fileGeneration {
-            print("⚠️ File \(filepath) not Generated!!!...")
+            print("⚠️ File \(filepath) was not generated.")
         }
     }
     
     public func pipelinePhaseCannotRun(_ phase: any PipelinePhase, msg: String) {
-        recordEvent(.phaseSkipped(name: String(describing: type(of: phase)), reason: msg))
-        print("⦻ Phase \(phase) cannot run!!!...")
-        print("⦻ \(msg)!!!...")
+        recordEvent(.phaseSkipped(name: runtimeTypeName(of: phase), reason: msg))
+        print("⦻ Phase \(phase) cannot run.")
+        print("⦻ \(msg)")
     }
     
     public func pipelinePassCannotRun(_ pass: any PipelinePass, msg: String? = nil) {
-        recordEvent(.passSkipped(name: String(describing: type(of: pass)), reason: msg))
-        print("⦻ Pass \(pass) cannot run!!!...")
+        recordEvent(.passSkipped(name: runtimeTypeName(of: pass), reason: msg))
+        print("⦻ Pass \(pass) cannot run.")
         if let msg {
-            print("⦻ \(msg)!!!...")
+            print("⦻ \(msg)")
         }
     }
 }
 
 public struct ContextDebugFlags: Sendable {
     public var printParsedTree = false
+    public var printDiagnosticsToStdout = true
     
     public var lineByLineParsing = false
     public var blockByBlockParsing = false

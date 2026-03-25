@@ -15,12 +15,12 @@ public struct ModifierInstanceWithoutArgs<I, T: Sendable> : ModifierInstanceWith
         
         if let typedValue = value as? I {
             if type(of: typedValue) != self.callerType {
-                throw TemplateSoup_ParsingError.modifierCalledOnwrongType(self.name, String(describing: type(of: value)), pInfo)
+                throw TemplateSoup_ParsingError.modifierCalledOnwrongType(self.name, runtimeTypeName(of: value), pInfo)
             }
             
             return try await handler(typedValue, pInfo)
         } else {
-            throw TemplateSoup_ParsingError.modifierCalledOnwrongType(self.name, String(describing: type(of: value)), pInfo)
+            throw TemplateSoup_ParsingError.modifierCalledOnwrongType(self.name, runtimeTypeName(of: value), pInfo)
         }
     }
     
@@ -45,7 +45,7 @@ public struct ModifierInstanceWithUnNamedArgs<I, T: Sendable> : ModifierInstance
         
         if let typedValue = value as? I {
             if type(of: typedValue) != self.callerType {
-                throw TemplateSoup_ParsingError.modifierCalledOnwrongType(self.name, String(describing: type(of: value)), pInfo)
+                throw TemplateSoup_ParsingError.modifierCalledOnwrongType(self.name, runtimeTypeName(of: value), pInfo)
             }
             
             var argumentValues: [Sendable] = []
@@ -61,7 +61,7 @@ public struct ModifierInstanceWithUnNamedArgs<I, T: Sendable> : ModifierInstance
             
             return try await handler(typedValue, argumentValues, pInfo)
         } else {
-            throw TemplateSoup_ParsingError.modifierCalledOnwrongType(self.name, String(describing: type(of: value)), pInfo)
+            throw TemplateSoup_ParsingError.modifierCalledOnwrongType(self.name, runtimeTypeName(of: value), pInfo)
         }
     }
     

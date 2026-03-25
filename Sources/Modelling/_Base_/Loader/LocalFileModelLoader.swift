@@ -16,7 +16,7 @@ public class LocalFileModelLoader : ModelRepository {
     public func loadModel(to model: AppModel) async throws {
         if !loadPath.exists {
             let pInfo = await ParsedInfo.dummyForAppState(with: ctx)
-            throw EvaluationError.invalidAppState("Model folder '\(loadPath.path.string)' not found!!!", pInfo)
+            throw EvaluationError.invalidAppState("Model folder '\(loadPath.path.string)' was not found.", pInfo)
         }
         
         let file = LocalFile(path: loadPath.path / commonModelsFileName)

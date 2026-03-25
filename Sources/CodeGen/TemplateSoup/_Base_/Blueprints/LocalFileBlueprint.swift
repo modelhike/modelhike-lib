@@ -21,7 +21,7 @@ public actor LocalFileBlueprint: Blueprint {
             if !loadPath.exists {
                 let pInfo = await ParsedInfo.dummyForAppState(with: context)
                 throw EvaluationError.invalidAppState(
-                    "Blueprint folder '\(loadPath.string)' not found!!!", pInfo)
+                    "Blueprint folder '\(loadPath.string)' was not found.", pInfo)
             }
 
             let scriptFileName = "\(fileName).\(TemplateConstants.ScriptExtension)"
@@ -48,7 +48,7 @@ public actor LocalFileBlueprint: Blueprint {
             if !loadPath.exists {
                 let pInfo = await ParsedInfo.dummyForAppState(with: context)
                 throw EvaluationError.invalidAppState(
-                    "Blueprint folder '\(loadPath.string)' not found!!!", pInfo)
+                    "Blueprint folder '\(loadPath.string)' was not found.", pInfo)
             }
 
             let templateName = "\(fileName).\(TemplateConstants.TemplateExtension)"
@@ -78,7 +78,7 @@ public actor LocalFileBlueprint: Blueprint {
         if !loadPathExists() {
             let pInfo = await ParsedInfo.dummyForAppState(with: context)
             throw EvaluationError.invalidAppState(
-                "Blueprint root folder '\(rootPath.string)'not found!!!", pInfo)
+                "Blueprint root folder '\(rootPath.string)' was not found.", pInfo)
         }
 
         return self.blueprintPath.exists
@@ -91,6 +91,14 @@ public actor LocalFileBlueprint: Blueprint {
 
         let inFolder = LocalFolder(path: self.blueprintPath / foldername)
         return inFolder.path.exists
+    }
+
+    public func hasFile(_ filename: String) -> Bool {
+        guard self.blueprintPath.exists else {
+            return false
+        }
+
+        return (self.blueprintPath / filename).exists
     }
 
     public func listFiles(inFolder foldername: String) -> [String] {

@@ -13,6 +13,7 @@ public enum Pipelines: Sendable {
             Load.models()
             Hydrate.models()
             Hydrate.annotations()
+            Validate.models()
             Render.code()
             Persist.toOutputFolder()
         }

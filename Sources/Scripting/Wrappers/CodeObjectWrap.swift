@@ -46,7 +46,7 @@ public actor CodeObject_Wrap: ObjectWrapper {
                     await properties
                 } else {
                     let msg = "properties empty for \(await item.name)"
-                    throw TemplateSoup_ParsingError.invalidExpression_CustomMessage(msg, pInfo)
+                    throw TemplateSoup_ParsingError.propertiesEmpty(msg, pInfo)
                 }
 
             case "entity": await item.dataType == .entity
@@ -64,6 +64,26 @@ public actor CodeObject_Wrap: ObjectWrapper {
         return value
     }
 
+    private func propertyCandidates() async -> [String] {
+        let attributes = await item.attribs.attributesList
+        let attributeNames = attributes.map { $0.givenKey }
+        let propertyNames = await item.properties.asyncThrowingMap { await $0.name }
+        let propertyFlags = propertyNames.map { "has-prop-\($0)" }
+        let base = [
+            "name",
+            "given-name",
+            "properties",
+            "entity",
+            "dto",
+            "common",
+            "cache",
+            "workflow",
+            "has-push-apis",
+            "has-any-apis"
+        ]
+        return base + propertyFlags + propertyNames + attributeNames
+    }
+
     private func resolveFallbackProperty(propname: String, pInfo: ParsedInfo) async throws -> Sendable? {
         let attribs = await item.attribs
         if await attribs.has(propname) {
@@ -75,7 +95,11 @@ public actor CodeObject_Wrap: ObjectWrapper {
             //handle whether it is Sendable here itself
             return try CheckSendable(propname, value: value, pInfo: pInfo)
         } else {
-            throw TemplateSoup_ParsingError.invalidPropertyNameUsedInCall(propname, pInfo)
+            throw Suggestions.invalidPropertyInCall(
+                propname,
+                candidates: await propertyCandidates(),
+                pInfo: pInfo
+            )
         }
     }
     
@@ -168,13 +192,61 @@ public actor TypeProperty_Wrap: ObjectWrapper {
         return value
     }
 
+    private func propertyCandidates() async -> [String] {
+        var candidates = [
+            "name",
+            "is-array",
+            "is-object",
+            "is-number",
+            "is-bool",
+            "is-boolean",
+            "is-yesno",
+            "is-string",
+            "is-id",
+            "is-any",
+            "is-date",
+            "is-buffer",
+            "is-reference",
+            "is-extended-reference",
+            "reference-target",
+            "reference-field",
+            "reference-field-type",
+            "is-coded-value",
+            "is-custom-type",
+            "custom-type",
+            "obj-type",
+            "is-required",
+            "default-value",
+            "has-default-value",
+            "valid-value-set",
+            "has-valid-value-set",
+            "constraints",
+            "has-constraints"
+        ]
+        for attribute in await item.attribs.attributesList {
+            candidates.append("attrib-\(attribute.givenKey)")
+            candidates.append("has-attrib-\(attribute.givenKey)")
+        }
+        for constraint in await item.constraints.snapshot() {
+            if let name = constraint.name {
+                candidates.append("constraint-\(name)")
+                candidates.append("has-constraint-\(name)")
+            }
+        }
+        return candidates
+    }
+
     private func resolveFallbackProperty(propname: String, pInfo: ParsedInfo) async throws -> Sendable {
         if await item.attribs.has(propname) {
             return await item.attribs[propname]
         } else if await item.constraints.has(propname) {
             return await item.constraints[propname]
         } else {
-            throw TemplateSoup_ParsingError.invalidPropertyNameUsedInCall(propname, pInfo)
+            throw Suggestions.invalidPropertyInCall(
+                propname,
+                candidates: await propertyCandidates(),
+                pInfo: pInfo
+            )
         }
     }
     
@@ -188,6 +260,7 @@ public actor TypeProperty_Wrap: ObjectWrapper {
 public actor Constraint_Wrap: ObjectWrapper {
     public let item: Constraint
     public let attribs = Attributes()
+    private let validProperties = ["name", "has-name", "kind", "expression", "rendered", "value", "expr"]
 
     public func getValueOf(property propname: String, with pInfo: ParsedInfo) async throws -> Sendable? {
         switch propname {
@@ -204,7 +277,7 @@ public actor Constraint_Wrap: ObjectWrapper {
         case "expr":
             return ConstraintExpr_Wrap(item.expr)
         default:
-            throw TemplateSoup_ParsingError.invalidPropertyNameUsedInCall(propname, pInfo)
+            throw Suggestions.invalidPropertyInCall(propname, candidates: validProperties, pInfo: pInfo)
         }
     }
 
@@ -220,6 +293,7 @@ public actor Constraint_Wrap: ObjectWrapper {
 public actor ConstraintExpr_Wrap: ObjectWrapper {
     public let item: ConstraintExpr
     public let attribs = Attributes()
+    private let validProperties = ["kind", "rendered", "name", "operator", "value", "lhs", "rhs", "expr", "arguments", "items", "lower", "upper"]
 
     public func getValueOf(property propname: String, with pInfo: ParsedInfo) async throws -> Sendable? {
         switch propname {
@@ -264,12 +338,12 @@ public actor ConstraintExpr_Wrap: ObjectWrapper {
             if case .binary(let lhs, _, _) = item {
                 return ConstraintExpr_Wrap(lhs)
             }
-            throw TemplateSoup_ParsingError.invalidPropertyNameUsedInCall(propname, pInfo)
+            throw Suggestions.invalidPropertyInCall(propname, candidates: validProperties, pInfo: pInfo)
         case "rhs":
             if case .binary(_, _, let rhs) = item {
                 return ConstraintExpr_Wrap(rhs)
             }
-            throw TemplateSoup_ParsingError.invalidPropertyNameUsedInCall(propname, pInfo)
+            throw Suggestions.invalidPropertyInCall(propname, candidates: validProperties, pInfo: pInfo)
         case "expr":
             if case .unary(_, let expr) = item {
                 return ConstraintExpr_Wrap(expr)
@@ -277,29 +351,29 @@ public actor ConstraintExpr_Wrap: ObjectWrapper {
             if case .grouped(let expr) = item {
                 return ConstraintExpr_Wrap(expr)
             }
-            throw TemplateSoup_ParsingError.invalidPropertyNameUsedInCall(propname, pInfo)
+            throw Suggestions.invalidPropertyInCall(propname, candidates: validProperties, pInfo: pInfo)
         case "arguments":
             if case .function(_, let arguments) = item {
                 return arguments.map(ConstraintExpr_Wrap.init)
             }
-            throw TemplateSoup_ParsingError.invalidPropertyNameUsedInCall(propname, pInfo)
+            throw Suggestions.invalidPropertyInCall(propname, candidates: validProperties, pInfo: pInfo)
         case "items":
             if case .list(let values) = item {
                 return values.map(ConstraintExpr_Wrap.init)
             }
-            throw TemplateSoup_ParsingError.invalidPropertyNameUsedInCall(propname, pInfo)
+            throw Suggestions.invalidPropertyInCall(propname, candidates: validProperties, pInfo: pInfo)
         case "lower":
             if case .between(_, let lower, _) = item {
                 return ConstraintExpr_Wrap(lower)
             }
-            throw TemplateSoup_ParsingError.invalidPropertyNameUsedInCall(propname, pInfo)
+            throw Suggestions.invalidPropertyInCall(propname, candidates: validProperties, pInfo: pInfo)
         case "upper":
             if case .between(_, _, let upper) = item {
                 return ConstraintExpr_Wrap(upper)
             }
-            throw TemplateSoup_ParsingError.invalidPropertyNameUsedInCall(propname, pInfo)
+            throw Suggestions.invalidPropertyInCall(propname, candidates: validProperties, pInfo: pInfo)
         default:
-            throw TemplateSoup_ParsingError.invalidPropertyNameUsedInCall(propname, pInfo)
+            throw Suggestions.invalidPropertyInCall(propname, candidates: validProperties, pInfo: pInfo)
         }
     }
 

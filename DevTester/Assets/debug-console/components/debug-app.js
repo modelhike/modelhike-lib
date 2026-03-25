@@ -13,6 +13,7 @@ import './models-panel.js';
 import './footer-bar.js';
 import './pane-resizer.js';
 import './stepper-panel.js';
+import './problems-panel.js';
 
 export class DebugApp extends LitElement {
   static properties = {
@@ -164,11 +165,62 @@ export class DebugApp extends LitElement {
   async connectedCallback() {
     super.connectedCallback();
     await this.loadSessionData();
+    this._keydownHandler = (e) => this._handleKeydown(e);
+    window.addEventListener('keydown', this._keydownHandler);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     this._ws?.close();
+    if (this._keydownHandler) window.removeEventListener('keydown', this._keydownHandler);
+  }
+
+  async _refreshProblemsPanel() {
+    await this.updateComplete;
+    const panel = this.shadowRoot?.getElementById('problemsPanel');
+    if (panel && typeof panel.loadDiagnostics === 'function') {
+      panel.loadDiagnostics();
+    }
+  }
+
+  _handleKeydown(e) {
+    const inInput = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT');
+    if (inInput) return;
+
+    if (this.serverMode !== 'stepping') return;
+
+    // F5 = continue / resume
+    if (e.key === 'F5' && !e.shiftKey) {
+      e.preventDefault();
+      if (this.pausedState) this._sendResume('continue');
+    }
+    // F10 = step over
+    if (e.key === 'F10') {
+      e.preventDefault();
+      if (this.pausedState) this._sendResume('stepOver');
+    }
+    // F11 = step into
+    if (e.key === 'F11' && !e.shiftKey) {
+      e.preventDefault();
+      if (this.pausedState) this._sendResume('stepInto');
+    }
+    // Shift+F11 = step out
+    if (e.key === 'F11' && e.shiftKey) {
+      e.preventDefault();
+      if (this.pausedState) this._sendResume('stepOut');
+    }
+    // Tab switching: Ctrl+1/2/3/4
+    if (e.ctrlKey && e.key === '1') { e.preventDefault(); this.handleTabClick('trace'); }
+    if (e.ctrlKey && e.key === '2') { e.preventDefault(); this.handleTabClick('variables'); }
+    if (e.ctrlKey && e.key === '3') { e.preventDefault(); this.handleTabClick('models'); }
+    if (e.ctrlKey && e.key === '4') { e.preventDefault(); this.handleTabClick('problems'); }
+  }
+
+  _sendResume(mode) {
+    if (this._ws && this._ws.readyState === WebSocket.OPEN) {
+      this._ws.send(JSON.stringify({ type: 'resume', mode }));
+      this.isStepping = true;
+    }
   }
 
   async loadSessionData() {
@@ -193,9 +245,21 @@ export class DebugApp extends LitElement {
         state.fileWindows = buildFileWindows(session);
         state.fileTreeFilterIndex = state.selectedIndex;
         this.syncFromState();
+        await this._refreshProblemsPanel();
       }
     } catch (err) {
-      console.error('Failed to load session:', err);
+      console.error('[debug-app] Failed to load session:', err);
+      // Show a helpful error state instead of a blank screen
+      state.session = {
+        events: [],
+        phases: [],
+        errors: [{ message: `Failed to connect to debug server: ${err.message || err}. Is it running on the correct port?` }],
+        config: {},
+      };
+      state.fileWindows = [];
+      this.syncFromState();
+      // Retry in 3s in case the server isn't ready yet
+      setTimeout(() => this.loadSessionData(), 3000);
     }
   }
 
@@ -256,6 +320,7 @@ export class DebugApp extends LitElement {
           state.session = session;
           state.fileWindows = buildFileWindows(session);
           this.syncFromState();
+          await this._refreshProblemsPanel();
         } catch (err) {
           console.error('Failed to reload completed session:', err);
         }
@@ -274,6 +339,14 @@ export class DebugApp extends LitElement {
         this.liveRunning = false;
       }
     });
+  }
+
+  get _problemCount() {
+    const events = this.session?.events || [];
+    return events.filter(ev => {
+      const t = Object.keys(ev.event || {})[0];
+      return t === 'error' || (t === 'diagnostic' && (ev.event?.diagnostic?.severity === 'error' || ev.event?.diagnostic?.severity === 'warning'));
+    }).length;
   }
 
   syncFromState() {
@@ -310,26 +383,25 @@ export class DebugApp extends LitElement {
     this.syncFromState();
   }
 
+  handleProblemSelected(e) {
+    const { eventIndex } = e.detail || {};
+    if (eventIndex == null) return;
+    state.setState({
+      selectedIndex: eventIndex,
+      fileTreeFilterIndex: eventIndex,
+      activeSidebarTab: 'trace',
+    });
+    this.syncFromState();
+  }
+
   handleStepperResume(e) {
     const { mode } = e.detail;
-    console.log('[debug-app] handleStepperResume called with mode:', mode);
-    console.log('[debug-app] WebSocket state:', this._ws?.readyState, '(OPEN=1)');
-    if (this._ws && this._ws.readyState === WebSocket.OPEN) {
-      const msg = JSON.stringify({ type: 'resume', mode });
-      console.log('[debug-app] Sending resume message:', msg);
-      this._ws.send(msg);
-    } else {
-      console.warn('[debug-app] WebSocket not open, cannot send resume');
-    }
-    
-    // For stepping (not "run"), keep the paused UI visible to avoid flicker
-    // The UI will update when the next pause message arrives
-    if (mode === 'run') {
+    this._sendResume(mode);
+    if (mode === 'run' || mode === 'continue') {
       this.pausedState = null;
       this.liveRunning = true;
       this.requestUpdate();
     } else {
-      // For step modes, mark as stepping so UI can show a subtle indicator
       this.isStepping = true;
       this.requestUpdate();
     }
@@ -337,7 +409,13 @@ export class DebugApp extends LitElement {
 
   render() {
     if (!this.session) {
-      return html`<div style="padding: 20px; color: #858585;">Loading session data...</div>`;
+      return html`
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:12px;color:#858585;font-family:monospace;">
+          <div style="font-size:32px">⏳</div>
+          <div style="font-size:14px">Connecting to debug server…</div>
+          <div style="font-size:11px;color:#555">Ensure DevTester is running with --debug or --debug-stepping</div>
+        </div>
+      `;
     }
 
     return html`
@@ -395,6 +473,10 @@ export class DebugApp extends LitElement {
                 class="sidebar-tab ${this.activeSidebarTab === 'models' ? 'active' : ''}"
                 @click=${() => this.handleTabClick('models')}
               >Models</button>
+              <button 
+                class="sidebar-tab ${this.activeSidebarTab === 'problems' ? 'active' : ''}"
+                @click=${() => this.handleTabClick('problems')}
+              >Problems${this._problemCount > 0 ? html` <span style="background:#f48771;color:#1e1e1e;border-radius:8px;padding:0 5px;font-size:10px;font-weight:700;margin-left:3px">${this._problemCount}</span>` : ''}</button>
             </div>
 
             <trace-panel
@@ -415,6 +497,13 @@ export class DebugApp extends LitElement {
               class="sidebar-view ${this.activeSidebarTab === 'models' ? 'active' : ''}"
               .session=${this.session}
             ></models-panel>
+
+            <problems-panel
+              id="problemsPanel"
+              class="sidebar-view ${this.activeSidebarTab === 'problems' ? 'active' : ''}"
+              .events=${this.session?.events || []}
+              @problem-selected=${this.handleProblemSelected}
+            ></problems-panel>
           </div>
         </div>
 
@@ -437,7 +526,14 @@ export class DebugApp extends LitElement {
               .pausedState=${this.pausedState}
               .isStepping=${this.isStepping}
               @resume=${this.handleStepperResume}
-            ></stepper-panel>`
+            ></stepper-panel>
+            <div style="padding:4px 10px;background:#1a1a2a;border-top:1px solid #333;font-size:10px;color:#555;display:flex;gap:16px;">
+              <span><kbd>F5</kbd> Continue</span>
+              <span><kbd>F10</kbd> Step Over</span>
+              <span><kbd>F11</kbd> Step Into</span>
+              <span><kbd>⇧F11</kbd> Step Out</span>
+              <span><kbd>Ctrl+1-4</kbd> Switch tab</span>
+            </div>`
           : ''
         }
       </div>

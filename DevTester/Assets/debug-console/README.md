@@ -5,10 +5,12 @@
 The debug console is a browser-based visual debugger for ModelHike pipeline runs. It provides post-mortem inspection of code generation sessions including:
 
 - **Event traces** - Every template parse, execution, control flow decision
+- **Problems view** - Structured diagnostics and errors with severity, codes, suggestions, and click-through navigation
 - **Variable state** - Captured snapshots of template variables at file generation
 - **Model hierarchy** - Browse containers, modules, entities, DTOs
 - **Generated files** - View output content alongside the template source
 - **Expression evaluation** - Test expressions against captured state
+- **Theme support** - Persisted dark/light mode toggle
 
 The console uses a modular architecture with Lit web components loaded from CDN - no build step required.
 
@@ -35,7 +37,7 @@ open http://localhost:4800   # connect before or during the run
 | **Lit 3.x** | Lightweight web components (loaded from CDN) |
 | **ES6 Modules** | Native browser imports, no bundler |
 | **Shadow DOM** | Component style encapsulation |
-| **CSS Variables** | Theme customization (`--left-sidebar-width`, etc.) |
+| **CSS Variables** | Theme tokens, layout sizing, and dark/light mode (`--left-sidebar-width`, color tokens, etc.) |
 
 ### Directory Structure
 
@@ -45,7 +47,7 @@ debug-console/
 ├── styles/
 │   ├── base.css              # Reset, CSS variables, scrollbar styling
 │   ├── layout.css            # Grid definitions, panel classes
-│   └── themes.css            # VS Code dark theme colors
+│   └── themes.css            # Shared dark/light design tokens
 ├── components/
 │   ├── debug-app.js          # Root orchestrator; mode-aware (post-mortem vs stepping)
 │   ├── header-bar.js         # Top bar with phases
@@ -53,7 +55,8 @@ debug-console/
 │   ├── file-tree-panel.js    # Left sidebar file explorer
 │   ├── source-editor.js      # Template source viewer
 │   ├── output-editor.js      # Generated output viewer
-│   ├── trace-panel.js        # Event trace list
+│   ├── trace-panel.js        # Event trace list (virtualized for large sessions)
+│   ├── problems-panel.js     # Diagnostics/errors list with click-through
 │   ├── variables-panel.js    # Variable inspector
 │   ├── models-panel.js       # Model hierarchy browser
 │   ├── footer-bar.js         # Timeline + expression eval
@@ -71,8 +74,8 @@ debug-console/
 ### Component Hierarchy
 
 ```
-<debug-app>                    ← Root: loads session, manages state, mode-aware
-├── <header-bar>               ← Logo + phase indicators
+<debug-app>                    ← Root: loads session + diagnostics, manages state, mode-aware
+├── <header-bar>               ← Logo + phase indicators + theme toggle
 ├── <summary-bar>              ← Event/file/model counts
 ├── <file-tree-panel>          ← Left sidebar
 ├── <pane-resizer>             ← Draggable left divider
@@ -83,6 +86,7 @@ debug-console/
 ├── <pane-resizer>             ← Draggable right divider
 ├── [Right sidebar tabs]
 │   ├── <trace-panel>          ← Event list
+│   ├── <problems-panel>       ← Diagnostics + errors
 │   ├── <variables-panel>      ← Variable inspector
 │   └── <models-panel>         ← Model tree
 ├── <stepper-panel>            ← Live stepping controls (visible only when paused)
@@ -102,10 +106,11 @@ The root component that orchestrates the entire debug console.
 **Responsibilities:**
 - Fetches `/api/mode` on mount to determine post-mortem vs stepping mode
 - In post-mortem mode: fetches session data via `loadSession()`, builds file windows
+- Refreshes the Problems panel from `/api/diagnostics`
 - In stepping mode: connects WebSocket via `connectWebSocket()`, appends live events as they arrive, shows `<stepper-panel>` when a `paused` message is received
 - Builds file windows from session using `buildFileWindows()`
 - Manages centralized state and syncs to child components
-- Handles all custom events from children (file-selected, event-selected, timeline-changed, resume)
+- Handles all custom events from children (file-selected, event-selected, problem-selected, timeline-changed, resume)
 - Renders the main grid layout
 
 **Properties (internal state):**
@@ -115,7 +120,7 @@ The root component that orchestrates the entire debug console.
 | `selectedIndex` | Number | Currently selected event index |
 | `currentWindow` | Object | Current file window (contains outputPath, startIndex, etc.) |
 | `visibleFileWindows` | Array | File windows visible at current timeline position |
-| `activeSidebarTab` | String | 'trace' \| 'variables' \| 'models' |
+| `activeSidebarTab` | String | 'trace' \| 'problems' \| 'variables' \| 'models' |
 | `serverMode` | String | 'postMortem' \| 'stepping' — set from `/api/mode` |
 | `pausedState` | Object \| null | `{ location, vars }` when paused, otherwise null |
 | `liveRunning` | Boolean | True while the pipeline is running in stepping mode |
@@ -123,6 +128,7 @@ The root component that orchestrates the entire debug console.
 **Event Handlers:**
 - `@file-selected` → Updates selectedIndex to file's startIndex
 - `@event-selected` → Updates selectedIndex
+- `@problem-selected` → Switches to trace view and jumps to the linked event/source
 - `@timeline-changed` → Updates selectedIndex and fileTreeFilterIndex
 - `@resume` (from `<stepper-panel>`) → Sends resume/step command over WebSocket
 
@@ -132,17 +138,19 @@ The root component that orchestrates the entire debug console.
 
 **File:** `components/header-bar.js`
 
-Displays the ModelHike logo and pipeline phase status.
+Displays the ModelHike logo, pipeline phase status, and the persisted theme toggle.
 
 **Properties:**
 | Property | Type | Description |
 |----------|------|-------------|
 | `phases` | Array | Phase records from session (name, success, duration) |
+| `_theme` | String | Persisted UI theme (`dark` or `light`) |
 
 **Rendering:**
 - Shows "ModelHike Debug Console" title
 - Renders each phase as a pill with name and status color
 - Completed phases shown in blue, failed in red
+- Exposes a theme toggle button and persists the choice to `localStorage`
 
 ---
 
@@ -266,10 +274,39 @@ Displays the list of debug events for the current file window.
 
 **Features:**
 - Filters events to current file window's range (startIndex to endIndex)
+- Search/filter controls
+- Event-type filtering
 - Color-coded event types (controlFlow, templateStarted, fileGenerated, etc.)
 - Shows event label and source location
 - Highlights selected event
-- Scrollable list
+- Virtualized scrolling for large sessions
+- Auto-scrolls to the selected event
+
+---
+
+### `<problems-panel>` - Diagnostics and Errors
+
+**File:** `components/problems-panel.js`
+
+Displays structured diagnostics and runtime errors for the current session.
+
+**Properties:**
+| Property | Type | Description |
+|----------|------|-------------|
+| `session` | Object | Debug session fallback source |
+| `selectedIndex` | Number | Current event index |
+
+**Events Emitted:**
+| Event | Detail | Description |
+|-------|--------|-------------|
+| `problem-selected` | `{ eventIndex, location }` | User clicked a problem row |
+
+**Features:**
+- Prefers `/api/diagnostics` for structured payloads
+- Falls back to `session.events` when needed
+- Shows severity, code, message, location, and suggestions
+- Keyboard-accessible rows
+- Click-through to the corresponding trace event / source line
 
 ---
 
@@ -287,11 +324,14 @@ Displays variable state captured at the current event index.
 **Internal State:**
 - `variables` - Object of variable name → value pairs
 - `loading` - Loading indicator state
+- `_search` - Search query
+- `_showSystem` - Whether `@system` variables are shown
 
 **Data Flow:**
 1. When `selectedIndex` changes, fetches `/api/memory/:index`
 2. Displays variables in a sorted table
-3. Filters out internal variables (starting with `@`)
+3. Supports search filtering
+4. Hides internal variables (starting with `@`) unless explicitly enabled
 
 **Note:** Variables are only captured when files are generated. Events before the first file generation will show "No variables".
 
@@ -420,6 +460,7 @@ Provides async functions for fetching data from the debug server:
 
 ```javascript
 loadSession()              // GET /api/session
+loadDiagnostics()          // GET /api/diagnostics
 loadMemory(eventIndex)     // GET /api/memory/:index
 loadSourceFile(identifier) // GET /api/source/:id
 loadGeneratedFile(index)   // GET /api/generated-file/:index
@@ -477,6 +518,12 @@ ws.onopen = () => {
 **New client synchronization:** When connecting while execution is paused, the server immediately sends the current `paused` message so late-joining clients display the correct state.
 
 > **Full protocol reference:** See [`Docs/debug/WEBSOCKET_PROTOCOL.md`](../../../Docs/debug/WEBSOCKET_PROTOCOL.md) for comprehensive message formats, field definitions, sequence diagrams, and implementation details.
+
+**Diagnostics API:**
+
+```javascript
+loadDiagnostics()          // GET /api/diagnostics — structured problems for the Problems panel
+```
 
 ### `utils/state.js` - Centralized State
 
@@ -732,7 +779,8 @@ All routing and business logic lives in `DebugRouter.swift` (actor). `HTTPChanne
 - **Expression Eval**: Type expressions in footer input
 
 ### Styling
-- VS Code dark theme colors
+- Shared theme tokens in `themes.css`
+- Persisted dark/light toggle in `header-bar.js`
 - Custom scrollbars (dark track, subtle thumb)
 - Monospace font throughout
 - Hover/selected states on interactive elements
@@ -750,9 +798,10 @@ All routing and business logic lives in `DebugRouter.swift` (actor). `HTTPChanne
 
 - **Variables**: Only captured when files are generated (not continuously tracked)
 - **No syntax highlighting**: Code shown as plain text with line numbers
-- **No search**: Cannot search within files or events yet
 - **Stepping semantics**: Step Over / Step Into / Step Out buttons are wired in the UI but all currently cause unconditional resume; differentiated semantics are not yet implemented in `LiveDebugStepper`
 - **Live file tree**: In stepping mode the file tree only populates after pipeline completion and a page refresh (or after the `completed` WebSocket message triggers a session reload)
+- **No file-tree problem badges**: diagnostics live in the Problems tab, not on file-tree rows yet
+- **No provenance/source map**: output lines cannot yet be traced back to specific template lines
 
 ## Future Enhancements
 
@@ -760,8 +809,8 @@ Potential improvements:
 - Implement differentiated `stepOver`/`stepInto`/`stepOut` in `LiveDebugStepper`
 - Update file tree incrementally as files are generated in stepping mode
 - Add syntax highlighting (Prism.js or Shiki)
-- Add virtual scrolling for large event lists
-- Add search/filter capabilities
 - Add continuous variable tracking
+- Add file-tree problem badges
+- Add output-to-template source mapping
 - Add export/download features
 - Add TypeScript for type safety

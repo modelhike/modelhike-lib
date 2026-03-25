@@ -66,6 +66,11 @@ public actor InlineBlueprint: Blueprint {
         folderMap[foldername] != nil
     }
 
+    public func hasFile(_ filename: String) -> Bool {
+        let (folder, file) = splitPath(filename)
+        return folderMap[folder]?[file] != nil
+    }
+
     public func listFiles(inFolder foldername: String) -> [String] {
         guard let files = folderMap[foldername] else { return [] }
         return Array(files.keys)

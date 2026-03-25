@@ -125,6 +125,16 @@ public struct SetStrVarStmt: BlockOrLineTemplateStmt {
                 await ctx.debugLog.workingDirectoryChanged("(base path)")
                 await ctx.variables.set(variableName, value: "")
             } else {
+                // Warn when a previously-set variable is being cleared by a nil/empty expression
+                if await ctx.variables.has(variableName) {
+                    let expr = ValueExpression.isNotEmpty ? ValueExpression : "(block body)"
+                    await ctx.debugLog.recordDiagnostic(
+                        .warning,
+                        code: "W202",
+                        "Variable '\(variableName)' cleared: expression '\(expr)' resolved to nil.",
+                        pInfo: pInfo
+                    )
+                }
                 try await ctx.setValueOf(variableOrObjProp: variableName, value: nil, with: pInfo)
             }
         }

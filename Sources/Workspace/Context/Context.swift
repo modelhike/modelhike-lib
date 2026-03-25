@@ -40,11 +40,11 @@ public extension Context {
     }
 
     var debugRecorder: (any DebugRecorder)? {
-        get async { await config.debugRecorder }
+        get async { config.debugRecorder }
     }
 
     var debugStepper: (any DebugStepper)? {
-        get async { await config.debugStepper }
+        get async { config.debugStepper }
     }
     
     var debugInfo: DebugDictionary {
@@ -93,6 +93,16 @@ public extension Context {
     
     func pushSnapshot() {
         snapshotStack.append(currentState)
+        // Capture a base memory snapshot so the debug console can reconstruct
+        // variable state at any event index via captureDelta deltas.
+        if let recorder = config.debugRecorder {
+            let label = "snapshot-push"
+            let vars = variables
+            Task {
+                let snapshot = await vars.snapshot().mapValues(debugValueString)
+                await recorder.captureBaseSnapshot(label: label, variables: snapshot)
+            }
+        }
     }
 
     func popSnapshot() {
@@ -127,13 +137,23 @@ public extension Context {
 
     func variablesForDebug() async -> [String: String] {
         let snapshot = await variables.snapshot()
-        return snapshot.mapValues { v in
-            if let s = v as? String { return s }
-            if let n = v as? Int { return String(n) }
-            if let b = v as? Bool { return String(b) }
-            if let d = v as? Double { return String(d) }
-            return String(describing: v)
-        }
+        return snapshot.mapValues(debugValueString)
+    }
+
+    func recordVariableSetDiagnosticIfNeeded(variableName: String, newValue: Sendable?) async {
+        guard let recorder = config.debugRecorder else { return }
+
+        let oldRaw = await variables[variableName]
+        let oldStr = oldRaw.map(debugValueString)
+        let newStr = newValue.map(debugValueString) ?? ""
+
+        guard oldStr != newStr else { return }
+
+        let eventIndex = await recorder.currentEventCount
+        await recorder.captureDelta(eventIndex: eventIndex, variable: variableName,
+                                    oldValue: oldStr, newValue: newStr)
+        debugLog.recordEvent(.variableSet(name: variableName, oldValue: oldStr, newValue: newStr,
+            source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)))
     }
     
     //manage obj attributes in the context variables
@@ -154,7 +174,12 @@ public extension Context {
             if let obj = await self.variables[variableName]  {
                 return obj
             } else {
-                throw TemplateSoup_ParsingError.invalidExpression_VariableOrObjPropNotFound(variableName, pInfo)
+                let candidates = await self.variables.keySnapshot
+                throw Suggestions.variableOrPropertyNotFound(
+                    variableName,
+                    candidates: candidates,
+                    pInfo: pInfo
+                )
             }
         }
     }
@@ -173,7 +198,10 @@ public extension Context {
         } else { // object only
             let variableName = name
 
-            if let body = try await self.evaluate(expression: valueExpression, with: pInfo) {
+            let evaluatedValue = try await self.evaluate(expression: valueExpression, with: pInfo)
+            await recordVariableSetDiagnosticIfNeeded(variableName: variableName, newValue: evaluatedValue)
+
+            if let body = evaluatedValue {
                 await self.variables.set(variableName, value: body)
             } else {
                 await self.variables.removeValue(forKey: variableName)
@@ -194,7 +222,7 @@ public extension Context {
             
         } else { // object only
             let variableName = name
-
+            await recordVariableSetDiagnosticIfNeeded(variableName: variableName, newValue: value)
             if let body = value {
                 await self.variables.set(variableName, value: body)
             } else {
@@ -217,12 +245,17 @@ public extension Context {
         } else { // object only
             let variableName = name
 
+            let modifiedValue: Sendable?
             if let body = body {
-                if let modifiedBody = try await Modifiers.apply(to: body, modifiers: modifiers, with: pInfo) {
-                    await self.variables.set(variableName, value: modifiedBody)
-                } else {
-                    await self.variables.removeValue(forKey: variableName)
-                }
+                modifiedValue = try await Modifiers.apply(to: body, modifiers: modifiers, with: pInfo)
+            } else {
+                modifiedValue = nil
+            }
+
+            await recordVariableSetDiagnosticIfNeeded(variableName: variableName, newValue: modifiedValue)
+
+            if let modifiedValue {
+                await self.variables.set(variableName, value: modifiedValue)
             } else {
                 await self.variables.removeValue(forKey: variableName)
             }

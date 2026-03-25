@@ -445,39 +445,38 @@ That means `VISUALDEBUG.md` must distinguish between:
 
 ### Event cases currently defined but not fully or consistently emitted
 
-The following `DebugEvent` cases exist in the schema but are not all actively emitted in the current runtime:
+Most high-value event cases are now actively emitted in the runtime. The remaining notable gaps are:
 
-- `phaseStarted`
-- `phaseCompleted`
-- `phaseFailed`
-- `modelLoaded`
-- `scriptCompleted`
-- `templateCompleted`
-- `consoleLog`
-- `announce`
 - `expressionEvaluated`
-- `variableSet`
-- `error`
 - `parseBlockStarted`
 
-Some of these are effectively replaced by parallel data structures:
+Important nuance:
 
-- phases are tracked in `session.phases`, not `session.events`
+- phase lifecycle is now represented in **both** `session.phases` and `session.events`
+- runtime errors are captured in **both** `session.errors` and `session.events` (`error(...)`)
+- diagnostics are emitted as `session.events[].event.diagnostic` and can also be queried via `/api/diagnostics`
 
 ### Recorder capabilities that exist but are only partially wired
 
-The recorder exposes more than the current runtime uses:
+The recorder exposes more than the runtime currently uses, but the core pathways are now wired:
 
-- `captureDelta(...)` exists, but delta capture is not broadly wired into variable mutation paths
-- `captureError(...)` exists, but structured runtime error capture is not broadly wired into failure paths
-- `setContainerName(...)` exists, but container name stamping is not actively set during the debug run
+- `captureDelta(...)` is wired for variable mutation and object-attribute mutation paths
+- `captureError(...)` is wired in pipeline failure paths
+- `setContainerName(...)` is set during container generation
+
+The recorder still has room to grow:
+
+- pause-time call stack serialization is not yet exposed in live stepping payloads
+- expression-evaluation events are not yet captured consistently enough to support a full "watch expression history" UI
 
 ### Practical implication
 
 A consumer of `DebugSession` should treat it as:
 
-- reliable for emitted template/script/file/window browsing
-- partially scaffolded for full time-travel and structured error forensics
+- reliable for template/script/file/window browsing
+- reliable for variable reconstruction at event indices via base snapshots + deltas
+- reliable for problem discovery via `error(...)` and `diagnostic(...)` events
+- still partially scaffolded for full provenance and richer pause-time debugging
 
 ## Event Emission Matrix
 
@@ -485,13 +484,25 @@ This section records what the current system actually emits, and where.
 
 ### Actively emitted today
 
+- `phaseStarted`
+  - from `Pipeline.run`
+- `phaseCompleted`
+  - from `Pipeline.run`
+- `phaseFailed`
+  - from `Pipeline.run`
+- `modelLoaded`
+  - from `LoadModels`
 - `templateParseStarted`
   - from `TemplateEvaluator`
 - `templateStarted`
   - from `TemplateEvaluator`
+- `templateCompleted`
+  - from `TemplateEvaluator`
 - `scriptParseStarted`
   - from `ScriptFileExecutor`
 - `scriptStarted`
+  - from `ScriptFileExecutor`
+- `scriptCompleted`
   - from `ScriptFileExecutor`
 - `statementDetected`
   - from `ScriptParser`
@@ -507,8 +518,15 @@ This section records what the current system actually emits, and where.
   - from `ContextDebugLog.printParsedTree`
 - `controlFlow`
   - from `If` statement execution paths
+- `consoleLog`
+  - from `ConsoleLog`
+- `announce`
+  - from `AnnnounceStmt`
 - `workingDirChanged`
   - from `SetVar` / `SetStr`
+- `variableSet`
+  - from `Context.setValueOf(...)`
+  - from `ObjectAttributeManager`
 - `fileGenerated`
   - from `RenderFile`
   - from blueprint render-folder code paths
@@ -526,6 +544,10 @@ This section records what the current system actually emits, and where.
   - from render-folder paths
 - `fatalError`
   - from directive-driven error paths
+- `diagnostic`
+  - from validation, nil-condition warnings, variable-clear warnings, blueprint preflight, and other non-fatal reporting paths
+- `error`
+  - from pipeline catch blocks after `captureError(...)`
 - `passSkipped`
   - from pipeline phase/pass gating
 - `phaseSkipped`
@@ -533,17 +555,7 @@ This section records what the current system actually emits, and where.
 
 ### Not emitted consistently today
 
-- `phaseStarted`
-- `phaseCompleted`
-- `phaseFailed`
-- `modelLoaded`
-- `scriptCompleted`
-- `templateCompleted`
-- `consoleLog`
-- `announce`
 - `expressionEvaluated`
-- `variableSet`
-- `error`
 - `parseBlockStarted`
 
 ## How Source Registration Works
@@ -924,6 +936,8 @@ This was added specifically because stale browser caches were causing the user t
   - serves `session.events`
 - `GET /api/files`
   - serves `session.files`
+- `GET /api/diagnostics`
+  - serves a filtered problem-oriented view of `diagnostic(...)` and `error(...)` events; used by the Problems panel
 - `GET /api/memory/:eventIndex`
   - reconstructs variable state
 - `GET /api/source/:identifier`
@@ -948,6 +962,7 @@ Exposed:
 - `/api/model`
 - `/api/events`
 - `/api/files`
+- `/api/diagnostics`
 - `/api/memory/:eventIndex`
 - `/api/source/:identifier`
 - `/api/generated-file/:index`
@@ -958,6 +973,7 @@ Actively consumed by the debug console:
 
 - `/api/session`
 - `/api/mode`
+- `/api/diagnostics`
 - `/api/memory/:eventIndex`
 - `/api/source/:identifier`
 - `/api/generated-file/:index`
@@ -968,7 +984,6 @@ Currently unused by the debug console:
 
 - `/api/model`
 - `/api/events`
-- `/api/files`
 - `/api/files`
 
 ### Security and scope note
@@ -1022,7 +1037,7 @@ The UI is a modular browser app using Lit web components loaded from CDN. No bui
 
 The console is organized into:
 - `index.html` - Entry point
-- `components/` - 13 Lit web components (including `stepper-panel.js` for live stepping UI)
+- `components/` - 14 Lit web components (including `problems-panel.js` and `stepper-panel.js`)
 - `utils/` - Pure utility functions (api, state, formatters)
 - `styles/` - CSS split by concern (base, layout, themes)
 
@@ -1032,10 +1047,12 @@ See `DevTester/Assets/debug-console/README.md` for the full component hierarchy.
 
 On load the root `<debug-app>` component:
 
-1. fetches `/api/session`
-2. stores it in centralized `state` (utils/state.js)
-3. derives `state.fileWindows` from `session.files`
-4. renders child components with reactive property binding
+1. fetches `/api/mode`
+2. in post-mortem mode, fetches `/api/session`
+3. stores state in centralized `state` (utils/state.js)
+4. derives `state.fileWindows` from `session.files`
+5. refreshes the Problems panel from `/api/diagnostics`
+6. renders child components with reactive property binding
 
 The UI is intentionally thin:
 
@@ -1138,16 +1155,57 @@ The server-side payload currently includes:
 - full content
 - line count
 
+### Trace tab
+
+The Trace tab renders the event stream for the currently selected file window.
+
+Current capabilities:
+
+- search by event label / source text
+- filter by event type
+- keyboard navigation
+- automatic scroll-to-selection
+- virtual scrolling so large sessions do not render thousands of DOM rows at once
+
+The virtualized list uses a fixed row height plus buffered windowing, which keeps the browser responsive even for long sessions with dense event output.
+
 ### Variables tab
 
 The variables inspector fetches `/api/memory/:eventIndex` and renders the reconstructed variable map in a simple table.
+
+Current capabilities:
+
+- search/filter by variable name or value
+- optional display of `@system` variables
+- paused-state variable view during live stepping
+- reconstructed state from base snapshots + delta snapshots
 
 Current limitations:
 
 - values are flattened to strings in many cases
 - there is no nested object viewer
 - there is no diff view against prior events
-- there is no `renderToken` guard against stale variable responses after rapid scrubbing
+- there is still no dedicated diff view against a previous selected event
+
+### Problems tab
+
+The Problems tab is the diagnostics-focused view of the debugger.
+
+It prefers `GET /api/diagnostics` when available and falls back to scanning `session.events` for:
+
+- `event.error`
+- `event.diagnostic`
+
+Current capabilities:
+
+- severity badges (`error`, `warning`, `info`, `hint`)
+- error/diagnostic code display
+- source file + line display
+- suggestion rendering
+- keyboard-accessible rows
+- click-through from a problem row to the corresponding trace event / source line
+
+The Problems -> Trace/Source click-through behavior has been browser-verified against a real debug session by injecting a synthetic problem row tied to a real event index.
 
 ### Models tab
 
@@ -1169,7 +1227,7 @@ The current browser tree focuses on:
 
 ## Live Stepping Status
 
-Live stepping is partially implemented in the library but not fully enabled in `DevTester`.
+Live stepping is enabled in `DevTester` behind `--debug-stepping`, but it is still only partially complete as a full interactive debugger.
 
 ### What exists
 
@@ -1179,6 +1237,10 @@ Live stepping is partially implemented in the library but not fully enabled in `
 - pause callback
 - continuation-based suspension logic
 - execution-loop integration in `GenericStmtsContainer.execute(with:)`
+- `paused` WebSocket messages with source location and visible variables
+- live event streaming through `StreamingDebugRecorder`
+- browser keyboard shortcuts for continue / stepping actions
+- pause-state sync for late-joining clients
 
 That means the execution loop already calls:
 
@@ -1187,6 +1249,24 @@ if let stepper = await ctx.debugStepper {
     await stepper.willExecute(item: item, ctx: ctx)
 }
 ```
+
+### What is still incomplete
+
+- `stepOver`, `stepInto`, and `stepOut` are wired end-to-end in the UI/protocol, but differentiated server-side stepping semantics are still incomplete
+- there is no breakpoint gutter/list UI in the browser
+- pause payloads do not yet include live stack frames
+- conditional breakpoints are not implemented
+- WebSocket ack/error protocol remains minimal
+
+### WebSocket Protocol Reference
+
+See [`Docs/debug/WEBSOCKET_PROTOCOL.md`](WEBSOCKET_PROTOCOL.md) for the full message format specification, including:
+
+- Server → Client messages: `event`, `paused`, `completed`
+- Client → Server messages: `resume`, `addBreakpoint`, `removeBreakpoint`
+- Programmatic breakpoint API in Swift
+- New-client synchronization behavior
+- Sequence diagram
 
 ### What the `--debug` mode installs
 

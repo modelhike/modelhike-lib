@@ -21,6 +21,8 @@ When the pipeline doesn't produce the output you expect, ModelHike provides seve
 13. [Using the Xcode Debugger](#13-using-the-xcode-debugger)
 14. [Common Debugging Scenarios](#14-common-debugging-scenarios)
 15. [Blueprint-Specific Debugging Patterns](#15-blueprint-specific-debugging-patterns)
+16. [Visual Debugger](#16-visual-debugger)
+17. [Diagnostic Codes You Will See](#17-diagnostic-codes-you-will-see)
 
 ---
 
@@ -841,3 +843,179 @@ These set context variables available throughout the blueprint's templates. If o
 | `Sources/Modelling/_Base_/ModelErrors.swift` | `Model_ParsingError` enum — DSL model file parse errors |
 | `DevTester/DevMain.swift` | Development harness with commented-out examples of all debugging patterns |
 | `DevTester/Environment.swift` | Path configuration — verify `basePath` and `localBlueprintsPath` are correct |
+
+---
+
+## 16. Visual Debugger
+
+For session-oriented debugging, use the browser debugger instead of raw terminal output:
+
+```bash
+# Post-mortem mode
+swift run DevTester --debug --debug-dev --no-open --debug-port=4800
+
+# Live streaming / stepping mode
+swift run DevTester --debug-stepping --debug-dev --no-open --debug-port=4800
+```
+
+Then open `http://localhost:4800`.
+
+### What it gives you today
+
+- **Trace tab**: searchable, filterable, virtualized event list
+- **Problems tab**: structured diagnostics and errors from `/api/diagnostics`
+- **Variables tab**: reconstructed variable state from base snapshots + deltas, with search and `@system` toggle
+- **Models tab**: model hierarchy snapshot
+- **Source/output split view**: inspect the active source and generated file side by side
+- **Theme toggle**: persisted dark/light mode
+- **Keyboard shortcuts**: `F5`, `F10`, `F11`, `Shift+F11`, and sidebar shortcuts
+
+### Important APIs
+
+- `GET /api/session` — full captured `DebugSession`
+- `GET /api/diagnostics` — problems-oriented view used by the Problems panel
+- `GET /api/memory/:eventIndex` — reconstructed variable state
+- `GET /api/source/:identifier` — source text for template/script identifiers
+- `GET /api/generated-file/:index` — generated output snapshot
+- `POST /api/evaluate` — evaluate an expression against reconstructed state
+- `GET /api/mode` — `postMortem` or `stepping`
+
+### Click-through workflow
+
+The fastest way to investigate a warning or error is:
+
+1. open the **Problems** tab
+2. click the problem row
+3. let the debugger jump to the linked trace event and source line
+4. inspect variables at that event index
+
+This is especially effective for `W201`, `W202`, validation warnings, and render-time errors that now surface as structured diagnostic rows instead of terminal-only text.
+
+---
+
+## 17. Diagnostic Codes You Will See
+
+The current error-handling/debugging work introduced several high-signal codes:
+
+| Code | Meaning |
+|---|---|
+| `W201` | A condition resolved to `nil`; ModelHike treated it as `false` and emitted a warning |
+| `W202` | A variable assignment resolved to `nil`; the runtime warned instead of silently clearing state |
+| `W301` | A property references a custom type that could not be resolved during validation |
+| `W303` | A container references a module that was never defined |
+| `W304` | Duplicate type name in the same validation scope |
+| `W305` | Duplicate property name in the same object |
+| `W306` | Duplicate method name in the same object |
+| `E101` | Blueprint pre-flight problem before render starts |
+
+You may also see rich parser/evaluation failures without a code. These are still important improvements:
+
+- modifier/operator errors now include better expected/found wording
+- unknown names often include "did you mean?" suggestions
+- file/folder statements now throw a dedicated filesystem-path error when a target path expression does not evaluate to `String`
+
+For the full architecture and UI behavior, see `Docs/debug/VISUALDEBUG.md`.
+
+---
+
+## 18. Test Coverage for Enriched Error Paths
+
+The enriched error-handling work is backed by dedicated test suites in `Tests/Debug/`:
+
+### `EnrichedDX_Tests.swift`
+
+Verifies the precise wording and structure of enhanced error messages:
+
+| Test | What It Verifies |
+|------|------------------|
+| `unknownModifier_includesSuggestionAndAvailableModifiers` | Unknown modifier errors include "did you mean?" and "available modifiers:" |
+| `unknownVariable_includesSuggestionAndVariablesInScope` | Unknown variable errors include "did you mean?" and "variables in scope:" |
+| `unknownTemplateFunction_includesSuggestionAndAvailableFunctions` | Unknown function errors include "did you mean?" and "available template functions:" |
+| `unknownInfixOperator_includesSuggestionAndAvailableOperators` | Unknown operator errors include "did you mean?" and "available operators:" |
+| `noArgModifier_calledWithArgs_hasExplicitGuidance` | No-argument modifiers called with arguments show explicit guidance |
+| `argsRequiredModifier_calledWithoutArgs_hasExplicitGuidance` | Argument-required modifiers called without arguments show explicit guidance |
+| `typeRestrictedModifier_wrongType_reportsExpectedVsFound` | Type-restricted modifiers report expected vs found types |
+| `infixOperator_wrongLhsType_reportsPreciseMessage` | Operator type mismatches report precise left-hand-side type errors |
+| `diagnosticEvent_encodesSeverityCodeSourceAndSuggestions` | Diagnostic events encode severity, code, message, source, and structured suggestions correctly in JSON |
+
+### `DebugRecorder_Tests.swift`
+
+Verifies the debug infrastructure:
+
+| Test | What It Verifies |
+|------|------------------|
+| `recordEventsAndReconstructState` | Events are recorded, base snapshots captured, deltas applied, and state reconstructed correctly at any event index |
+| `addGeneratedFileAndSession` | Generated files are tracked and appear in the session |
+| `registerSourceFile` | Source files are registered and appear in the session |
+
+Run all tests with:
+
+```bash
+swift test --filter Debug
+```
+
+---
+
+## 19. Where `Suggestions` Is Integrated
+
+The `Suggestions` utility (`Sources/Debug/Suggestions.swift`) provides Levenshtein-distance-based "did you mean?" hints and available-options formatting. It is integrated at these call sites:
+
+### Modifier/Operator/Function Lookup
+
+| File | Integration |
+|------|-------------|
+| `Sources/Scripting/SoupyScript/Symbols/Modifiers/Modifiers.swift` | Unknown modifier errors |
+| `Sources/Workspace/Evaluation/RegularExpressionEvaluator.swift` | Unknown infix operator errors |
+| `Sources/Scripting/SoupyScript/Stmts/FunctionCall.swift` | Unknown template function errors |
+| `Sources/Workspace/Evaluation/ExpressionEvaluator.swift` | Unknown variable/property errors |
+
+### Wrapper Property Access
+
+| File | Integration |
+|------|-------------|
+| `Sources/Scripting/Wrappers/CodeObjectWrap.swift` | Unknown property on entity/DTO wrappers |
+| `Sources/Scripting/Wrappers/C4ContainerWrap.swift` | Unknown property on container wrappers |
+| `Sources/Scripting/Wrappers/C4ComponentWrap.swift` | Unknown property on module wrappers |
+| `Sources/Scripting/Wrappers/APIWrap.swift` | Unknown property on API wrappers |
+| `Sources/Scripting/Wrappers/UIObjectWrap.swift` | Unknown property on UI wrappers |
+| `Sources/Scripting/Wrappers/DataMockWrap.swift` | Unknown property on mock data wrappers |
+| `Sources/Scripting/Wrappers/Loop.swift` | Unknown property on `@loop` wrapper |
+
+### Statement Execution
+
+| File | Integration |
+|------|-------------|
+| `Sources/Scripting/SoupyScript/Stmts/For.swift` | Unknown iterable errors |
+| `Sources/Scripting/SoupyScript/Stmts/RenderFile.swift` | Unknown template errors |
+| `Sources/Scripting/SoupyScript/Stmts/RenderFolder.swift` | Unknown folder errors |
+| `Sources/Scripting/SoupyScript/Stmts/CopyFile.swift` | Unknown source file errors |
+| `Sources/Scripting/SoupyScript/Stmts/CopyFolder.swift` | Unknown source folder errors |
+| `Sources/Scripting/SoupyScript/Stmts/FillAndCopyFile.swift` | Unknown source file errors |
+| `Sources/Scripting/SoupyScript/Containers/TemplateFunction.swift` | Unknown parameter errors |
+
+### Validation and Model Parsing
+
+| File | Integration |
+|------|-------------|
+| `Sources/Pipelines/3.5. Validate/ValidateModels.swift` | Unresolved type/module suggestions |
+| `Sources/Modelling/API/APISectionParser.swift` | Unknown API property suggestions |
+
+### Blueprint Loading
+
+| File | Integration |
+|------|-------------|
+| `Sources/CodeGen/TemplateSoup/_Base_/Blueprints/BlueprintAggregator.swift` | Unknown blueprint name suggestions |
+| `Sources/CodeGen/TemplateSoup/_Base_/Blueprints/InlineBlueprintFinder.swift` | Unknown inline blueprint suggestions |
+| `Sources/Workspace/Sandbox/CodeGenerationSandbox.swift` | Blueprint loading errors |
+
+### Other
+
+| File | Integration |
+|------|-------------|
+| `Sources/Workspace/Context/Context.swift` | Variable lookup errors |
+| `Sources/Workspace/Context/ObjectAttributeManager.swift` | Object property path errors |
+| `Sources/CodeGen/TemplateSoup/ContentLine/PrintExpressionContent.swift` | Expression evaluation errors |
+| `Sources/Scripting/SoupyScript/Libs/ModifierLibs/ModelLib.swift` | Model introspection errors |
+| `Sources/Debug/DebugUtils.swift` | Diagnostic suggestion formatting |
+
+This broad integration ensures that virtually any "not found" error in the template/script execution layer now includes actionable suggestions.

@@ -14,7 +14,19 @@ public actor BlueprintAggregator: Sendable {
             }
         }
 
-        throw EvaluationError.blueprintDoesNotExist(name, pInfo)
+        var candidates: [String] = []
+        for finder in blueprintFinders {
+            candidates.append(contentsOf: await finder.blueprintsAvailable)
+        }
+        throw EvaluationError.invalidInput(
+            Suggestions.lookupFailureMessage(
+                "There is no blueprint called '\(name)'.",
+                for: name,
+                in: candidates,
+                availableOptionsLabel: "available blueprints"
+            ),
+            pInfo
+        )
     }
 
     @discardableResult

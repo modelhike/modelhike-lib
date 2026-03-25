@@ -15,19 +15,19 @@ public struct InfixOperator<A, B, T: Sendable> : InfixOperatorProtocol {
 
     public func applyTo(lhs : Sendable?, rhs: Sendable?, pInfo: ParsedInfo) throws -> Sendable {
         guard let typedLhs = lhs as? A else {
-            throw TemplateSoup_ParsingError.infixOperatorCalledOnwrongLhsType(self.name, String(describing: type(of: lhs)), pInfo)
+            throw TemplateSoup_ParsingError.infixOperatorCalledOnwrongLhsType(self.name, runtimeTypeName(of: lhs), pInfo)
         }
         
         if type(of: typedLhs) != self.lhsType {
-            throw TemplateSoup_ParsingError.infixOperatorCalledOnwrongLhsType(self.name, String(describing: type(of: typedLhs)), pInfo)
+            throw TemplateSoup_ParsingError.infixOperatorCalledOnwrongLhsType(self.name, runtimeTypeName(of: typedLhs), pInfo)
         }
         
         guard let typedRhs = rhs as? B else {
-            throw TemplateSoup_ParsingError.infixOperatorCalledOnwrongRhsType(self.name, String(describing: type(of: rhs)), pInfo)
+            throw TemplateSoup_ParsingError.infixOperatorCalledOnwrongRhsType(self.name, runtimeTypeName(of: rhs), pInfo)
         }
         
         if type(of: typedRhs) != self.rhsType {
-            throw TemplateSoup_ParsingError.infixOperatorCalledOnwrongRhsType(self.name, String(describing: type(of: typedRhs)), pInfo)
+            throw TemplateSoup_ParsingError.infixOperatorCalledOnwrongRhsType(self.name, runtimeTypeName(of: typedRhs), pInfo)
         }
             
         return handler(typedLhs, typedRhs)

@@ -30,6 +30,8 @@ public enum Modifiers  {
         let context = pInfo.ctx
         var result : [ModifierInstance] = []
         
+        let knownModifierNames = await Array(context.symbols.template.modifiers.keys)
+
         for component in components {
             let str = String(component)
             
@@ -37,10 +39,22 @@ public enum Modifiers  {
                 
                 if let modifierSymbol = await context.symbols.template.modifiers[str] as? ModifierWithoutArgsProtocol {
                     let instance = modifierSymbol.instance()
-                    
                     result.append(instance)
                 } else {
-                    throw TemplateSoup_ParsingError.modifierInvalidSyntax(str, pInfo)
+                    // Check if modifier exists but requires args (wrong call form)
+                    if await context.symbols.template.modifiers[str] != nil {
+                        throw TemplateSoup_ParsingError.modifierInvalidSyntax(
+                            "'\(str)' requires arguments — use '\(str)(arg1, …)'", pInfo)
+                    }
+                    throw TemplateSoup_ParsingError.modifierNotFound(
+                        "'\(str)' not found"
+                            + Suggestions.lookupMessageSuffix(
+                                for: str,
+                                in: knownModifierNames,
+                                availableOptionsLabel: "available modifiers"
+                            ),
+                        pInfo
+                    )
                 }
 
             } else if let match = str.wholeMatch(of: CommonRegEx.functionInvocation_unNamedArgs_Capturing) {
@@ -48,21 +62,31 @@ public enum Modifiers  {
                 let (_, fnName, argsString) = match.output
 
                 if let modifierSymbol = await context.symbols.template.modifiers[fnName] as? ModifierWithUnNamedArgsProtocol {
-                    
                     let args = await argsString.split(separator: ",").compactMap { 
                         $0.trim().isNotEmpty ? String($0) : nil }
-                    
                     let instance = modifierSymbol.instance()
                     if var instanceWithUnNamedArgs = instance as? ModifierInstanceWithUnNamedArgsProtocol {
-                        
                         instanceWithUnNamedArgs.setArgsGiven(arguments: args)
                         result.append(instanceWithUnNamedArgs)
                     }
+                } else if await context.symbols.template.modifiers[fnName] != nil {
+                    // Modifier exists but takes no args
+                    throw TemplateSoup_ParsingError.modifierInvalidSyntax(
+                        "'\(fnName)' does not accept arguments — use '| \(fnName)' without parentheses", pInfo)
                 } else {
-                    throw TemplateSoup_ParsingError.modifierInvalidSyntax(str, pInfo)
+                    throw TemplateSoup_ParsingError.modifierNotFound(
+                        "'\(fnName)' not found"
+                            + Suggestions.lookupMessageSuffix(
+                                for: fnName,
+                                in: knownModifierNames,
+                                availableOptionsLabel: "available modifiers"
+                            ),
+                        pInfo
+                    )
                 }
             } else {
-                throw TemplateSoup_ParsingError.modifierNotFound(str, pInfo)
+                throw TemplateSoup_ParsingError.modifierNotFound(
+                    "'\(str)' — could not parse as a modifier name or call", pInfo)
             }
         }
         

@@ -57,7 +57,8 @@ public struct CopyFileStmt: LineTemplateStmt, CustomDebugStringConvertible {
         
         guard let fromFile = try? await ctx.evaluate(value: FromFile, with: pInfo) as? String
         else {
-            throw TemplateSoup_ParsingError.invalidExpression_VariableOrObjPropNotFound(FromFile, pInfo)
+            let candidates = await ctx.variables.keySnapshot
+            throw Suggestions.variableOrPropertyNotFound(FromFile, candidates: candidates, pInfo: pInfo)
         }
         
         try await context.fileGenerator.setRelativePath(ctx.workingDirectoryString)
@@ -69,8 +70,17 @@ public struct CopyFileStmt: LineTemplateStmt, CustomDebugStringConvertible {
             let _ = try await context.fileGenerator.copyFile(fileName, with: pInfo)
             //file generated successfully
         } else {
-            guard let toFile = try? await ctx.evaluate(value: ToFile, with: pInfo) as? String
-                                                                        else { return nil }
+            let rawToValue = try await ctx.evaluate(value: ToFile, with: pInfo)
+            guard let toFile = rawToValue as? String else {
+                let actualType = runtimeTypeName(of: rawToValue)
+                throw TemplateSoup_EvaluationError.invalidFileSystemPath(
+                    operation: "copy-file",
+                    argument: "as",
+                    expression: ToFile,
+                    actualType: actualType,
+                    pInfo
+                )
+            }
             
             await ctx.debugLog.copyingFile(fromFile, to: toFile)
             let _ = try await context.fileGenerator.copyFile(fromFile, to: toFile, with: pInfo)

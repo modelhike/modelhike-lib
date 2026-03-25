@@ -86,6 +86,18 @@ public struct SetVarStmt: LineTemplateStmt, CustomDebugStringConvertible {
                 await ctx.debugLog.workingDirectoryChanged("(base path)")
                 await ctx.variables.set(variableName, value: "")
             } else {
+                // Warn when a previously-set variable is being cleared by a nil expression
+                if await ctx.variables.has(variableName) {
+                    let candidates = await ctx.variables.keySnapshot
+                    await ctx.debugLog.recordLookupDiagnostic(
+                        .warning,
+                        code: "W202",
+                        "Variable '\(variableName)' cleared: expression '\(ValueExpression)' resolved to nil.",
+                        lookup: ValueExpression,
+                        in: candidates,
+                        pInfo: pInfo,
+                    )
+                }
                 try await ctx.setValueOf(variableOrObjProp: variableName, value: nil, with: pInfo)
             }
         }

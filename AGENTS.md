@@ -161,6 +161,10 @@ Foundation-level utilities shared across all other modules.
 | `ThirdParty/` | `Codextended` (embedded, MIT), `StringWrapper`, `pluralized` |
 | `Utils/` | `ResultBuilder`, `RuntimeReflection`, `ShellExecute` |
 
+### `Sources/Debug/`
+
+Debugging infrastructure. Includes `Suggestions.swift` — a pure utility (Levenshtein-distance "did you mean?" helper) plus all debug recorder, event, and session types. `Suggestions` is used by expression evaluation warnings and validation diagnostics to offer actionable hints in error messages.
+
 ### `Sources/Modelling/`
 
 DSL parsing and the in-memory domain model.
@@ -251,6 +255,9 @@ Pipelines/
 │   ├── Hydrate.swift       # Factory: Hydrate.models(), Hydrate.annotations()
 │   ├── HydrateModels.swift # Port assignment, dataType classification
 │   └── PassDownAndProcessAnnotations.swift
+├── 3.5. Validate/          # Semantic validation after hydration; emits diagnostics, does not throw
+│   ├── Validate.swift      # Factory: Validate.models()
+│   └── ValidateModels.swift # Checks: unresolved custom types (W301), unresolved modules (W303), duplicate type names (W304), duplicate members (W305/W306)
 ├── 4. Transform/
 │   ├── Transform.swift
 │   └── Plugins.swift
@@ -266,7 +273,7 @@ Pipelines/
 **Pre-built pipelines** (`Pipelines.swift`):
 
 ```swift
-Pipelines.codegen  // Discover → Load → Hydrate (models + annotations) → Render → Persist
+Pipelines.codegen  // Discover → Load → Hydrate (models + annotations) → Validate → Render → Persist
 Pipelines.content  // Load (contents + pages + templates)
 Pipelines.empty    // No passes — useful for string-rendering tests
 ```
@@ -408,7 +415,7 @@ Workspace/
 ## 6. The 6-Phase Pipeline
 
 ```
-Discover ──► Load ──► Hydrate ──► Transform ──► Render ──► Persist
+Discover ──► Load ──► Hydrate ──► Validate ──► Transform ──► Render ──► Persist
 ```
 
 Each phase is a `PipelinePhase` that holds a list of `PipelinePass` implementations. Passes are composable — you can build custom pipelines using the `@PipelineBuilder` DSL.
@@ -429,6 +436,15 @@ Each phase is a `PipelinePhase` that holds a list of `PipelinePass` implementati
   - Classifies `DomainObject` data types: `entity` (has `id`/`_id`), `cache` (name ends with `Cache`), `apiInput` (name ends with `Input`), `embeddedType` (otherwise).
   - Classifies `DtoObject` data types: `dto` or `apiInput`.
 - `PassDownAndProcessAnnotations` — resolves annotation inheritance and cascades annotations down the model hierarchy.
+
+### Phase 3.5 — Validate
+
+- `ValidateModelsPass` — semantic validation pass run after hydration, before rendering. Emits structured `diagnostic` debug events (never throws) so warnings appear in the Problems panel without halting the pipeline.
+  - **W301** — Unresolved custom type reference (property refers to a type not found in `ParsedTypesCache`).
+  - **W303** — Unresolved module reference on a container (references a `+module` that was never defined).
+  - **W304** — Duplicate type name within the same container.
+  - **W305** — Duplicate property name within the same class/entity.
+  - **W306** — Duplicate method name within the same class/entity.
 
 ### Phase 4 — Transform
 
@@ -865,6 +881,9 @@ Used by `DevTester` (via `Environment.debug`) to run the full pipeline against r
 - ✅ Spring Boot blueprint infrastructure wired (Java symbols loaded) — needs an active blueprint
 - ✅ GraphQL + gRPC API scaffolding support in the DSL and modifier libraries
 - ✅ Annotation cascade system
+- ✅ Semantic validation phase (`Validate.models()`) — emits W301/W303–W306 diagnostics for unresolved types, duplicate names, and missing modules
+- ✅ World-class error messages — modifier/operator errors include structured `DiagnosticSuggestion` hints generated via `Suggestions` utility (Levenshtein distance + available-options metadata); nil-condition and nil-variable-clear warnings (W201/W202); blueprint preflight check (E101)
+- ✅ Structured diagnostics in debug UI — `/api/diagnostics` endpoint; Problems panel in debug console
 - ✅ Type inference and hydration (entity/dto/cache/apiInput/embeddedType classification)
 - ✅ Mock data generation library
 - ✅ Expression evaluator (boolean/arithmetic/comparison)

@@ -41,13 +41,14 @@ public struct TemplateEvaluator: TemplateSoupEvaluator {
             if let containers = try await parser.parseContainers() {
                 await ctx.debugLog.printParsedTree(for: containers)
 
+                let templateName = await lineParser.identifier
                 let pInfo = await lineParser.currentParsedInfo(level: 0)
-                ctx.debugLog.templateExecutionStarting(name: await lineParser.identifier, pInfo: pInfo)
+                ctx.debugLog.templateExecutionStarting(name: templateName, pInfo: pInfo)
                 try await ctx.events.onBeforeExecuteTemplate?(lineParser.identifier, ctx)
 
-                if let body = try await containers.execute(with: ctx) {
-                    return body
-                }
+                let body = try await containers.execute(with: ctx)
+                ctx.debugLog.recordEvent(.templateCompleted(name: templateName))
+                return body
             }
         } catch let err {
             if let parseErr = err as? TemplateSoup_ParsingError {

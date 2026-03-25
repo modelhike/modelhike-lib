@@ -156,7 +156,8 @@ import Testing
     }
 
     @Test func blueprintExistsAlwaysTrue() async throws {
-        #expect(try await loader.exists())
+        let exists = await loader.exists()
+        #expect(exists)
     }
 
     // MARK: loadTemplate
