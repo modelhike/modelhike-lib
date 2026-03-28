@@ -18,7 +18,7 @@ public struct PipelineConfig : OutputConfig {
     public var containerGroupsToOutput: [String] = []
     public var systemViewsToOutput: [String] = []
 
-    public var modelLoaderType : ModelLoaderType = .localFileSystem
+    public var modelSource: ModelSource = .localFileSystem
     
     public var events = CodeGenerationEvents()
     public var flags = ContextDebugFlags()
@@ -47,8 +47,9 @@ public enum BluePrintType {
     case localFileSystem, resources
 }
 
-public enum ModelLoaderType : Sendable{
-    case localFileSystem, inMemory
+public enum ModelSource: Sendable {
+    case localFileSystem
+    case inline(InlineModelLoader)
 }
 
 public enum OutputArtifactType : Sendable{
@@ -65,7 +66,7 @@ public protocol OutputConfig: Sendable {
     
     var output : LocalFolder {get set}
 
-    var modelLoaderType : ModelLoaderType {get set}
+    var modelSource: ModelSource {get set}
     
     var events : CodeGenerationEvents {get set}
     var flags: ContextDebugFlags {get set}

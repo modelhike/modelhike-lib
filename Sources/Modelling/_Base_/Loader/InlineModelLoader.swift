@@ -6,9 +6,9 @@
 
 import Foundation
 
-public class InlineModelLoader : ModelRepository {
+public struct InlineModelLoader : ModelRepository, Sendable {
     let ctx: LoadContext
-    public var items : [InlineModelProtocol] = []
+    public let items: [any InlineModelProtocol]
     
     public func loadModel(to model: AppModel) async throws {
         //first parse the common types
@@ -79,7 +79,7 @@ public class InlineModelLoader : ModelRepository {
         }
     }
     
-    public init(with ctx: LoadContext, @InlineModelBuilder _ builder: () -> [InlineModelProtocol]) {
+    public init(with ctx: LoadContext, @InlineModelBuilder _ builder: () -> [any InlineModelProtocol]) {
         self.ctx = ctx
         self.items = builder()
     }
@@ -109,7 +109,7 @@ public struct InlineConfig : InlineModelProtocol {
     }
 }
 
-public protocol InlineModelProtocol {
+public protocol InlineModelProtocol: Sendable {
     var items: [StringConvertible] { get set}
     var string: String {get}
 }

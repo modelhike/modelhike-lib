@@ -15,3 +15,15 @@ public protocol ModelRepository {
     func probeForGenerationConfig() -> Bool
 }
 
+public enum ModelRepositoryFactory {
+    public static func create(for ws: Workspace) async -> ModelRepository {
+        let config = await ws.config
+        switch config.modelSource {
+        case .localFileSystem:
+            return LocalFileModelLoader(path: config.basePath, with: ws.context)
+        case .inline(let loader):
+            return loader
+        }
+    }
+}
+

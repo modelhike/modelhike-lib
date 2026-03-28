@@ -9,12 +9,7 @@ import Foundation
 public struct DiscoverModelsPass : DiscoveringPass {
 
     public func runIn(_ ws: Workspace, phase: DiscoverPhase) async throws -> Bool {
-        var repo: ModelRepository
-
-        //TODO: Also update in Load phase
-        //        if config.modelLoaderType == .localFileSystem {
-        repo = await LocalFileModelLoader(path: ws.config.basePath, with: ws.context)
-        //let modelRepo = inlineModel(ws)
+        let repo = await ModelRepositoryFactory.create(for: ws)
         
         if repo.probeForGenerationConfig() {
             //print("Generation Config Found!!!")

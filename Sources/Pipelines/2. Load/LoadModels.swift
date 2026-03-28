@@ -9,13 +9,8 @@ import Foundation
 public struct LoadModelsPass: LoadingPass {
 
     public func runIn(_ ws: Workspace, phase: LoadPhase) async throws -> Bool {
-        var repo: ModelRepository
-
         do {
-            //TODO: Also update in Discover phase
-            //        if config.modelLoaderType == .localFileSystem {
-            repo = await LocalFileModelLoader(path: ws.config.basePath, with: ws.context)
-            //let modelRepo = inlineModel(ws)
+            let repo = await ModelRepositoryFactory.create(for: ws)
 
             try await repo.loadModel(to: ws.model)
             try await repo.loadGenerationConfigIfAny()
