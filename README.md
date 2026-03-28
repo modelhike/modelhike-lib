@@ -9,12 +9,11 @@
 | 🤝 **Promise** | Intent stays synchronized across docs, diagrams, and code |
 | 🤖 **AI Angle** | AI can help author and evolve, but never silently forks intent from implementation |
 
-> One source of truth. Zero dead documentation.  
-> AI in the loop — but never in control.  
-> Explore with AI. Ship with determinism.  
-> Build systems with structure, intent, and trust.
+One source of truth. Zero dead documentation.  
+AI in the loop — but never in control.  
+Explore with AI. Ship with determinism.  
+Build systems with structure, intent, and trust.
 
-**Speed + Safety:** Explore quickly with AI while the system is still fluid, then ship with template-driven, diffable, CI-safe builds.
 
 ```
 .modelhike files → Parse → Hydrate → Validate → Render → Output
@@ -29,9 +28,7 @@ All boilerplate — entities, repositories, controllers, services, DTOs, validat
 | ⚡ **Swift 6** | Actors throughout, strict concurrency, fully `Sendable`-compliant. |
 | 🤖 **AI Optional** | AI bootstraps and refines; templates drive production builds. No babysitting. |
 
-
-Result: AI accelerates the unknowns, but every production build is template-driven, diffable, 
-and CI-safe.
+Result: 🚀 **Speed + Safety:** AI accelerates exploration while the system is still fluid. Templates drive bullet-proof production builds — deterministic, diffable, CI-safe.
 
 ---
 
