@@ -95,8 +95,8 @@ struct Development: Sendable {
         }
 
         // TEST: Add a breakpoint at main.ss line 10 to demonstrate pause/resume
-        await stepper.addBreakpoint(BreakpointLocation(fileIdentifier: "main.ss", lineNo: 10))
-        print("🔴 Test breakpoint set at main.ss:10")
+        //await stepper.addBreakpoint(BreakpointLocation(fileIdentifier: "main.ss", lineNo: 10))
+        //print("🔴 Test breakpoint set at main.ss:10")
 
         let pipeline = Pipelines.codegen
         var config = Environment.debug
@@ -350,6 +350,6 @@ actor TestData : DynamicMemberLookup, HasAttributes_Actor {
     
     public init(name: String, age: Int) async {
         await self.attribs.set("name", value: name)
-        await self.attribs.set("age", value: name)
+        await self.attribs.set("age", value: age)
     }
 }

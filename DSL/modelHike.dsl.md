@@ -384,16 +384,7 @@ Two comment styles are supported — both are ignored by all parsers:
 // This whole line is a comment
 "Legacy field — keep until migration completed"
 Legacy mapping to be removed
-```
-| Unrecognised plain line          | `Legacy mapping to be removed`     |
-| Quoted string                    | `"TODO: migrate legacy IDs by Q3"` |
-| Comments never affect generation | Safe for brainstorming             |
-
-#### Mini‑cheatsheet
-
-```modelhike
 // deprecated — remove after migration
-"Legacy field — keep until migration completed"
 ```
 ---
 
@@ -493,7 +484,7 @@ UIViews model UI screens or components. They use a **tilde underline** (`~~~~`) 
 
 ```modelhike
 My Screen View (attributes) #tags
-----------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 @ annotation:: value
 # APIs
 ...

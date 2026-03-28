@@ -264,7 +264,7 @@ public final class ContextDebugLog: Sendable {
             recordEvent(.templateStarted(name: name, source: SourceLocation(from: pInfo)))
         }
         if flags.lineByLineParsing || flags.blockByBlockParsing {
-            print("\n\n\n\nTEMPLATE EXECTION START -------------\n")
+            print("\n\n\n\nTEMPLATE EXECUTION START -------------\n")
         }
     }
     
@@ -280,7 +280,7 @@ public final class ContextDebugLog: Sendable {
             recordEvent(.scriptStarted(name: name, source: SourceLocation(from: pInfo)))
         }
         if flags.lineByLineParsing || flags.blockByBlockParsing {
-            print("\n\n\n\nSCRIPT TEMPLATE EXECTION START -------------\n")
+            print("\n\n\n\nSCRIPT TEMPLATE EXECUTION START -------------\n")
         }
     }
     

@@ -66,7 +66,7 @@ Order
 ```
 `````
 
-Blank lines **inside** the fence are skipped. Only the closing fence terminates the block — the closing `---` is mandatory whenever a logic body is present.
+Blank lines **inside** the fence are skipped. Only the closing fence terminates the block — the closing fence (matching the opening `` ``` ``, `'''`, or `"""`) is mandatory whenever a logic body is present. Setext-style methods use `---` as the closing fence instead.
 
 ---
 

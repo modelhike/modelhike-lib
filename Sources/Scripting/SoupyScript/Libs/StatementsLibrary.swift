@@ -23,7 +23,7 @@ public struct StatementsLibrary {
 
             RunShellCmdStmt.register,
             ConsoleLogStmt.register,
-            AnnnounceStmt.register,
+            AnnounceStmt.register,
 
             SetVarStmt.register,
             SetStrVarStmt.register,

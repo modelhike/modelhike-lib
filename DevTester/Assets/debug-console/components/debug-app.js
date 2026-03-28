@@ -2,6 +2,7 @@ import { LitElement, html, css } from 'https://cdn.jsdelivr.net/npm/lit@3/+esm';
 import { state } from '../utils/state.js';
 import { loadSession, loadMode, connectWebSocket } from '../utils/api.js';
 import { buildFileWindows } from '../utils/file-tree-builder.js';
+import { DebugConsole } from '../utils/debug-console.js';
 import './header-bar.js';
 import './summary-bar.js';
 import './file-tree-panel.js';
@@ -248,7 +249,7 @@ export class DebugApp extends LitElement {
         await this._refreshProblemsPanel();
       }
     } catch (err) {
-      console.error('[debug-app] Failed to load session:', err);
+      DebugConsole.error('Failed to load session:', err);
       // Show a helpful error state instead of a blank screen
       state.session = {
         events: [],
@@ -270,11 +271,11 @@ export class DebugApp extends LitElement {
       const pauseResp = await fetch('/api/pause-state');
       const pauseData = await pauseResp.json();
       if (pauseData && pauseData.type === 'paused') {
-        console.log('[debug-app] Server already paused (from REST)');
+        DebugConsole.log('Server already paused (from REST)');
         initialPauseState = pauseData;
       }
     } catch (e) {
-      console.warn('[debug-app] Could not check pause state:', e);
+      DebugConsole.warn('Could not check pause state:', e);
     }
 
     this._ws = connectWebSocket({
@@ -298,7 +299,7 @@ export class DebugApp extends LitElement {
         }
       },
       onPaused: (msg) => {
-        console.log('[debug-app] Received PAUSED message:', msg);
+        DebugConsole.log('Received PAUSED message:', msg);
         this.pausedState = msg;
         this.liveRunning = false;
         this.isStepping = false;
@@ -322,14 +323,13 @@ export class DebugApp extends LitElement {
           this.syncFromState();
           await this._refreshProblemsPanel();
         } catch (err) {
-          console.error('Failed to reload completed session:', err);
+          DebugConsole.error('Failed to reload completed session:', err);
         }
       },
       onOpen: () => {
-        console.log('[debug-app] WebSocket live session connected');
-        // Now that WebSocket is connected, show the pause state if server was already paused
+        DebugConsole.log('WebSocket live session connected');
         if (initialPauseState) {
-          console.log('[debug-app] Showing initial pause state now that WS is connected');
+          DebugConsole.log('Showing initial pause state now that WS is connected');
           this.pausedState = initialPauseState;
           this.liveRunning = false;
           this.requestUpdate();

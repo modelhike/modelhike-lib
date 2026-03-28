@@ -318,9 +318,9 @@ And all of it can be reused, extended, and explored like a good trail map.
 Choose your route to mastery:
 _Hands-on, no yawning allowed_
 
-- [Modeling a Microservices App](https://chatgpt.com/c/68085e86-6404-8003-bc94-d85e005992a0#)
-- [Bringing C4 to Your Monolith](https://chatgpt.com/c/68085e86-6404-8003-bc94-d85e005992a0#)
-- [Combining Docs and Diagrams](https://chatgpt.com/c/68085e86-6404-8003-bc94-d85e005992a0#)
+- Modeling a Microservices App — *coming soon*
+- Bringing C4 to Your Monolith — *coming soon*
+- Combining Docs and Diagrams — *coming soon*
 
 Each path includes clear steps, interactive code snippets, animated previews and **Pro Tip Waypoints** to keep you joyful and in flow. Like a guided hike, but with code.
 
@@ -340,9 +340,9 @@ Each path includes clear steps, interactive code snippets, animated previews and
 
 Need help or want to contribute?
 
-- [Join the Discussions](https://chatgpt.com/c/68085e86-6404-8003-bc94-d85e005992a0#)
-- [Open an Issue](https://chatgpt.com/c/68085e86-6404-8003-bc94-d85e005992a0#)
-- [Contribute a Plugin](https://chatgpt.com/c/68085e86-6404-8003-bc94-d85e005992a0#)
+- Join the Discussions — *coming soon*
+- Open an Issue — *coming soon*
+- Contribute a Plugin — *coming soon*
 
 ModelHike is open source and welcomes fellow explorers.
 
@@ -364,9 +364,9 @@ The better the trail, the easier the journey for others.
 
 Feel the flow, spark creativity, enjoy the journey, and build your Mega App—one joyful step at a time. 🚀
 
-- [Project Roadmap](https://chatgpt.com/c/68085e86-6404-8003-bc94-d85e005992a0#)
-- [Contribution Guide](https://chatgpt.com/c/68085e86-6404-8003-bc94-d85e005992a0#)
-- [Design Philosophy](https://chatgpt.com/c/68085e86-6404-8003-bc94-d85e005992a0#)
+- Project Roadmap — *coming soon*
+- Contribution Guide — *coming soon*
+- Design Philosophy — *coming soon*
 
 We’re building ModelHike to be the most joyful, intuitive, and structured way to model modern software.
 

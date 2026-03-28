@@ -1,5 +1,5 @@
 //
-//  AnnnounceStmt.swift
+//  AnnounceStmt.swift
 //  ModelHike
 //  https://www.github.com/modelhike/modelhike
 //
@@ -7,7 +7,7 @@
 import Foundation
 import RegexBuilder
 
-public struct AnnnounceStmt: LineTemplateStmt {
+public struct AnnounceStmt: LineTemplateStmt {
     public var state: LineTemplateStmtState
 
     static let START_KEYWORD = "announce"
@@ -69,6 +69,6 @@ public struct AnnnounceStmt: LineTemplateStmt {
     }
 
     static let register = LineTemplateStmtConfig(keyword: START_KEYWORD) { pInfo in
-        AnnnounceStmt(pInfo)
+        AnnounceStmt(pInfo)
     }
 }

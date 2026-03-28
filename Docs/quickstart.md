@@ -210,9 +210,9 @@ ModelHike isn’t just another AI wrapper or diagram drawer. It’s the **trail 
 
 Feel the flow, spark creativity, enjoy the journey, and build your Mega App—one joyful step at a time. 🚀
 
-- [Project Roadmap](https://chatgpt.com/c/68085e86-6404-8003-bc94-d85e005992a0#)
-- [Contribution Guide](https://chatgpt.com/c/68085e86-6404-8003-bc94-d85e005992a0#)
-- [Design Philosophy](https://chatgpt.com/c/68085e86-6404-8003-bc94-d85e005992a0#)
+- Project Roadmap — *coming soon*
+- Contribution Guide — *coming soon*
+- Design Philosophy — *coming soon*
 
 We’re building ModelHike to be the most joyful, intuitive, and structured way to model modern software.
 

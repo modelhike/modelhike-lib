@@ -1,13 +1,17 @@
-# DiagSoup
+# ModelHike — Credits & Acknowledgements
 
-# Inspiration
-- John Sundell's [Publish](https://github.com/JohnSundell/Publish)
-- Laszlo Teveli's [Eval](https://github.com/tevelee/Eval) - for a list of modifiers to use, and for the concept of "spaceless" block
+## Inspiration
 
-# Used a few utility classes from third parties
-I could have as well rewritten those small utility classes, but, given their licenses, I chose to include them, so as to showcase my inspiration!
+- [Publish](https://github.com/JohnSundell/Publish) by John Sundell — project structure and Swift package design patterns
+- [Eval](https://github.com/tevelee/Eval) by Laszlo Teveli — modifier pipeline concept and the idea of "spaceless" blocks
 
-Following are the sources of utility classes in the "ThirdParty" folder
-- JohnSundell's [Files](https://github.com/JohnSundell/Files), [Publish](https://github.com/JohnSundell/Publish/blob/master/Sources/Publish)
-- JohnSundell's Codextended - https://github.com/JohnSundell/Codextended
-- Binary Bird's  [plural-kit](https://github.com/BinaryBirds/plural-kit)
+## Embedded Third-Party Code
+
+The following small utility modules are included in `Sources/_Common_/ThirdParty/` under their original licenses:
+
+| Library | Author | License | Link |
+|---------|--------|---------|------|
+| Files | John Sundell | MIT | [GitHub](https://github.com/JohnSundell/Files) |
+| Codextended | John Sundell | MIT | [GitHub](https://github.com/JohnSundell/Codextended) |
+| Publish (selected utilities) | John Sundell | MIT | [GitHub](https://github.com/JohnSundell/Publish) |
+| plural-kit | Binary Birds | MIT | [GitHub](https://github.com/BinaryBirds/plural-kit) |

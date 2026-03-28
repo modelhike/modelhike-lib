@@ -1,3 +1,5 @@
+import { DebugConsole } from './debug-console.js';
+
 export async function loadSession() {
   const response = await fetch('/api/session');
   return await response.json();
@@ -59,42 +61,42 @@ export function connectWebSocket({ onEvent, onPaused, onCompleted, onOpen, onClo
   const ws = new WebSocket(`${protocol}//${location.host}/ws`);
 
   ws.onopen = () => {
-    console.log('[WS] connected');
+    DebugConsole.log('WebSocket connected');
     onOpen?.();
   };
 
   ws.onmessage = (e) => {
-    console.log('[WS] raw message:', e.data.substring(0, 200));
+    DebugConsole.log('WS raw message:', e.data.substring(0, 200));
     let msg;
-    try { msg = JSON.parse(e.data); } catch (err) { 
-      console.warn('[WS] parse error:', err);
-      return; 
+    try { msg = JSON.parse(e.data); } catch (err) {
+      DebugConsole.warn('WS parse error:', err);
+      return;
     }
-    console.log('[WS] parsed message type:', msg.type);
+    DebugConsole.log('WS message type:', msg.type);
 
     switch (msg.type) {
       case 'event':
         onEvent?.(msg.envelope);
         break;
       case 'paused':
-        console.log('[WS] PAUSED!', msg);
+        DebugConsole.log('WS PAUSED', msg);
         onPaused?.(msg);
         break;
       case 'completed':
         onCompleted?.();
         break;
       default:
-        console.log('[WS] unknown message type:', msg.type);
+        DebugConsole.log('WS unknown message type:', msg.type);
     }
   };
 
   ws.onclose = () => {
-    console.log('[WS] disconnected');
+    DebugConsole.log('WebSocket disconnected');
     onClose?.();
   };
 
   ws.onerror = (err) => {
-    console.warn('[WS] error', err);
+    DebugConsole.warn('WS error', err);
   };
 
   return ws;

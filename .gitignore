@@ -5,8 +5,26 @@ xcuserdata/
 DerivedData/
 .swiftpm/configuration/registries.json
 .swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+.swiftpm/xcode/xcshareddata/
 .netrc
-# SpecStory explanation file
-.specstory/.what-is-this.md
+
+# Xcode
+*.xcodeproj
+*.xcworkspace
+
+# IDE
+.idea/
+*.code-workspace
+
+# Environment & secrets
+.env
+.env.*
+
+# Logs
+*.log
+
+# SpecStory
+.specstory/
+
 # Local testing playground — not for commit
 _Playground/
