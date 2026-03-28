@@ -1,47 +1,37 @@
-# ModelHike: App Models -> code, docs, digrams (AI-in-Loop)
+# ModelHike
 
-![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Swift 6](https://img.shields.io/badge/Swift-6-orange) ![Platform: macOS](https://img.shields.io/badge/platform-macOS%2013%2B-lightgrey)
+**Markdown-like App Models → Production Code, Docs & Diagrams**
+> One source of truth. Zero dead documentation.  
+> AI in the loop — but never in control.  
+> Explore with AI. Ship with determinism.  
+> Build systems with structure, intent, and trust.
 
-> **Declarative Apps from Markdown. Generate production-grade, Git-friendly source code, docs and diagrams from plain-text software models -— with (optional) AI-in-Loop.**
+<div align="center">
+<table>
+<tr><td align="right">⚔️&nbsp;<b>Enemy</b></td><td>Drift — when docs say one thing and code does another</td></tr>
+<tr><td align="right">📜&nbsp;<b>Philosophy</b></td><td>Zero Dead Docs</td></tr>
+<tr><td align="right">⚙️&nbsp;<b>Mechanism</b></td><td>One model, multiple views</td></tr>
+<tr><td align="right">🤝&nbsp;<b>Promise</b></td><td>Intent stays synchronized across docs, diagrams, and code</td></tr>
+<tr><td align="right">🤖&nbsp;<b>AI&nbsp;Angle</b></td><td>AI can help author and evolve, but never silently forks intent from implementation</td></tr>
+</table>
+</div>
 
-With ModelHike, the idea is to move programming up a level—
-- From the weeds of line-by-line code
-- Into the elevated terrain of systems thinking and intent-driven modeling
-
-By giving you a **high-level, declarative DSL** to describe your app, ModelHike restores 
-clarity and flow. You're not babysitting a chaotic AI assistant. You're building a system — 
-with structure, intent, and trust. You're co-creating with AI, not micro-managing it!
-
-It *combines* the raw speed of **AI-assisted prototyping** with the safety of **template-
-driven determinism**: explore rapidly while things are fluid, then lock in templates for 
-repeatable, reviewable builds.
-
-No black-box surprises —- AI is in-loop (strictly optional) but never out of control.
-And, just like a good hike, you always know where you are.
-
-Result: AI accelerates the unknowns, but every production build is template-driven, diffable, 
-and CI-safe.
-
-> 🚀 **Speed + Safety:** Use AI to sketch and refactor at warp speed, then let templates take 
-over for bullet-proof builds.
----
-
-## What is ModelHike?
-
-ModelHike is an open-source **code-generation toolchain**. You describe your software architecture, domain models, and API surface in plain-text `.modelhike` files — a Markdown-flavoured DSL — and ModelHike generates complete, production-ready source code through customizable template blueprints.
-
-**The core idea:** all implementation boilerplate — entities, repositories, controllers, services, DTOs, validation, API docs — is generated from a single source of truth. Your team focuses on domain rules and business logic. Architecture and implementation stay in sync, always.
+**Speed + Safety:** Explore quickly with AI while the system is still fluid, then ship with template-driven, diffable, CI-safe builds.
 
 ```
 .modelhike files → Parse → Hydrate → Validate → Render → Output
 ```
 
-### Key Properties
+All boilerplate — entities, repositories, controllers, services, DTOs, validation, and API docs — is generated from a single source of truth, so your team can focus on domain rules and business logic.
 
 - **Deterministic** — same model + same templates = identical output, every time. CI-safe.
-- **Zero external dependencies** — the core library is fully self-contained. No third-party Swift packages.
-- **Swift 6 strict concurrency** — actors throughout, fully `Sendable`-compliant.
-- **AI optional** — AI can help bootstrap or refine models, but the generation pipeline is template-driven and fully controllable.
+- **Zero dependencies** — the core library is fully self-contained.
+- **Swift 6** — actors throughout, strict concurrency, fully `Sendable`-compliant.
+- **AI optional** — AI can bootstrap or refine models, but generation stays template-driven and controllable, for bullet-proof builds. You're not babysitting a chaotic AI assistant.
+
+
+Result: AI accelerates the unknowns, but every production build is template-driven, diffable, 
+and CI-safe.
 
 ---
 
@@ -59,12 +49,9 @@ ModelHike is an open-source **code-generation toolchain**. You describe your sof
 
 ---
 
-
-
 ## The DSL
-ModelHike uses a Markdown-flavoured DSL to describe software systems. Here's what a model looks like:
 
-## Hello, Production — Real-World Walkthrough
+### Hello, Production — Real-World Walkthrough
 
 ### Before ModelHike: The Boilerplate Problem
 ```typescript
@@ -113,6 +100,7 @@ export class PaymentService {
 ```
 
 ### With ModelHike: 1 Model = Complete Microservice
+ModelHike uses a Markdown-flavoured DSL to describe software systems. Here's what a model looks like:
 
 1. **Create a domain model** (`models/payments.dsl.md`):
 ```modelhike
@@ -135,12 +123,10 @@ Payment
 - updatedAt : Timestamp
 - audit     : Audit (backend)
 
-~ calculateTotal(items: [LineItem]) : Float
-```
-|||
-```
+calculateTotal(items: [LineItem]) : Float
+--------------------------------------------
 return items.sum(item.price * item.quantity)
-```
+---
 
 # APIs ["/payments"]
 @ apis:: create, get-by-id, list
@@ -153,6 +139,7 @@ return items.sum(item.price * item.quantity)
 ```
 
 From this single model, ModelHike generates entities, repositories, controllers, services, DTOs, validation, and API routing — all wired together and ready to run.
+
 
 **DSL features:**
 - C4-aligned hierarchy: System → Container → Module → Class/DTO/UIView
@@ -184,6 +171,7 @@ Discover → Load → Hydrate → Validate → Render → Persist
 | **Render** | Loads a blueprint (templates + scripts), runs `main.ss` entry-point script, generates output files |
 | **Persist** | Writes all generated files to the output directory |
 
+
 ### Template Engine: TemplateSoup + SoupyScript
 
 ModelHike includes a custom template engine:
@@ -195,6 +183,7 @@ ModelHike includes a custom template engine:
 - **Full scripting** — loops, conditionals, variables, functions, file generation, folder copying
 
 Template/script specification: [DSL/templatesoup.dsl.md](DSL/templatesoup.dsl.md)
+
 
 ### Blueprints
 
@@ -271,32 +260,6 @@ Full guide: [Docs/debug/VISUALDEBUG.md](Docs/debug/VISUALDEBUG.md)
 
 ---
 
-## Project Structure
-
-```
-modelhike/
-├── Package.swift              # Swift Package (zero deps for library)
-├── Sources/                   # ModelHike library
-│   ├── _Common_/              # Foundation utilities, file I/O, extensions
-│   ├── Debug/                 # Debug recorder, events, diagnostics
-│   ├── Modelling/             # DSL parser + in-memory domain model
-│   ├── Scripting/             # SoupyScript template scripting engine
-│   ├── CodeGen/               # TemplateSoup renderer + Blueprint loading
-│   ├── Workspace/             # Context, Sandbox, expression evaluator
-│   └── Pipelines/             # 6-phase pipeline orchestrator
-├── DevTester/                 # Development executable + debug server
-│   ├── DebugServer/           # SwiftNIO HTTP + WebSocket server
-│   └── Assets/debug-console/  # Browser UI (Lit web components)
-├── Tests/                     # Test suites (~120+ test cases)
-├── DSL/                       # DSL specifications (the source of truth)
-│   ├── modelHike.dsl.md       # Full DSL syntax guide
-│   ├── codelogic.dsl.md       # Method logic block syntax
-│   └── templatesoup.dsl.md    # Template engine syntax
-└── Docs/                      # Documentation
-```
-
----
-
 ## Documentation
 
 | Document | Description |
@@ -350,6 +313,8 @@ modelhike/
 | Onboarding | Read thousands of files to understand the system | Read one `.modelhike` file to see the full domain |
 
 ModelHike moves programming up a level — from line-by-line code into systems thinking and intent-driven modelling. You define the *what*; templates handle the *how*.
+
+And, just like a good hike, you always know where you are.
 
 ## FAQ / Further Reading
 - [Advanced Modeling Patterns](TBD#)
