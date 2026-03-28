@@ -26,26 +26,55 @@ Think of it like this:
 
 ## 1. 👋 Quick Ascent (Quickstart)
 
-Get to your first "Hello, Mega-App!" in 3 simple steps—no mountaineering gear needed.
+Get started with ModelHike in a few simple steps—no mountaineering gear needed.
 
-1. **Install the CLI**
+### Prerequisites
+
+- macOS 13+ or Linux
+- Swift 6.0 or later
+
+### Installation
+
+**As a Swift Package dependency:**
+
+```swift
+// Package.swift
+dependencies: [
+    .package(url: "https://github.com/modelhike/modelhike.git", branch: "main")
+]
+```
+
+**From source:**
 
 ```bash
-npm install -g @modelhike/cli
+git clone https://github.com/modelhike/modelhike.git
+cd modelhike
+swift build
 ```
-2. **Start a new project**
+
+### Running the DevTester
+
+The `DevTester` executable runs the full code generation pipeline:
 
 ```bash
-modelhike create my-app
-cd my-app
+swift run DevTester
 ```
-3. **Launch & Explore**
+
+> **Note:** DevTester requires a `modelhike-blueprints` repository alongside this repo. See `DevTester/Environment.swift` for path configuration.
+
+### Visual Debugging
+
+Launch the browser-based debugger to inspect pipeline runs:
 
 ```bash
-modelhike dev
+# Post-mortem mode: pipeline runs, then browse results
+swift run DevTester --debug --debug-dev
+
+# Live stepping: watch events stream in real time
+swift run DevTester --debug-stepping --debug-dev
 ```
 
-> **In just seconds**, see a basic full-stack app spinning up—feel that excitement of first light on the trail.
+Then open `http://localhost:4800` in your browser.
 
 ---
 
@@ -57,7 +86,7 @@ modelhike dev
 
 ModelHike blends the **creativity of GenAI** with the **precision of structured models**. You’ll start with AI-driven bootstrapping, then progressively lock in stable outputs as templates—all while your code, models, and templates live in Git.
 
-- **Markdown-Inspired DSL**: A simple, structured language to map your domain, like jotting notes on a trail mape.
+- **Markdown-Inspired DSL**: A simple, structured language to map your domain, like jotting notes on a trail map.
 - **AI-Powered Bootstrap & Evolution**: From initial models to evolving features, GenAI stays in your loop and generates models, code, and a live preview—your "basecamp".
 - **Intelligent Build Button**: One click locks in what you love and converts it into a reliable template-driven working app.
 - **Built for Scale & Flow**: From prototype to mega-app, with instant feedback and zero friction.
