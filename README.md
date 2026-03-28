@@ -1,20 +1,18 @@
 # ModelHike
 
 **Markdown-like App Models → Production Code, Docs & Diagrams**
+
+| ⚔️ **Enemy** | Drift — when docs say one thing and code does another |
+|:--|:--|
+| 📜 **Philosophy** | Zero Dead Docs |
+| ⚙️ **Mechanism** | One model, multiple views |
+| 🤝 **Promise** | Intent stays synchronized across docs, diagrams, and code |
+| 🤖 **AI Angle** | AI can help author and evolve, but never silently forks intent from implementation |
+
 > One source of truth. Zero dead documentation.  
 > AI in the loop — but never in control.  
 > Explore with AI. Ship with determinism.  
 > Build systems with structure, intent, and trust.
-
-<div align="center">
-<table>
-<tr><td align="right">⚔️&nbsp;<b>Enemy</b></td><td>Drift — when docs say one thing and code does another</td></tr>
-<tr><td align="right">📜&nbsp;<b>Philosophy</b></td><td>Zero Dead Docs</td></tr>
-<tr><td align="right">⚙️&nbsp;<b>Mechanism</b></td><td>One model, multiple views</td></tr>
-<tr><td align="right">🤝&nbsp;<b>Promise</b></td><td>Intent stays synchronized across docs, diagrams, and code</td></tr>
-<tr><td align="right">🤖&nbsp;<b>AI&nbsp;Angle</b></td><td>AI can help author and evolve, but never silently forks intent from implementation</td></tr>
-</table>
-</div>
 
 **Speed + Safety:** Explore quickly with AI while the system is still fluid, then ship with template-driven, diffable, CI-safe builds.
 
@@ -24,10 +22,12 @@
 
 All boilerplate — entities, repositories, controllers, services, DTOs, validation, and API docs — is generated from a single source of truth, so your team can focus on domain rules and business logic.
 
-- **Deterministic** — same model + same templates = identical output, every time. CI-safe.
-- **Zero dependencies** — the core library is fully self-contained.
-- **Swift 6** — actors throughout, strict concurrency, fully `Sendable`-compliant.
-- **AI optional** — AI can bootstrap or refine models, but generation stays template-driven and controllable, for bullet-proof builds. You're not babysitting a chaotic AI assistant.
+| Property | Description |
+|:---------|:------------|
+| 🔒 **Deterministic** | Same model + same templates = identical output. CI-safe, diffable builds. |
+| 📦 **Zero Dependencies** | Core library is fully self-contained. No third-party Swift packages. |
+| ⚡ **Swift 6** | Actors throughout, strict concurrency, fully `Sendable`-compliant. |
+| 🤖 **AI Optional** | AI bootstraps and refines; templates drive production builds. No babysitting. |
 
 
 Result: AI accelerates the unknowns, but every production build is template-driven, diffable, 
@@ -141,14 +141,16 @@ return items.sum(item.price * item.quantity)
 From this single model, ModelHike generates entities, repositories, controllers, services, DTOs, validation, and API routing — all wired together and ready to run.
 
 
-**DSL features:**
-- C4-aligned hierarchy: System → Container → Module → Class/DTO/UIView
-- Typed properties with constraints (`{ min = 0, max = 100 }`), defaults, and valid value sets (`<A, B, C>`)
-- Methods with typed parameters, return types, and optional logic blocks
-- API scaffolding via annotations (`@ apis:: create, get-by-id, list`)
-- REST, GraphQL, and gRPC protocol support
-- Mixins, annotations, attributes, and tags
-- Comments and unrecognised lines are silently skipped
+**DSL Highlights**
+
+| Feature | Capabilities |
+|:--------|:-------------|
+| 🏗️ **C4 Hierarchy** | System → Container → Module → Class/DTO/UIView |
+| 📐 **Typed Properties** | Constraints `{min, max}`, defaults, value sets `<A, B, C>` |
+| ⚙️ **Methods** | Typed params, return types, fenced logic blocks |
+| 🚀 **API Scaffolding** | Annotations `@apis:: create, get-by-id, list` |
+| 🌐 **Protocols** | REST, GraphQL, gRPC support |
+| 🏷️ **Extensibility** | Mixins, annotations, attributes, tags |
 
 Full DSL specification: [DSL/modelHike.dsl.md](DSL/modelHike.dsl.md)
 
@@ -174,13 +176,13 @@ Discover → Load → Hydrate → Validate → Render → Persist
 
 ### Template Engine: TemplateSoup + SoupyScript
 
-ModelHike includes a custom template engine:
-
-- **`.teso` files** — template files with `{{ expression }}` print blocks and `:statement` script lines
-- **`.ss` files** — pure SoupyScript files (no prefix needed for statements)
-- **Modifiers** — transform values inline: `{{ name | capitalize }}`, `{{ prop | typescriptType }}`
-- **Blueprint-defined modifiers** — drop a `.teso` file in `_modifiers_/` to register custom modifiers with front-matter config
-- **Full scripting** — loops, conditionals, variables, functions, file generation, folder copying
+| Component | Description |
+|:----------|:------------|
+| 📄 **`.teso` Files** | Templates with `{{ expression }}` blocks and `:statement` script lines |
+| 📜 **`.ss` Files** | Pure SoupyScript — no prefix needed for statements |
+| 🔧 **Modifiers** | Transform inline: `{{ name &#124; capitalize }}`, `{{ prop &#124; typescriptType }}` |
+| 🎨 **Custom Modifiers** | Drop `.teso` files in `_modifiers_/` with front-matter config |
+| 🧩 **Full Scripting** | Loops, conditionals, variables, functions, file/folder operations |
 
 Template/script specification: [DSL/templatesoup.dsl.md](DSL/templatesoup.dsl.md)
 
@@ -238,15 +240,16 @@ swift run DevTester --debug-stepping --debug-dev
 
 Then open `http://localhost:4800` in your browser.
 
-**Features:**
-- File tree with folder hierarchy of all generated files
-- Split view: template source alongside generated output
-- Event trace timeline — click events to see source locations
-- Variable inspector at each generation point
-- Model hierarchy browser (containers → modules → entities)
-- Expression evaluator in the footer
-- Live WebSocket event streaming in stepping mode
-- Stepper panel with breakpoint support
+| Feature | Description |
+|:--------|:------------|
+| 🗂️ **File Tree** | Folder hierarchy of all generated files |
+| 🪟 **Split View** | Template source alongside generated output |
+| 📊 **Event Trace** | Click events to jump to source locations |
+| 🔍 **Variable Inspector** | Capture state at each generation point |
+| 🌳 **Model Browser** | Navigate containers → modules → entities |
+| 🧮 **Expression Eval** | Test expressions in the footer |
+| 🔴 **Live Streaming** | WebSocket events in stepping mode |
+| ⏯️ **Stepper Panel** | Breakpoints with step over/into/out |
 
 | Flag | Description |
 |------|-------------|
@@ -278,28 +281,21 @@ Full guide: [Docs/debug/VISUALDEBUG.md](Docs/debug/VISUALDEBUG.md)
 
 ## Current State
 
-### What's Working
-
-- Complete DSL parser — containers, modules, submodules, classes, DTOs, UIViews, properties, methods, annotations, APIs, constraints
-- Full 6-phase pipeline (Discover → Load → Hydrate → Validate → Render → Persist)
-- TemplateSoup + SoupyScript engine — all statement types, modifiers, operators, functions, loops, conditionals
-- NestJS monorepo blueprint generation (TypeScript + MongoDB)
-- Semantic validation with structured diagnostics (W301, W303–W306)
-- World-class error messages with Levenshtein-distance "did you mean?" suggestions
-- Blueprint-defined modifiers with front-matter configuration
-- Expression evaluator (boolean, arithmetic, comparison)
-- Scoped variable isolation via snapshot stack
-- Browser-based visual debugger with post-mortem and live stepping modes
-- ~120+ test cases across parsing, templates, code logic, blueprint modifiers, and diagnostics
-
-### Roadmap
-
-- [ ] Production CLI (`modelhike generate`, `modelhike validate`)
-- [ ] Spring Boot blueprint
-- [ ] More language modifier libraries
-- [ ] VS Code extension
-- [ ] Plugin system for Transform phase
-- [ ] Additional test coverage for pipeline phases
+| Status | Feature |
+|--------|---------|
+| ✅ | Complete DSL parser with containers, modules, classes, DTOs, UIViews, properties, methods, APIs |
+| ✅ | 6-phase pipeline: Discover → Load → Hydrate → Validate → Render → Persist |
+| ✅ | TemplateSoup + SoupyScript engine with full scripting (loops, conditionals, modifiers) |
+| ✅ | NestJS monorepo blueprint (TypeScript + MongoDB) |
+| ✅ | Semantic validation with structured diagnostics |
+| ✅ | World-class error messages with "did you mean?" suggestions |
+| ✅ | Blueprint-defined modifiers with front-matter configuration |
+| ✅ | Browser-based visual debugger with live stepping |
+| ✅ | ~120+ test cases |
+| ⏳ | Production CLI (`modelhike generate`, `modelhike validate`) |
+| ⏳ | Spring Boot blueprint |
+| ⏳ | VS Code extension |
+| ⏳ | Plugin system for Transform phase |
 
 ---
 
@@ -331,10 +327,6 @@ Need help or want to contribute?
 - [Contribute a Plugin](TBD)
 
 ModelHike is open source and welcomes fellow explorers.
-
-## License
-
-[MIT](LICENSE)
 
 > **We're building ModelHike to be the most joyful, intuitive, and structured way to develop modern software, in the era of AI.**
 Feel the flow, spark creativity, enjoy the journey...
