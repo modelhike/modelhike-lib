@@ -35,6 +35,18 @@ public enum BlueprintModifierInputType: String, Sendable {
         case .object, .any: return true
         }
     }
+
+    /// The Swift metatype corresponding to this descriptor, used by the type-aware modifier lookup.
+    /// `.object` and `.any` map to `Sendable.self` — they accept any value.
+    public var metatype: any Any.Type {
+        switch self {
+        case .string: return String.self
+        case .double: return Double.self
+        case .bool:   return Bool.self
+        case .array:  return [Sendable].self
+        case .object, .any: return (any Sendable).self
+        }
+    }
 }
 
 // MARK: - No-arg blueprint modifier
@@ -44,19 +56,19 @@ public enum BlueprintModifierInputType: String, Sendable {
 /// `ModifierInstanceWithoutArgsProtocol` (execution) — `instance()` returns `self`.
 public struct BlueprintModifierWithoutParams: ModifierWithoutArgsProtocol, ModifierInstanceWithoutArgsProtocol {
     public let name: String
+    public var inputType: any Any.Type { _blueprintInputType.metatype }
     private let templateContents: String
     private let inputVarName: String
-    private let inputType: BlueprintModifierInputType
+    private let _blueprintInputType: BlueprintModifierInputType
     private let templateSoup: TemplateSoup
 
     public func instance() -> ModifierInstance { self }
 
     public func applyTo(value: Sendable, with pInfo: ParsedInfo) async throws -> Sendable? {
-        guard inputType.accepts(value) else {
+        guard _blueprintInputType.accepts(value) else {
             throw TemplateSoup_ParsingError.modifierCalledOnwrongType(
                 name, runtimeTypeName(of: value), pInfo)
         }
-        
         return try await templateSoup.renderTemplate(
             string: templateContents,
             identifier: "_modifier_\(name)",
@@ -65,17 +77,11 @@ public struct BlueprintModifierWithoutParams: ModifierWithoutArgsProtocol, Modif
         )
     }
 
-    public init(
-        name: String,
-        templateContents: String,
-        inputVarName: String,
-        inputType: BlueprintModifierInputType,
-        templateSoup: TemplateSoup
-    ) {
+    public init(name: String, templateContents: String, inputVarName: String, inputType: BlueprintModifierInputType, templateSoup: TemplateSoup) {
         self.name = name
         self.templateContents = templateContents
         self.inputVarName = inputVarName
-        self.inputType = inputType
+        self._blueprintInputType = inputType
         self.templateSoup = templateSoup
     }
 }
@@ -91,9 +97,10 @@ public struct BlueprintModifierWithoutParams: ModifierWithoutArgsProtocol, Modif
 /// semantics ensure each call site gets independent argument state.
 public struct BlueprintModifierWithParams: ModifierWithUnNamedArgsProtocol, ModifierInstanceWithUnNamedArgsProtocol {
     public let name: String
+    public var inputType: any Any.Type { _blueprintInputType.metatype }
     private let templateContents: String
     private let inputVarName: String
-    private let inputType: BlueprintModifierInputType
+    private let _blueprintInputType: BlueprintModifierInputType
     private let paramNames: [String]
     private let templateSoup: TemplateSoup
     private var arguments: [String] = []
@@ -105,7 +112,7 @@ public struct BlueprintModifierWithParams: ModifierWithUnNamedArgsProtocol, Modi
     }
 
     public func applyTo(value: Sendable, with pInfo: ParsedInfo) async throws -> Sendable? {
-        guard inputType.accepts(value) else {
+        guard _blueprintInputType.accepts(value) else {
             throw TemplateSoup_ParsingError.modifierCalledOnwrongType(
                 name, runtimeTypeName(of: value), pInfo)
         }
@@ -128,18 +135,11 @@ public struct BlueprintModifierWithParams: ModifierWithUnNamedArgsProtocol, Modi
         )
     }
 
-    public init(
-        name: String,
-        templateContents: String,
-        inputVarName: String,
-        inputType: BlueprintModifierInputType,
-        paramNames: [String],
-        templateSoup: TemplateSoup
-    ) {
+    public init(name: String, templateContents: String, inputVarName: String, inputType: BlueprintModifierInputType, paramNames: [String], templateSoup: TemplateSoup) {
         self.name = name
         self.templateContents = templateContents
         self.inputVarName = inputVarName
-        self.inputType = inputType
+        self._blueprintInputType = inputType
         self.paramNames = paramNames
         self.templateSoup = templateSoup
     }

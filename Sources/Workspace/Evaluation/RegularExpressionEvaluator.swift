@@ -319,29 +319,37 @@ public actor RegularExpressionEvaluator {
     ///
     /// **Trailing throw:** After a non-empty `candidates` loop, every path either `return`s or `throw`s inside the
     /// `for`; the final `throw` exists to satisfy the compiler and as a defensive fallback (should be unreachable).
+    /// Selects and applies an infix operator by **name + runtime LHS/RHS types**.
+    ///
+    /// 1. Filter all registered operators by name → `nameMatches`.
+    /// 2. From those, find the one whose `lhsType` and `rhsType` match the runtime types of the operands.
+    /// 3. If no type match is found, throw with the actual vs expected type pairs for all name-matched candidates.
+    /// 4. If no name match is found, throw `infixOperatorNotFound` with "did you mean?" diagnostics.
     private static func applyInfix(named op: String, lhs: Sendable?, rhs: Sendable?, pInfo: ParsedInfo) async throws -> Sendable {
-        let allNames = (await pInfo.ctx.symbols.template.infixOperators).map { $0.name }
-        let candidates = await pInfo.ctx.symbols.template.infixOperators.filter { $0.name == op }
-        guard !candidates.isEmpty else {
+        let allOperators = await pInfo.ctx.symbols.template.infixOperators
+
+        var allNames: [String] = []
+        var nameMatches: [InfixOperatorProtocol] = []
+        for candidate in allOperators {
+            allNames.append(candidate.name)
+            if candidate.name == op { nameMatches.append(candidate) }
+        }
+        
+        guard !nameMatches.isEmpty else {
             throw Suggestions.infixOperatorNotFound(op, candidates: allNames, pInfo: pInfo)
         }
 
-        let lastOrdinal = candidates.count - 1
-        for (ordinal, infix) in candidates.enumerated() {
-            do {
-                return try infix.applyTo(lhs: lhs, rhs: rhs, pInfo: pInfo)
-            } catch let e as TemplateSoup_ParsingError {
-                switch e {
-                case .infixOperatorCalledOnwrongLhsType, .infixOperatorCalledOnwrongRhsType:
-                    if ordinal == lastOrdinal {
-                        throw e
-                    }
-                default:
-                    throw e
-                }
+        let lhsRuntimeType = runtimeType(of: lhs)
+        let rhsRuntimeType = runtimeType(of: rhs)
+
+        var expectedPairs: [String] = []
+        for candidate in nameMatches {
+            if candidate.lhsType == lhsRuntimeType && candidate.rhsType == rhsRuntimeType {
+                return try candidate.applyTo(lhs: lhs, rhs: rhs, pInfo: pInfo)
             }
+            expectedPairs.append("(\(runtimeTypeName(of: candidate.lhsType)), \(runtimeTypeName(of: candidate.rhsType)))")
         }
-        
-        throw Suggestions.infixOperatorNotFound(op, candidates: allNames, pInfo: pInfo)
+
+        throw Suggestions.infixOperatorTypeMismatch(op, lhsType: runtimeTypeName(of: lhs), rhsType: runtimeTypeName(of: rhs), expectedPairs: expectedPairs, pInfo: pInfo)
     }
 }

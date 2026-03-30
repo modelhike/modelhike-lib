@@ -7,9 +7,7 @@
 import Foundation
 
 public struct CreateOperator {
-    public static func infix<A, B, T: Sendable>(_ name: String, body: @Sendable @escaping (A, B) -> T)
-        -> InfixOperatorProtocol
-    {
+    public static func infix<A, B, T: Sendable>(_ name: String, body: @Sendable @escaping (A, B) -> T) -> InfixOperatorProtocol {
         return InfixOperator(name: name, handler: body)
     }
 

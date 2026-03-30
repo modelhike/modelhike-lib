@@ -403,8 +403,8 @@ Workspace/
 │   ├── TemplateSoupSymbols.swift   # Registry: modifiers + operators + statements
 │   └── WorkingMemory.swift
 ├── Evaluation/
-│   ├── ExpressionEvaluator.swift
-│   ├── RegularExpressionEvaluator.swift  # Boolean expression parser (and/or/not/comparisons)
+│   ├── ExpressionEvaluator.swift              # Single-value + full-expression evaluator; delegates compound expressions to RegularExpressionEvaluator; includes parseStringArrayLiteral
+│   ├── RegularExpressionEvaluator.swift       # Tokenizer (ExpressionToken) + parenthesised-group parser + operator overload dispatch; handles quoted strings, bracket arrays, infix operators
 │   └── TemplateSoup_EvaluationError.swift
 └── Sandbox/
     ├── AppModel.swift                    # Holds ModelSpace + commonModel
@@ -850,10 +850,21 @@ See [`DevTester/Assets/debug-console/README.md`](DevTester/Assets/debug-console/
 
 ### `ExpressionParsing_Tests`
 
-Tests the `RegularExpressionEvaluator` (boolean expression engine):
+Tests the `RegularExpressionEvaluator` and `ExpressionEvaluator` (expression engine):
 
-- `testComplexExpression1` through `testComplexExpression4` — various `and`/`or`/parenthesised combos
-- `testInvalidExpressionError` — verifies `TemplateSoup_ParsingError.invalidExpression` is thrown
+- `complexExpression1` through `complexExpression4` — various `and`/`or`/parenthesised combos
+- `invalidExpressionError` — verifies `TemplateSoup_ParsingError.invalidExpression` is thrown
+- `stringEqualityOperator` — string `==` comparison (`kind == "if"`)
+- `stringNotEqualsOperator` — string `!=` comparison (`kind != "else"`)
+- `stringInStringArrayLiteral` — `in` operator with bracket array literal (`kind in ["if", "elseif", "else"]`)
+- `quotedStringWithSpaces` — quoted string with spaces as operand (`name == "hello world"`)
+- `bracketArrayInParenGroup` — bracket array inside parenthesised group (`(kind in ["if", "else"]) and var1`)
+- `tokenizeDirectly` — unit tests for `RegularExpressionEvaluator.tokenize()` verifying token output for quoted strings, bracket arrays, and parenthesised expressions
+- `intComparison` — Int comparison operators (`>`, `<`, `>=`, `<=`, `==`, `!=`) with Int variable and Int literal
+- `doubleComparison` — Double comparison operators (`>`, `<`, `==`) with Double variable and Double literal
+- `intArithmetic` — Int arithmetic operators (`+`, `-`, `*`, `/`) returning Int results
+- `doubleArithmetic` — Double arithmetic operators (`+`, `/`) returning Double results
+- `typeMismatchThrows` — verifies that mixing Int variable with Double literal throws a type error
 
 Uses `DynamicTestObj` (implements `DynamicMemberLookup + HasAttributes`) as test data.
 
@@ -894,7 +905,7 @@ Used by `DevTester` (via `Environment.debug`) to run the full pipeline against r
 - ✅ Structured diagnostics in debug UI — `/api/diagnostics` endpoint; Problems panel in debug console
 - ✅ Type inference and hydration (entity/dto/cache/apiInput/embeddedType classification)
 - ✅ Mock data generation library
-- ✅ Expression evaluator (boolean/arithmetic/comparison)
+- ✅ Expression evaluator (boolean/arithmetic/comparison) with proper tokenizer: handles bracket array literals (`["a", "b"]`), quoted strings with spaces, and **type-aware operator dispatch** — operators are registered per type pair (e.g. `==` for `(String,String)`, `(Int,Int)`, `(Double,Double)`) and the runtime types of both operands are matched against registrations without coercion; full operator set: `==`, `!=`, `<`, `>`, `<=`, `>=`, `+`, `-`, `*`, `/`, `in`, `not-in`, `starts-with`, `ends-with`, `contains`, `matches`, `and`, `or`, `not`
 - ✅ Scoped variable isolation (snapshot stack)
 - ✅ Debug hooks (event system in `CodeGenerationEvents`)
 - ✅ Visual debugger — post-mortem browser UI (`swift run DevTester --debug`) and live WebSocket event streaming (`swift run DevTester --debug-stepping`); SwiftNIO-based server with full HTTP + WebSocket upgrade pipeline; stepper-panel UI for future breakpoint-driven stepping; see [Docs/debug/VISUALDEBUG.md](Docs/debug/VISUALDEBUG.md)
@@ -934,7 +945,7 @@ Test files (`Tests/`):
 
 | File | What it covers |
 |---|---|
-| `ExpressionParsing_Tests` | `RegularExpressionEvaluator` — 5 boolean-expression tests |
+| `ExpressionParsing_Tests` | `RegularExpressionEvaluator` + `ExpressionEvaluator` — 16 tests: boolean expressions, string `==`/`!=`, `in` with bracket arrays, quoted strings, tokenizer unit tests, Int/Double comparison & arithmetic, type-mismatch error |
 | `TemplateSoup_String_Tests` | End-to-end template string rendering — 4 tests |
 | `PropertyParser_Tests` | `Property` parsing: defaults, valid value sets (`[String]`), constraints, attributes |
 | `MethodParameterMetadata_Tests` | `>>>` parameter metadata parsing: required/optional markers, `#output` tag, `defaultValue`, constraints, attributes, valid value set, multi-param methods, setext methods |
@@ -952,6 +963,7 @@ No tests yet for:
 
 ### Naming Conventions
 
+- **CodeLogic** is the project name for fenced method-body logic in `.modelhike` files (`DSL/codelogic.dsl.md`, `CodeLogic` / `CodeLogicStmt` in code). Use **CodeLogic** in documentation and comments—do not use informal names.
 - Swift `actor` is used extensively for all mutable model objects and shared state (Swift 6 strict concurrency compliance).
 - `givenname` — the original human-readable name from the DSL (may have spaces).
 - `name` — the normalised variable-name-safe form (spaces replaced, camelCased).
@@ -964,10 +976,17 @@ No tests yet for:
 - `Sendable` conformance everywhere — required by Swift 6 strict concurrency. Actors, structs with `Sendable` properties.
 - `DynamicMemberLookup + HasAttributes` — the pattern for objects that can be accessed by property name from within templates.
 
-### Function signatures and calls (Swift)
+### Function signatures, calls, and computed properties (Swift)
 
 - Put the **full parameter list on one line** for function and method **declarations** (including `async`, `throws`, and the return type), e.g. `private static func applyInfix(named op: String, lhs: Sendable?, rhs: Sendable?, pInfo: ParsedInfo) async throws -> Sendable {` — do not wrap parameters across multiple lines.
 - Prefer the same for **calls** with several arguments: one line for the whole call when it remains readable (e.g. `Self.applyInfix(named: op, lhs: accumulated, rhs: rhsResult, pInfo: pInfo)`).
+- **Computed property bodies** go on separate lines from the declaration — the opening brace is on the declaration line, the body starts on the next line, and the closing brace is on its own line. Do not inline the body on the same line as the `var` declaration. Example:
+  ```swift
+  public static var myOperator: InfixOperatorProtocol {
+      CreateOperator.infix("==") { (lhs: String, rhs: String) in lhs == rhs }
+  }
+  ```
+  Not: `public static var myOperator: InfixOperatorProtocol { CreateOperator.infix("==") { ... } }`
 
 ### String literals and line breaks
 
@@ -1042,6 +1061,7 @@ No tests yet for:
 | **.ss** | SoupyScript file extension (`TemplateConstants.ScriptExtension = "ss"`). `main.ss` is the blueprint entry point. |
 | **teso** | A TemplateSoup template file (`.teso` extension) rendered against the generation context. |
 | **common.modelhike** | Special shared-types file in the model folder. Loaded into `model.commonModel`; types here are available as mixins/parents across all containers. |
+| **CodeLogic** | Fenced method-body syntax inside methods (pipe-gutter statements; `DSL/codelogic.dsl.md`). Parsed into `CodeLogic` / `CodeLogicStmt`; flattened for templates via `FlatLogicLineData`. |
 | **MethodObject** | A method member inside a class (`~` tilde-prefix or setext style). Has `parameters: [MethodParameter]`, `returnType: TypeInfo`, and `logic: CodeLogic?`. May be preceded by `>>>` parameter metadata lines. |
 | **MethodParameter** | A single method parameter: `name`, `type`, `metadata: ParameterMetadata`. |
 | **ParameterMetadata** | Rich decoration for a `MethodParameter` parsed from `>>>` lines: `required`, `isOutput`, `defaultValue`, `validValueSet: [String]`, `constraints`, `attribs`, `tags`. |

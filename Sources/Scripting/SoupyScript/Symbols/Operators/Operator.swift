@@ -8,35 +8,27 @@ import Foundation
 
 public struct InfixOperator<A, B, T: Sendable> : InfixOperatorProtocol {
     public var name : String
-    private let lhsType: A.Type
-    private let rhsType: B.Type
+    public var lhsType: any Any.Type { _lhsType }
+    public var rhsType: any Any.Type { _rhsType }
+    private let _lhsType: A.Type
+    private let _rhsType: B.Type
     private let handler: @Sendable (A, B) -> T
     public var kind : OperatorKind { .infix }
 
     public func applyTo(lhs : Sendable?, rhs: Sendable?, pInfo: ParsedInfo) throws -> Sendable {
-        guard let typedLhs = lhs as? A else {
+        guard let typedLhs = lhs as? A, type(of: typedLhs) == _lhsType else {
             throw TemplateSoup_ParsingError.infixOperatorCalledOnwrongLhsType(self.name, runtimeTypeName(of: lhs), pInfo)
         }
-        
-        if type(of: typedLhs) != self.lhsType {
-            throw TemplateSoup_ParsingError.infixOperatorCalledOnwrongLhsType(self.name, runtimeTypeName(of: typedLhs), pInfo)
-        }
-        
-        guard let typedRhs = rhs as? B else {
+        guard let typedRhs = rhs as? B, type(of: typedRhs) == _rhsType else {
             throw TemplateSoup_ParsingError.infixOperatorCalledOnwrongRhsType(self.name, runtimeTypeName(of: rhs), pInfo)
         }
-        
-        if type(of: typedRhs) != self.rhsType {
-            throw TemplateSoup_ParsingError.infixOperatorCalledOnwrongRhsType(self.name, runtimeTypeName(of: typedRhs), pInfo)
-        }
-            
         return handler(typedLhs, typedRhs)
     }
     
     public init(name: String, handler: @escaping @Sendable(A, B) -> T) {
         self.name = name
-        self.lhsType = A.self
-        self.rhsType = B.self
+        self._lhsType = A.self
+        self._rhsType = B.self
         self.handler = handler
     }
 }
@@ -70,6 +62,8 @@ public struct PrefixOperator<A, T> : Operator {
 }
 
 public protocol InfixOperatorProtocol : Operator {
+    var lhsType: any Any.Type { get }
+    var rhsType: any Any.Type { get }
     func applyTo(lhs : Sendable?, rhs: Sendable?, pInfo: ParsedInfo) throws -> Sendable
 }
 

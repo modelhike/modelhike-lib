@@ -342,6 +342,17 @@ public enum Suggestions {
         )
     }
 
+    /// Builds a type-mismatch error when an operator exists by name but no registration
+    /// matches the runtime LHS/RHS types. Lists the expected type pairs so the user can
+    /// see what combinations are supported.
+    public static func infixOperatorTypeMismatch(_ name: String, lhsType: String, rhsType: String, expectedPairs: [String], pInfo: ParsedInfo) -> TemplateSoup_ParsingError {
+        let pairsStr = expectedPairs.joined(separator: ", ")
+        return .infixOperatorCalledOnwrongLhsType(
+            "Operator '\(name)' called with (\(lhsType), \(rhsType)). Registered type pairs: \(pairsStr)",
+            lhsType, pInfo
+        )
+    }
+
     /// Builds a parsing error for an invalid wrapper/object property lookup.
     public static func invalidPropertyInCall(
         _ name: String,
