@@ -12,15 +12,17 @@ public actor ForLoop_Wrap : DynamicMemberLookup, SendableDebugStringConvertible 
     public private(set) var LAST_IN_LOOP = false
     
     public func getValueOf(property propname: String, with pInfo: ParsedInfo) async throws -> Sendable? {
-        let value: Sendable = switch propname {
-            case "first": FIRST_IN_LOOP
-            case "last" : LAST_IN_LOOP
-            
-           default:
-            throw Suggestions.invalidPropertyInCall(propname, candidates: ["first", "last"], pInfo: pInfo)
+        guard let key = ForLoopProperty(rawValue: propname) else {
+            throw Suggestions.invalidPropertyInCall(
+                propname,
+                candidates: ForLoopProperty.allCases.map(\.rawValue),
+                pInfo: pInfo
+            )
         }
-        
-        return value
+        return switch key {
+        case .first: FIRST_IN_LOOP
+        case .last: LAST_IN_LOOP
+        }
     }
     
     public func FIRST_IN_LOOP(_ value: Bool) {
@@ -45,5 +47,12 @@ public actor ForLoop_Wrap : DynamicMemberLookup, SendableDebugStringConvertible 
     public init(_ item: ForStmt) {
         self.item = item
     }
+}
+
+// MARK: - For-loop property keys (template-facing raw strings)
+
+private enum ForLoopProperty: String, CaseIterable {
+    case first
+    case last
 }
 

@@ -216,49 +216,38 @@ private extension String {
 public actor FlatLogicLine_Wrap: DynamicMemberLookup, SendableDebugStringConvertible {
     private let data: FlatLogicLineData
 
-    private static let propertyCandidates: [String] = [
-        "kind", "expression", "depth", "indent",
-        "is-open", "is-close", "is-leaf",
-        "condition", "for-item", "for-collection",
-        "assign-lhs", "assign-rhs", "call-expression",
-        "catch-variable", "catch-type",
-        "switch-subject", "case-value", "let-name",
-        "return-expression", "throw-expression",
-    ]
-
     public func getValueOf(property propname: String, with pInfo: ParsedInfo) async throws -> Sendable? {
-        let value: Sendable =
-            switch propname {
-            case "kind": data.kind.keyword
-            case "expression": data.expression
-            case "depth": data.depth
-            case "indent": String(repeating: "    ", count: data.depth)
-            case "is-open": data.lineType == .open
-            case "is-close": data.lineType == .close
-            case "is-leaf": data.lineType == .leaf
-            case "condition": data.condition
-            case "for-item": data.forItem
-            case "for-collection": data.forCollection
-            case "assign-lhs": data.assignLhs
-            case "assign-rhs": data.assignRhs
-            case "call-expression": data.callExpression
-            case "catch-variable": data.catchVariable
-            case "catch-type": data.catchType
-            case "switch-subject": data.switchSubject
-            case "case-value": data.caseValue
-            case "let-name": data.letName
-            case "return-expression":
-                if case .statement(.return) = data.kind { data.expression } else { "" }
-            case "throw-expression":
-                if case .statement(.throw) = data.kind { data.expression } else { "" }
-            default:
-                throw Suggestions.invalidPropertyInCall(
-                    propname,
-                    candidates: Self.propertyCandidates,
-                    pInfo: pInfo
-                )
-            }
-        return value
+        guard let key = FlatLogicLineProperty(rawValue: propname) else {
+            throw Suggestions.invalidPropertyInCall(
+                propname,
+                candidates: FlatLogicLineProperty.allCases.map(\.rawValue),
+                pInfo: pInfo
+            )
+        }
+        return switch key {
+        case .kind: data.kind.keyword
+        case .expression: data.expression
+        case .depth: data.depth
+        case .indent: String(repeating: "    ", count: data.depth)
+        case .isOpen: data.lineType == .open
+        case .isClose: data.lineType == .close
+        case .isLeaf: data.lineType == .leaf
+        case .condition: data.condition
+        case .forItem: data.forItem
+        case .forCollection: data.forCollection
+        case .assignLhs: data.assignLhs
+        case .assignRhs: data.assignRhs
+        case .callExpression: data.callExpression
+        case .catchVariable: data.catchVariable
+        case .catchType: data.catchType
+        case .switchSubject: data.switchSubject
+        case .caseValue: data.caseValue
+        case .letName: data.letName
+        case .returnExpression:
+            if case .statement(.return) = data.kind { data.expression } else { "" }
+        case .throwExpression:
+            if case .statement(.throw) = data.kind { data.expression } else { "" }
+        }
     }
 
     public var debugDescription: String {
@@ -268,4 +257,29 @@ public actor FlatLogicLine_Wrap: DynamicMemberLookup, SendableDebugStringConvert
     public init(_ data: FlatLogicLineData) {
         self.data = data
     }
+}
+
+// MARK: - Flat logic line property keys (template-facing raw strings)
+
+private enum FlatLogicLineProperty: String, CaseIterable {
+    case kind
+    case expression
+    case depth
+    case indent
+    case isOpen = "is-open"
+    case isClose = "is-close"
+    case isLeaf = "is-leaf"
+    case condition
+    case forItem = "for-item"
+    case forCollection = "for-collection"
+    case assignLhs = "assign-lhs"
+    case assignRhs = "assign-rhs"
+    case callExpression = "call-expression"
+    case catchVariable = "catch-variable"
+    case catchType = "catch-type"
+    case switchSubject = "switch-subject"
+    case caseValue = "case-value"
+    case letName = "let-name"
+    case returnExpression = "return-expression"
+    case throwExpression = "throw-expression"
 }

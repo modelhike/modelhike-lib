@@ -84,52 +84,35 @@ public actor C4Component_Wrap : ObjectWrapper {
     }}
     
     public func getValueOf(property propname: String, with pInfo: ParsedInfo) async throws -> Sendable? {
-        let value: Sendable = switch propname {
-        case "name": await item.name
-        case "types" : await types
-        case "embedded-types" : await embeddedTypes
-        case "has-embedded-types" : await embeddedTypes.count != 0
-        case "entities" : await entities
-        case "has-entities" : await entities.count != 0
-        case "dtos" : await dtos
-        case "has-dtos" : await dtos.count != 0
-        case "entities-and-dtos" : await entitiesAndDtos
-        case "push-apis" : await pushDataApis
-        case "has-push-apis" : await pushDataApis.count != 0
-        case "query-apis" : await queryApis
-        case "has-query-apis" : await queryApis.count != 0
-        case "mutation-apis" : await mutationApis
-        case "has-mutation-apis" : await mutationApis.count != 0
-        case "has-any-apis" : await apis.count != 0
-        default:
+        guard let key = C4ComponentProperty(rawValue: propname) else {
             //nothing found; so check in module attributes
-            try await resolveFallbackProperty(propname: propname, pInfo: pInfo)
+            return try await resolveFallbackProperty(propname: propname, pInfo: pInfo)
         }
-        
+        let value: Sendable = switch key {
+        case .name: await item.name
+        case .types: await types
+        case .embeddedTypes: await embeddedTypes
+        case .hasEmbeddedTypes: await embeddedTypes.count != 0
+        case .entities: await entities
+        case .hasEntities: await entities.count != 0
+        case .dtos: await dtos
+        case .hasDtos: await dtos.count != 0
+        case .entitiesAndDtos: await entitiesAndDtos
+        case .pushApis: await pushDataApis
+        case .hasPushApis: await pushDataApis.count != 0
+        case .queryApis: await queryApis
+        case .hasQueryApis: await queryApis.count != 0
+        case .mutationApis: await mutationApis
+        case .hasMutationApis: await mutationApis.count != 0
+        case .hasAnyApis: await apis.count != 0
+        }
         return value
     }
 
     private func propertyCandidates() async -> [String] {
         let attributes = await item.attribs.attributesList
         let attributeNames = attributes.map { $0.givenKey }
-        return [
-            "name",
-            "types",
-            "embedded-types",
-            "has-embedded-types",
-            "entities",
-            "has-entities",
-            "dtos",
-            "has-dtos",
-            "entities-and-dtos",
-            "push-apis",
-            "has-push-apis",
-            "query-apis",
-            "has-query-apis",
-            "mutation-apis",
-            "has-mutation-apis",
-            "has-any-apis"
-        ] + attributeNames
+        return C4ComponentProperty.allCases.map(\.rawValue) + attributeNames
     }
     
     private func resolveFallbackProperty(propname: String, pInfo: ParsedInfo) async throws -> Sendable {
@@ -155,6 +138,26 @@ public actor C4Component_Wrap : ObjectWrapper {
     }
 }
 
+// MARK: - C4 component property keys (template-facing raw strings)
+
+private enum C4ComponentProperty: String, CaseIterable {
+    case name
+    case types
+    case embeddedTypes = "embedded-types"
+    case hasEmbeddedTypes = "has-embedded-types"
+    case entities
+    case hasEntities = "has-entities"
+    case dtos
+    case hasDtos = "has-dtos"
+    case entitiesAndDtos = "entities-and-dtos"
+    case pushApis = "push-apis"
+    case hasPushApis = "has-push-apis"
+    case queryApis = "query-apis"
+    case hasQueryApis = "has-query-apis"
+    case mutationApis = "mutation-apis"
+    case hasMutationApis = "has-mutation-apis"
+    case hasAnyApis = "has-any-apis"
+}
 
 
 

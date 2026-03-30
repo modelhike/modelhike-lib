@@ -37,28 +37,25 @@ public actor CodeObject_Wrap: ObjectWrapper {
             return await item.hasProp(propName)
         }
 
-        let value: Sendable =
-            switch propname {
-            case "name": await item.name
-            case "given-name": await item.givenname
-            case "properties":
-                await properties
+        guard let key = WrapperDynamicPropertyKey.ForCodeObject(rawValue: propname) else {
+            //nothing found; so check in module attributes
+            return try await resolveFallbackProperty(propname: propname, pInfo: pInfo)
+        }
+        let value: Sendable = switch key {
+        case .name: await item.name
+        case .givenName: await item.givenname
+        case .properties: await properties
 
-            case "entity": await item.dataType == .entity
-            case "dto": await item.dataType == .dto
-            case "common": await item.dataType == .valueType
-            case "cache": await item.dataType == .cache
-            case "workflow": await item.dataType == .workflow
-            case "has-push-apis": await pushDataApis.count != 0
-            case "has-any-apis": await apis.count != 0
-            case "methods":
-                await item.methods.map { MethodObject_Wrap($0) }
-            case "has-methods": !(await item.methods.isEmpty)
-            default:
-                //nothing found; so check in module attributes
-                try await resolveFallbackProperty(propname: propname, pInfo: pInfo)
-            }
-
+        case .entity: await item.dataType == .entity
+        case .dto: await item.dataType == .dto
+        case .common: await item.dataType == .valueType
+        case .cache: await item.dataType == .cache
+        case .workflow: await item.dataType == .workflow
+        case .hasPushApis: await pushDataApis.count != 0
+        case .hasAnyApis: await apis.count != 0
+        case .methods: await item.methods.map { MethodObject_Wrap($0) }
+        case .hasMethods: !(await item.methods.isEmpty)
+        }
         return value
     }
 
@@ -67,20 +64,7 @@ public actor CodeObject_Wrap: ObjectWrapper {
         let attributeNames = attributes.map { $0.givenKey }
         let propertyNames = await item.properties.asyncThrowingMap { await $0.name }
         let propertyFlags = propertyNames.map { "has-prop-\($0)" }
-        let base = [
-            "name",
-            "given-name",
-            "properties",
-            "entity",
-            "dto",
-            "common",
-            "cache",
-            "workflow",
-            "has-push-apis",
-            "has-any-apis",
-            "methods",
-            "has-methods",
-        ]
+        let base = allCodeObjectWrapTemplatePropertyRawValues()
         return base + propertyFlags + propertyNames + attributeNames
     }
 
@@ -139,90 +123,53 @@ public actor TypeProperty_Wrap: ObjectWrapper {
             return await item.constraints[constraintName]
         }
 
-        let value: Sendable =
-            switch propname {
-            case "name":
-                //if item.type == .id {
-                //    "_id"
-                //} else {
-                await item.name
-            //}
-            case "is-array": await item.type.isArray
-            case "is-object": await item.type.isObject()
-            case "is-number": await item.type.isNumeric
-            case "is-bool", "is-boolean", "is-yesno": await item.type == .bool
-            case "is-string": await item.type == .string
-            case "is-id": await item.type == .id
-            case "is-any": await item.type == .any
-            case "is-date": await item.type.isDate
-            case "is-buffer": await item.type == .buffer
-            case "is-reference": await item.type.isReference()
-            case "is-extended-reference": await item.type.isExtendedReference()
-            case "reference-target":
-                (await item.type.kind).firstReferenceTarget?.targetName ?? ""
-            case "reference-field":
-                (await item.type.kind).firstReferenceTarget?.fieldName ?? ""
-            case "reference-field-type":
-                if let reference = (await item.type.kind).firstReferenceTarget {
-                    await reference.resolvedFieldTypeName_ForDebugging() ?? ""
-                } else {
-                    ""
-                }
-            case "is-coded-value": await item.type.isCodedValue()
-            case "is-custom-type": await item.type.isCustomType
-            case "custom-type":
-                if case let .customType(typeName) = await item.type.kind {
-                    typeName
-                } else {
-                    ""
-                }
-            case "obj-type": await item.type.objectString()
-            case "is-required": await item.required == .yes
-            case "default-value": await item.defaultValue ?? ""
-            case "has-default-value": await item.defaultValue != nil
-            case "valid-value-set": await item.validValueSet.joined(separator: ", ")
-            case "has-valid-value-set": await item.validValueSet.isEmpty == false
-            case "constraints": await constraintsList
-            case "has-constraints": await constraintsList.isEmpty == false
-            default:
-                //nothing found; so check in module attributes
-                try await resolveFallbackProperty(propname: propname, pInfo: pInfo)
+        guard let key = WrapperDynamicPropertyKey.ForTypeProperty(rawValue: propname) else {
+            //nothing found; so check in module attributes
+            return try await resolveFallbackProperty(propname: propname, pInfo: pInfo)
+        }
+        let value: Sendable = switch key {
+        case .name: await item.name
+        case .isArray: await item.type.isArray
+        case .isObject: await item.type.isObject()
+        case .isNumber: await item.type.isNumeric
+        case .isBool, .isBoolean, .isYesNo: await item.type == .bool
+        case .isString: await item.type == .string
+        case .isId: await item.type == .id
+        case .isAny: await item.type == .any
+        case .isDate: await item.type.isDate
+        case .isBuffer: await item.type == .buffer
+        case .isReference: await item.type.isReference()
+        case .isExtendedReference: await item.type.isExtendedReference()
+        case .referenceTarget: (await item.type.kind).firstReferenceTarget?.targetName ?? ""
+        case .referenceField: (await item.type.kind).firstReferenceTarget?.fieldName ?? ""
+        case .referenceFieldType:
+            if let reference = (await item.type.kind).firstReferenceTarget {
+                await reference.resolvedFieldTypeName_ForDebugging() ?? ""
+            } else {
+                ""
             }
-
+        case .isCodedValue: await item.type.isCodedValue()
+        case .isCustomType: await item.type.isCustomType
+        case .customType:
+            if case let .customType(typeName) = await item.type.kind {
+                typeName
+            } else {
+                ""
+            }
+        case .objType: await item.type.objectString()
+        case .isRequired: await item.required == .yes
+        case .defaultValue: await item.defaultValue ?? ""
+        case .hasDefaultValue: await item.defaultValue != nil
+        case .validValueSet: await item.validValueSet.joined(separator: ", ")
+        case .hasValidValueSet: await item.validValueSet.isEmpty == false
+        case .constraints: await constraintsList
+        case .hasConstraints: await constraintsList.isEmpty == false
+        }
         return value
     }
 
     private func propertyCandidates() async -> [String] {
-        var candidates = [
-            "name",
-            "is-array",
-            "is-object",
-            "is-number",
-            "is-bool",
-            "is-boolean",
-            "is-yesno",
-            "is-string",
-            "is-id",
-            "is-any",
-            "is-date",
-            "is-buffer",
-            "is-reference",
-            "is-extended-reference",
-            "reference-target",
-            "reference-field",
-            "reference-field-type",
-            "is-coded-value",
-            "is-custom-type",
-            "custom-type",
-            "obj-type",
-            "is-required",
-            "default-value",
-            "has-default-value",
-            "valid-value-set",
-            "has-valid-value-set",
-            "constraints",
-            "has-constraints"
-        ]
+        var candidates = allTypePropertyWrapTemplatePropertyRawValues()
         for attribute in await item.attribs.attributesList {
             candidates.append("attrib-\(attribute.givenKey)")
             candidates.append("has-attrib-\(attribute.givenKey)")
@@ -260,24 +207,22 @@ public actor TypeProperty_Wrap: ObjectWrapper {
 public actor Constraint_Wrap: ObjectWrapper {
     public let item: Constraint
     public let attribs = Attributes()
-    private let validProperties = ["name", "has-name", "kind", "expression", "rendered", "value", "expr"]
 
     public func getValueOf(property propname: String, with pInfo: ParsedInfo) async throws -> Sendable? {
-        switch propname {
-        case "name":
-            return item.name ?? ""
-        case "has-name":
-            return item.name != nil
-        case "kind":
-            return item.name == nil ? "predicate" : "named"
-        case "expression", "rendered":
-            return ConstraintRenderer.render(item)
-        case "value":
-            return ConstraintRenderer.renderValue(of: item)
-        case "expr":
-            return ConstraintExpr_Wrap(item.expr)
-        default:
-            throw Suggestions.invalidPropertyInCall(propname, candidates: validProperties, pInfo: pInfo)
+        guard let key = WrapperDynamicPropertyKey.ForConstraint(rawValue: propname) else {
+            throw Suggestions.invalidPropertyInCall(
+                propname,
+                candidates: WrapperDynamicPropertyKey.ForConstraint.allCases.map(\.rawValue),
+                pInfo: pInfo
+            )
+        }
+        return switch key {
+        case .name: item.name ?? ""
+        case .hasName: item.name != nil
+        case .kind: item.name == nil ? "predicate" : "named"
+        case .expression, .rendered: ConstraintRenderer.render(item)
+        case .value: ConstraintRenderer.renderValue(of: item)
+        case .expr: ConstraintExpr_Wrap(item.expr)
         }
     }
 
@@ -293,22 +238,32 @@ public actor Constraint_Wrap: ObjectWrapper {
 public actor ConstraintExpr_Wrap: ObjectWrapper {
     public let item: ConstraintExpr
     public let attribs = Attributes()
-    private let validProperties = ["kind", "rendered", "name", "operator", "value", "lhs", "rhs", "expr", "arguments", "items", "lower", "upper"]
 
     public func getValueOf(property propname: String, with pInfo: ParsedInfo) async throws -> Sendable? {
-        switch propname {
-        case "kind":
+        guard let key = WrapperDynamicPropertyKey.ForConstraintExpr(rawValue: propname) else {
+            throw Suggestions.invalidPropertyInCall(
+                propname,
+                candidates: WrapperDynamicPropertyKey.ForConstraintExpr.allCases.map(\.rawValue),
+                pInfo: pInfo
+            )
+        }
+        return try constraintValue(for: key, pInfo: pInfo)
+    }
+
+    private func constraintValue(for key: WrapperDynamicPropertyKey.ForConstraintExpr, pInfo: ParsedInfo) throws -> Sendable {
+        switch key {
+        case .kind:
             return kind
-        case "rendered":
+        case .rendered:
             return ConstraintRenderer.render(item)
-        case "name":
+        case .name:
             switch item {
             case .identifier(let name), .function(let name, _):
                 return name
             default:
                 return ""
             }
-        case "operator":
+        case .op:
             switch item {
             case .unary(let op, _):
                 return op.rawValue
@@ -319,7 +274,7 @@ public actor ConstraintExpr_Wrap: ObjectWrapper {
             default:
                 return ""
             }
-        case "value":
+        case .value:
             switch item {
             case .integer(let value):
                 return String(value)
@@ -334,46 +289,44 @@ public actor ConstraintExpr_Wrap: ObjectWrapper {
             default:
                 return ""
             }
-        case "lhs":
+        case .lhs:
             if case .binary(let lhs, _, _) = item {
                 return ConstraintExpr_Wrap(lhs)
             }
-            throw Suggestions.invalidPropertyInCall(propname, candidates: validProperties, pInfo: pInfo)
-        case "rhs":
+            throw Suggestions.invalidPropertyInCall(key.rawValue, candidates: WrapperDynamicPropertyKey.ForConstraintExpr.allCases.map(\.rawValue), pInfo: pInfo)
+        case .rhs:
             if case .binary(_, _, let rhs) = item {
                 return ConstraintExpr_Wrap(rhs)
             }
-            throw Suggestions.invalidPropertyInCall(propname, candidates: validProperties, pInfo: pInfo)
-        case "expr":
+            throw Suggestions.invalidPropertyInCall(key.rawValue, candidates: WrapperDynamicPropertyKey.ForConstraintExpr.allCases.map(\.rawValue), pInfo: pInfo)
+        case .expr:
             if case .unary(_, let expr) = item {
                 return ConstraintExpr_Wrap(expr)
             }
             if case .grouped(let expr) = item {
                 return ConstraintExpr_Wrap(expr)
             }
-            throw Suggestions.invalidPropertyInCall(propname, candidates: validProperties, pInfo: pInfo)
-        case "arguments":
+            throw Suggestions.invalidPropertyInCall(key.rawValue, candidates: WrapperDynamicPropertyKey.ForConstraintExpr.allCases.map(\.rawValue), pInfo: pInfo)
+        case .arguments:
             if case .function(_, let arguments) = item {
                 return arguments.map(ConstraintExpr_Wrap.init)
             }
-            throw Suggestions.invalidPropertyInCall(propname, candidates: validProperties, pInfo: pInfo)
-        case "items":
+            throw Suggestions.invalidPropertyInCall(key.rawValue, candidates: WrapperDynamicPropertyKey.ForConstraintExpr.allCases.map(\.rawValue), pInfo: pInfo)
+        case .items:
             if case .list(let values) = item {
                 return values.map(ConstraintExpr_Wrap.init)
             }
-            throw Suggestions.invalidPropertyInCall(propname, candidates: validProperties, pInfo: pInfo)
-        case "lower":
+            throw Suggestions.invalidPropertyInCall(key.rawValue, candidates: WrapperDynamicPropertyKey.ForConstraintExpr.allCases.map(\.rawValue), pInfo: pInfo)
+        case .lower:
             if case .between(_, let lower, _) = item {
                 return ConstraintExpr_Wrap(lower)
             }
-            throw Suggestions.invalidPropertyInCall(propname, candidates: validProperties, pInfo: pInfo)
-        case "upper":
+            throw Suggestions.invalidPropertyInCall(key.rawValue, candidates: WrapperDynamicPropertyKey.ForConstraintExpr.allCases.map(\.rawValue), pInfo: pInfo)
+        case .upper:
             if case .between(_, _, let upper) = item {
                 return ConstraintExpr_Wrap(upper)
             }
-            throw Suggestions.invalidPropertyInCall(propname, candidates: validProperties, pInfo: pInfo)
-        default:
-            throw Suggestions.invalidPropertyInCall(propname, candidates: validProperties, pInfo: pInfo)
+            throw Suggestions.invalidPropertyInCall(key.rawValue, candidates: WrapperDynamicPropertyKey.ForConstraintExpr.allCases.map(\.rawValue), pInfo: pInfo)
         }
     }
 
@@ -405,4 +358,89 @@ public actor ConstraintExpr_Wrap: ObjectWrapper {
             return "grouped"
         }
     }
+}
+
+// MARK: - Template-facing dynamic property keys (end of file; string raw values match template / DSL)
+
+private enum WrapperDynamicPropertyKey {
+    enum ForCodeObject: String, CaseIterable {
+        case name
+        case givenName = "given-name"
+        case properties
+        case entity
+        case dto
+        case common
+        case cache
+        case workflow
+        case hasPushApis = "has-push-apis"
+        case hasAnyApis = "has-any-apis"
+        case methods
+        case hasMethods = "has-methods"
+    }
+
+    enum ForTypeProperty: String, CaseIterable {
+        case name
+        case isArray = "is-array"
+        case isObject = "is-object"
+        case isNumber = "is-number"
+        case isBool = "is-bool"
+        case isBoolean = "is-boolean"
+        case isYesNo = "is-yesno"
+        case isString = "is-string"
+        case isId = "is-id"
+        case isAny = "is-any"
+        case isDate = "is-date"
+        case isBuffer = "is-buffer"
+        case isReference = "is-reference"
+        case isExtendedReference = "is-extended-reference"
+        case referenceTarget = "reference-target"
+        case referenceField = "reference-field"
+        case referenceFieldType = "reference-field-type"
+        case isCodedValue = "is-coded-value"
+        case isCustomType = "is-custom-type"
+        case customType = "custom-type"
+        case objType = "obj-type"
+        case isRequired = "is-required"
+        case defaultValue = "default-value"
+        case hasDefaultValue = "has-default-value"
+        case validValueSet = "valid-value-set"
+        case hasValidValueSet = "has-valid-value-set"
+        case constraints
+        case hasConstraints = "has-constraints"
+    }
+
+    enum ForConstraint: String, CaseIterable {
+        case name
+        case hasName = "has-name"
+        case kind
+        case expression
+        case rendered
+        case value
+        case expr
+    }
+
+    enum ForConstraintExpr: String, CaseIterable {
+        case kind
+        case rendered
+        case name
+        case op = "operator"
+        case value
+        case lhs
+        case rhs
+        case expr
+        case arguments
+        case items
+        case lower
+        case upper
+    }
+}
+
+/// Declared after `WrapperDynamicPropertyKey` at the bottom of this file so `CaseIterable.allCases`
+/// is not type-checked inside wrapper actors (Swift otherwise mis-resolves the nested type).
+private func allCodeObjectWrapTemplatePropertyRawValues() -> [String] {
+    WrapperDynamicPropertyKey.ForCodeObject.allCases.map(\.rawValue)
+}
+
+private func allTypePropertyWrapTemplatePropertyRawValues() -> [String] {
+    WrapperDynamicPropertyKey.ForTypeProperty.allCases.map(\.rawValue)
 }

@@ -10,28 +10,8 @@ public actor MethodObject_Wrap: ObjectWrapper {
 
     public var attribs: Attributes { get async { await item.attribs }}
 
-    private static let basePropertyCandidates: [String] = [
-        "name", "given-name", "return-type", "has-return-type",
-        "parameters", "has-parameters", "has-logic", "logic-lines",
-    ]
-
     public func getValueOf(property propname: String, with pInfo: ParsedInfo) async throws -> Sendable? {
-        switch propname {
-        case "name": return await item.name
-        case "given-name": return await item.givenname
-        case "return-type": return await item.returnType
-        case "has-return-type": return await item.returnType.kind != .unKnown
-        case "parameters":
-            return await item.parameters.map { MethodParameter_Wrap($0) }
-        case "has-parameters": return !(await item.parameters.isEmpty)
-        case "has-logic": return await item.hasLogic
-        case "logic-lines":
-            guard let logic = await item.logic, !logic.isEmpty else {
-                return [FlatLogicLine_Wrap]()
-            }
-            let lines = await FlatLogicLineData.flatten(logic: logic)
-            return lines.map { FlatLogicLine_Wrap($0) }
-        default:
+        guard let key = MethodObjectProperty(rawValue: propname) else {
             if await item.attribs.has(propname) {
                 return await item.attribs[propname]
             }
@@ -41,12 +21,28 @@ public actor MethodObject_Wrap: ObjectWrapper {
                 pInfo: pInfo
             )
         }
+        switch key {
+        case .name: return await item.name
+        case .givenName: return await item.givenname
+        case .returnType: return await item.returnType
+        case .hasReturnType: return await item.returnType.kind != .unKnown
+        case .parameters:
+            return await item.parameters.map { MethodParameter_Wrap($0) }
+        case .hasParameters: return !(await item.parameters.isEmpty)
+        case .hasLogic: return await item.hasLogic
+        case .logicLines:
+            guard let logic = await item.logic, !logic.isEmpty else {
+                return [FlatLogicLine_Wrap]()
+            }
+            let lines = await FlatLogicLineData.flatten(logic: logic)
+            return lines.map { FlatLogicLine_Wrap($0) }
+        }
     }
 
     private func propertyCandidates() async -> [String] {
         let attrs = await item.attribs.attributesList
         let attributeNames = attrs.map { $0.givenKey }
-        return Self.basePropertyCandidates + attributeNames
+        return MethodObjectProperty.allCases.map(\.rawValue) + attributeNames
     }
 
     public var debugDescription: String {
@@ -61,27 +57,22 @@ public actor MethodObject_Wrap: ObjectWrapper {
 public actor MethodParameter_Wrap: DynamicMemberLookup, SendableDebugStringConvertible {
     private let item: MethodParameter
 
-    private static let propertyCandidates: [String] = [
-        "name", "type", "is-array", "is-required", "has-default-value", "default-value",
-    ]
-
     public func getValueOf(property propname: String, with pInfo: ParsedInfo) async throws -> Sendable? {
-        let value: Sendable =
-            switch propname {
-            case "name": item.name
-            case "type": item.type
-            case "is-array": item.type.isArray
-            case "is-required": item.metadata.required == .yes
-            case "has-default-value": item.metadata.defaultValue != nil
-            case "default-value": item.metadata.defaultValue ?? ""
-            default:
-                throw Suggestions.invalidPropertyInCall(
-                    propname,
-                    candidates: Self.propertyCandidates,
-                    pInfo: pInfo
-                )
-            }
-        return value
+        guard let key = MethodParameterProperty(rawValue: propname) else {
+            throw Suggestions.invalidPropertyInCall(
+                propname,
+                candidates: MethodParameterProperty.allCases.map(\.rawValue),
+                pInfo: pInfo
+            )
+        }
+        return switch key {
+        case .name: item.name
+        case .type: item.type
+        case .isArray: item.type.isArray
+        case .isRequired: item.metadata.required == .yes
+        case .hasDefaultValue: item.metadata.defaultValue != nil
+        case .defaultValue: item.metadata.defaultValue ?? ""
+        }
     }
 
     public var debugDescription: String {
@@ -91,4 +82,26 @@ public actor MethodParameter_Wrap: DynamicMemberLookup, SendableDebugStringConve
     public init(_ item: MethodParameter) {
         self.item = item
     }
+}
+
+// MARK: - Method / parameter property keys (template-facing raw strings)
+
+private enum MethodObjectProperty: String, CaseIterable {
+    case name
+    case givenName = "given-name"
+    case returnType = "return-type"
+    case hasReturnType = "has-return-type"
+    case parameters
+    case hasParameters = "has-parameters"
+    case hasLogic = "has-logic"
+    case logicLines = "logic-lines"
+}
+
+private enum MethodParameterProperty: String, CaseIterable {
+    case name
+    case type
+    case isArray = "is-array"
+    case isRequired = "is-required"
+    case hasDefaultValue = "has-default-value"
+    case defaultValue = "default-value"
 }

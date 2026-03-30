@@ -10,14 +10,14 @@ public actor Mocking_Wrap : DynamicMemberLookup {
     public private(set) var item: MockData_Generator
     
     public func getValueOf(property propname: String, with pInfo: ParsedInfo) async throws -> Sendable? {
-
-        let value: Sendable = switch propname {
-            case "object-id": item.randomObjectId_MongoDb()
-            default:
-            throw Suggestions.invalidPropertyInCall(propname, candidates: ["object-id"], pInfo: pInfo)
+        guard let key = MockingProperty(rawValue: propname) else {
+            throw Suggestions.invalidPropertyInCall(propname,
+                candidates: MockingProperty.allCases.map(\.rawValue), pInfo: pInfo
+            )
         }
-
-        return value
+        return switch key {
+        case .objectId: item.randomObjectId_MongoDb()
+        }
     }
     
     public init(_ item: MockData_Generator) {
@@ -27,4 +27,10 @@ public actor Mocking_Wrap : DynamicMemberLookup {
     public init() {
         self.item = MockData_Generator()
     }
+}
+
+// MARK: - Mock data property keys (template-facing raw strings)
+
+private enum MockingProperty: String, CaseIterable {
+    case objectId = "object-id"
 }

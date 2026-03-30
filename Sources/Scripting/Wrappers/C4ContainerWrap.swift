@@ -23,33 +23,26 @@ public actor C4Container_Wrap : ObjectWrapper {
     }}
     
     public func getValueOf(property propname: String, with pInfo: ParsedInfo) async throws -> Sendable? {
-        let value: Sendable = switch propname {
-        case "name": await item.name
-        case "modules" : await item.components(item.components, appModel: appModel)
-        case "commons" : await item.components(appModel.commonModel, appModel: appModel)
-        case "default-module" : await item.getFirstModule(appModel: appModel)
-            
-        case "types" : await types
-        case "has-any-apis" : await apis.count != 0
-           default:
+        guard let key = C4ContainerProperty(rawValue: propname) else {
             //nothing found; so check in module attributes
-            try await resolveFallbackProperty(propname: propname, pInfo: pInfo)
+            return try await resolveFallbackProperty(propname: propname, pInfo: pInfo)
         }
+        let value: Sendable = switch key {
+        case .name: await item.name
+        case .modules: await item.components(item.components, appModel: appModel)
+        case .commons: await item.components(appModel.commonModel, appModel: appModel)
+        case .defaultModule: await item.getFirstModule(appModel: appModel)
         
+        case .types: await types
+        case .hasAnyApis: await apis.count != 0
+        }
         return value
     }
 
     private func propertyCandidates() async -> [String] {
         let attributes = await item.attribs.attributesList
         let attributeNames = attributes.map { $0.givenKey }
-        return [
-            "name",
-            "modules",
-            "commons",
-            "default-module",
-            "types",
-            "has-any-apis"
-        ] + attributeNames
+        return C4ContainerProperty.allCases.map(\.rawValue) + attributeNames
     }
     
     private func resolveFallbackProperty(propname: String, pInfo: ParsedInfo) async throws -> Sendable {
@@ -71,5 +64,16 @@ public actor C4Container_Wrap : ObjectWrapper {
         self.item = item
         self.appModel = model
     }
+}
+
+// MARK: - C4 container property keys (template-facing raw strings)
+
+private enum C4ContainerProperty: String, CaseIterable {
+    case name
+    case modules
+    case commons
+    case defaultModule = "default-module"
+    case types
+    case hasAnyApis = "has-any-apis"
 }
 

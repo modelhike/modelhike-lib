@@ -12,23 +12,21 @@ public actor UIObject_Wrap: ObjectWrapper {
     public var attribs: Attributes { get async { await item.attribs }}
 
     public func getValueOf(property propname: String, with pInfo: ParsedInfo) async throws -> Sendable? {
-
-        let value: Sendable =
-            switch propname {
-            case "name": await item.name
-            case "given-name": await item.givenname
-            default:
-                //nothing found; so check in module attributes
-                try await resolveFallbackProperty(propname: propname, pInfo: pInfo)
-            }
-
+        guard let key = UIObjectProperty(rawValue: propname) else {
+            //nothing found; so check in module attributes
+            return try await resolveFallbackProperty(propname: propname, pInfo: pInfo)
+        }
+        let value: Sendable = switch key {
+        case .name: await item.name
+        case .givenName: await item.givenname
+        }
         return value
     }
 
     private func propertyCandidates() async -> [String] {
         let attributes = await item.attribs.attributesList
         let attributeNames = attributes.map { $0.givenKey }
-        return ["name", "given-name"] + attributeNames
+        return UIObjectProperty.allCases.map(\.rawValue) + attributeNames
     }
 
     private func resolveFallbackProperty(propname: String, pInfo: ParsedInfo) async throws -> Sendable {
@@ -49,4 +47,11 @@ public actor UIObject_Wrap: ObjectWrapper {
     public init(_ item: UIObject) {
         self.item = item
     }
+}
+
+// MARK: - UI object property keys (template-facing raw strings)
+
+private enum UIObjectProperty: String, CaseIterable {
+    case name
+    case givenName = "given-name"
 }
