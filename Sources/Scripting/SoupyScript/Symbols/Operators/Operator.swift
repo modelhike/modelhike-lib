@@ -38,7 +38,7 @@ public struct SuffixOperator<A, T> : Operator {
     public var callerType: A.Type
     private var handler: @Sendable(A) -> T
     
-    public var kind : OperatorKind { .infix }
+    public var kind : OperatorKind { .suffix }
 
     public init(name: String, handler: @escaping @Sendable(A) -> T) {
         self.name = name
@@ -52,7 +52,7 @@ public struct PrefixOperator<A, T> : Operator {
     public var callerType: A.Type
     private var handler: @Sendable(A) -> T
     
-    public var kind : OperatorKind { .infix }
+    public var kind : OperatorKind { .prefix }
 
     public init(name: String, handler: @escaping @Sendable(A) -> T) {
         self.name = name

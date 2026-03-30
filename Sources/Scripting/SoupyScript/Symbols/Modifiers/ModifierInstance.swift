@@ -13,7 +13,14 @@ public struct ModifierInstanceWithoutArgs<I, T: Sendable> : ModifierInstanceWith
     private let handler: @Sendable (I, ParsedInfo) async throws  -> T?
     
     public func applyTo(value : Sendable, with pInfo: ParsedInfo) async throws -> Sendable? {
-        guard let typedValue = value as? I, type(of: typedValue) == _callerType else {
+        // Two-part check:
+        // 1. `as? I` — verifies the value is compatible with the registered input type.
+        // 2. `type(of:) == _callerType` — enforces an exact concrete-type match, preventing
+        //    e.g. a Double from being silently widened to Sendable and accepted by a String modifier.
+        //    Skipped when _callerType is `(any Sendable).self`, meaning the modifier intentionally
+        //    accepts any value (e.g. `typename`, `sample-json`).
+        guard let typedValue = value as? I,
+              _callerType == (any Sendable).self || type(of: value) == _callerType else {
             throw TemplateSoup_ParsingError.modifierCalledOnwrongType(self.name, runtimeTypeName(of: value), pInfo)
         }
         return try await handler(typedValue, pInfo)
@@ -38,7 +45,14 @@ public struct ModifierInstanceWithUnNamedArgs<I, T: Sendable> : ModifierInstance
     }
     
     public func applyTo(value : Sendable, with pInfo: ParsedInfo) async throws -> Sendable? {
-        guard let typedValue = value as? I, type(of: typedValue) == _callerType else {
+        // Two-part check (identical reasoning to ModifierInstanceWithoutArgs):
+        // 1. `as? I` — verifies the value is compatible with the registered input type.
+        // 2. `type(of:) == _callerType` — enforces an exact concrete-type match, preventing
+        //    e.g. a Double from being silently widened to Sendable and accepted by a String modifier.
+        //    Skipped when _callerType is `(any Sendable).self`, meaning the modifier intentionally
+        //    accepts any value (e.g. `typename`, `sample-json`).
+        guard let typedValue = value as? I,
+              _callerType == (any Sendable).self || type(of: value) == _callerType else {
             throw TemplateSoup_ParsingError.modifierCalledOnwrongType(self.name, runtimeTypeName(of: value), pInfo)
         }
         var argumentValues: [Sendable] = []

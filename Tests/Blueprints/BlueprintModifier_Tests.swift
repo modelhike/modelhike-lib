@@ -1,6 +1,39 @@
 import Testing
 @testable import ModelHike
 
+// MARK: - ModifierInstance type-check tests
+
+/// Tests for the two-part guard in `ModifierInstanceWithoutArgs.applyTo`:
+///   1. Concrete-typed modifier (e.g. `uppercase` registered for `String`) must reject a non-String value.
+///   2. `Sendable`-typed modifier (e.g. `typename` registered for `Sendable`) must accept any concrete value.
+@Suite("ModifierInstance type check") struct ModifierInstance_TypeCheck_Tests {
+
+    // `uppercase` is registered in DefaultModifiersLibrary as (String) -> String?.
+    // Passing a Double must throw modifierCalledOnwrongType.
+    @Test func concreteTypedModifier_wrongType_throws() async throws {
+        let ws = Workspace()
+        await #expect(throws: (any Error).self) {
+            // `num` is a Double; `uppercase` expects a String.
+            try await ws.render(string: "{{ num | uppercase }}", data: ["num": 42.0])
+        }
+    }
+
+    // `uppercase` with the correct input type must succeed.
+    @Test func concreteTypedModifier_correctType_succeeds() async throws {
+        let ws = Workspace()
+        let result = try await ws.render(string: "{{ word | uppercase }}", data: ["word": "hello"])
+        #expect(result == "HELLO")
+    }
+
+    // `lowerFirst` is also String-typed; an Int input must be rejected.
+    @Test func concreteTypedModifier_intInput_throws() async throws {
+        let ws = Workspace()
+        await #expect(throws: (any Error).self) {
+            try await ws.render(string: "{{ n | lowerFirst }}", data: ["n": 1])
+        }
+    }
+}
+
 // MARK: - BlueprintModifierInputType unit tests
 
 @Suite("BlueprintModifierInputType") struct BlueprintModifierInputType_Tests {
