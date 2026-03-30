@@ -76,6 +76,8 @@ swift run DevTester --debug-stepping --debug-dev
 
 Then open `http://localhost:4800` in your browser.
 
+> **In just seconds**, see a basic full-stack app spinning up—feel that excitement of first 
+light on the trail.
 ---
 
 ## 2. 🌟 Trailhead (What is ModelHike?)

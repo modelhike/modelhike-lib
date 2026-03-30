@@ -964,6 +964,11 @@ No tests yet for:
 - `Sendable` conformance everywhere — required by Swift 6 strict concurrency. Actors, structs with `Sendable` properties.
 - `DynamicMemberLookup + HasAttributes` — the pattern for objects that can be accessed by property name from within templates.
 
+### Function signatures and calls (Swift)
+
+- Put the **full parameter list on one line** for function and method **declarations** (including `async`, `throws`, and the return type), e.g. `private static func applyInfix(named op: String, lhs: Sendable?, rhs: Sendable?, pInfo: ParsedInfo) async throws -> Sendable {` — do not wrap parameters across multiple lines.
+- Prefer the same for **calls** with several arguments: one line for the whole call when it remains readable (e.g. `Self.applyInfix(named: op, lhs: accumulated, rhs: rhsResult, pInfo: pInfo)`).
+
 ### String literals and line breaks
 
 - **Do not use magic strings** for Unix line feeds (`"\n"`), Windows line endings (`"\r\n"`), or similar repeated delimiters in Swift source. Use **`String.newLine`** and **`String.newLine2`** defined on `String` in [`Sources/_Common_/Extensions/String.swift`](Sources/_Common_/Extensions/String.swift) (`newLine` → `"\n"`, `newLine2` → `"\r\n"`). This keeps splitting, joining, and containment checks consistent and grep-friendly.
