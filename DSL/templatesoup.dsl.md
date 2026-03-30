@@ -213,6 +213,13 @@ All statements below work in both file types; only the prefix changes.
 | `entity.has-any-apis` | Bool                                                            |
 | `entity.has-push-apis` | Bool                                                           |
 | `entity \| apis`       | Returns `APIList` for this entity (via `ModelLib.apis` modifier) |
+| `entity.methods`      | List of methods defined on this entity                          |
+| `entity.has-methods`  | Bool — entity has at least one method                           |
+| `entity.has-db-logic` | Bool — any method uses DB query/mutation statements             |
+| `entity.has-db-txn-logic` | Bool — any method uses transaction control (`transaction`, `savepoint`, etc.) |
+| `entity.has-http-logic` | Bool — any method uses `http>` blocks (REST client calls)     |
+| `entity.has-ws-logic` | Bool — any method uses `websocket>` blocks (WebSocket client calls) |
+| `entity.has-grpc-logic` | Bool — any method uses `grpc>` blocks                         |
 | `type.name`           | Same as `entity.name` (when iterating `module.types`)           |
 | `type.properties`     | Same as `entity.properties`                                     |
 
@@ -243,7 +250,36 @@ All statements below work in both file types; only the prefix changes.
 | `property \| graphql-typename` | GraphQL type string                                 |
 | `property \| default-value`   | Default value string                                 |
 
-### 5.5 API-level (`set apis = entity | apis` then `for api in apis`)
+### 5.5 Method-level (`for method in entity.methods`)
+
+| Variable                    | Description                                              |
+| --------------------------- | -------------------------------------------------------- |
+| `method.name`               | Normalised method name                                   |
+| `method.given-name`         | Original method name                                     |
+| `method.return-type`        | Return type string                                       |
+| `method.has-return-type`    | Bool — method has a non-void return type                 |
+| `method.parameters`         | List of parameters                                       |
+| `method.has-parameters`     | Bool — method has at least one parameter                 |
+| `method.has-logic`          | Bool — method has a CodeLogic body                       |
+| `method.logic-lines`        | Flattened logic lines (`FlatLogicLineData`) for codegen  |
+| `method.has-db-logic`       | Bool — method uses DB query/mutation statements          |
+| `method.has-db-txn-logic`   | Bool — method uses transaction control                   |
+| `method.has-http-logic`     | Bool — method uses `http>` blocks                        |
+| `method.has-ws-logic`       | Bool — method uses `websocket>` blocks                   |
+| `method.has-grpc-logic`     | Bool — method uses `grpc>` blocks                        |
+
+#### Method parameter-level (`for param in method.parameters`)
+
+| Variable                    | Description                                              |
+| --------------------------- | -------------------------------------------------------- |
+| `param.name`                | Parameter name                                           |
+| `param.type`                | Parameter type string                                    |
+| `param.is-array`            | Bool — parameter is an array type                        |
+| `param.is-required`         | Bool — parameter is required                             |
+| `param.has-default-value`   | Bool — parameter has a default value                     |
+| `param.default-value`       | Default value string                                     |
+
+### 5.6 API-level (`set apis = entity | apis` then `for api in apis`)
 
 | Variable                       | Description                                              |
 | ------------------------------ | -------------------------------------------------------- |
@@ -273,7 +309,7 @@ All statements below work in both file types; only the prefix changes.
 | `api.input-type`               | Input type info                                          |
 | `api.entity`                   | The entity this API belongs to                           |
 
-### 5.6 Query parameter-level (`for param in api.query-params`)
+### 5.7 Query parameter-level (`for param in api.query-params`)
 
 | Variable                    | Description                                        |
 | --------------------------- | -------------------------------------------------- |
@@ -283,7 +319,7 @@ All statements below work in both file types; only the prefix changes.
 | `param.has-multiple-params` | Bool — multi-value param (uses `...` suffix in model) |
 | `param.prop-mapping-first`  | Property path the param maps to                    |
 
-### 5.7 Script-local variables (set by `main.ss`)
+### 5.8 Script-local variables (set by `main.ss`)
 
 These are not injected by the engine — scripts set them with `set`:
 
