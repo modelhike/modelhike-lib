@@ -25,6 +25,15 @@ public struct ContentLine: TemplateItem, CustomDebugStringConvertible {
             }
         }
 
+        if let ws = items.first as? WhitespaceContent, str.contains(String.newLine) {
+            let indent = ws.content
+            var lines = str.components(separatedBy: String.newLine)
+            for i in 1..<lines.count where !lines[i].isEmpty {
+                lines[i] = indent + lines[i]
+            }
+            str = lines.joined(separator: String.newLine)
+        }
+
         return str.trim().isNotEmpty ? str + .newLine : nil
     }
 

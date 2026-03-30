@@ -263,7 +263,7 @@ Pipelines/
 │   └── Plugins.swift
 ├── 5. Render/
 │   ├── Render.swift        # Factory: Render.code()
-│   ├── GenerateCodePass.swift  # CURRENTLY HARDCODES blueprint = "api-nestjs-monorepo"
+│   ├── GenerateCodePass.swift  # Hardcodes `blueprintName` (currently `api-springboot-monorepo`)
 │   └── DebugRenderer.swift
 └── 6. Persist/
     ├── Persist.swift       # Factory: Persist.toOutputFolder()
@@ -293,9 +293,10 @@ CodeGen/
 │   │   ├── Templates/              # Template protocol; LocalFileTemplate, LocalFilesetTemplate, StringTemplate
 │   │   └── SpecialFolderNames.swift / TemplateConstants.swift
 │   └── ContentLine/
-│       ├── ContentLine.swift       # Line protocol
+│       ├── ContentLine.swift       # Line protocol; multiline print indent propagation
 │       ├── ContentHandler.swift
 │       ├── TextContent.swift       # Plain text
+│       ├── WhitespaceContent.swift # Leading spaces/tabs on a line (indent preservation)
 │       ├── PrintExpressionContent.swift  # {{ expression }}
 │       ├── InlineFunctionCallContent.swift
 │       └── EmptyLine.swift
@@ -353,9 +354,11 @@ Scripting/
 │   ├── APIWrap.swift
 │   ├── C4ComponentWrap.swift
 │   ├── C4ContainerWrap.swift
-│   ├── CodeObjectWrap.swift
+│   ├── CodeObjectWrap.swift                # methods, has-methods, …
 │   ├── DataMockWrap.swift
+│   ├── FlatLogicLineWrap.swift             # FlatLogicLineData + MethodObject.logic-lines flattening
 │   ├── Loop.swift                          # @loop variable in for loops
+│   ├── MethodObjectWrap.swift              # Method + parameter wrappers for templates
 │   └── UIObjectWrap.swift
 └── _Base_/
     ├── LocalScriptFile.swift
@@ -453,8 +456,8 @@ Each phase is a `PipelinePhase` that holds a list of `PipelinePass` implementati
 ### Phase 5 — Render
 
 - `GenerateCodePass` — the main code generation pass:
-  1. Selects a blueprint (`api-nestjs-monorepo` is currently hardcoded).
-  2. Loads language-specific modifier symbols (TypeScript + MongoDB for NestJS; Java for Spring Boot).
+  1. Selects a blueprint (`blueprintName` in `GenerateCodePass.swift` is currently hardcoded — e.g. `api-springboot-monorepo` or `api-nestjs-monorepo`).
+  2. Loads language-specific modifier symbols (Java for Spring Boot; TypeScript + MongoDB for NestJS).
   3. Creates a `CodeGenerationSandbox`.
   4. Calls `sandbox.generateFilesFor(container:)` which:
      - Sets `@container` and `@mock` template variables.
@@ -551,6 +554,11 @@ getByUsingCustomLogic, listByUsingCustomLogic, mutationUsingCustomLogic
 
 > **Template + scripting syntax reference:** All TemplateSoup and SoupyScript syntax — `{{ }}` print expressions, file-type prefix rules (`.ss` vs `.teso`), statement reference, front matter, built-in template variables, modifiers, and operators — is documented in [`DSL/templatesoup.dsl.md`](DSL/templatesoup.dsl.md). That file is the single source of truth. **Update `DSL/templatesoup.dsl.md` when any syntax changes; do not duplicate syntax here.**
 
+### 8.2 Content lines & method logic in templates
+
+- **Indentation** — `WhitespaceContent` records leading spaces/tabs on a template line. When a `{{ … }}` print spans multiple lines, the first line’s leading whitespace is applied to continuation lines (use `String.newLine` / `String.newLine2` in Swift, not ad-hoc `\n` literals — see Key Conventions).
+- **`MethodObject` in scripts** — `MethodObject_Wrap` / `MethodParameter_Wrap` expose signatures and metadata. For each method with logic, `logic-lines` is built from `FlatLogicLineData.flatten`, producing rows with `kind`, `depth`, `is-open` / `is-leaf` / `is-close`, and structured fields (`condition`, `for-item`, …). Language-specific emission belongs in blueprint `_modifiers_` (e.g. Spring Boot `java-method-body.teso`, `java-method-params.teso`, `java-return-type.teso`).
+
 ---
 
 ## 9. Blueprint System
@@ -567,11 +575,11 @@ A **Blueprint** is a named folder inside `localBlueprintsPath` containing `.teso
 
 ### Current Blueprints
 
-Two blueprints live in `modelhike-blueprints/Sources/Resources/blueprints/`. `GenerateCodePass` currently hardcodes:
+Two blueprints live in `modelhike-blueprints/Sources/Resources/blueprints/`. `GenerateCodePass` selects one via `blueprintName`, for example:
 
 ```swift
-let blueprint = "api-nestjs-monorepo"    // ACTIVE
-// let blueprint = "api-springboot-monorepo"  // commented out
+// let blueprintName = "api-nestjs-monorepo"
+let blueprintName = "api-springboot-monorepo"
 ```
 
 ---
@@ -877,8 +885,8 @@ Used by `DevTester` (via `Environment.debug`) to run the full pipeline against r
 - ✅ Complete DSL parser — containers, modules, submodules, classes, DTOs, UIViews, properties, annotations, tags, attributes, API blocks, custom operations
 - ✅ Full 6-phase pipeline (`Discover → Load → Hydrate → Transform → Render → Persist`)
 - ✅ SoupyScript engine — all statement types, modifiers, operators, functions, loops, conditionals
-- ✅ NestJS monorepo blueprint generation (TypeScript + MongoDB)
-- ✅ Spring Boot blueprint infrastructure wired (Java symbols loaded) — needs an active blueprint
+- ✅ NestJS monorepo blueprint (TypeScript + MongoDB) — switch `blueprintName` to use it
+- ✅ Spring Boot monorepo blueprint (`api-springboot-monorepo`) with Java symbols when that blueprint is active
 - ✅ GraphQL + gRPC API scaffolding support in the DSL and modifier libraries
 - ✅ Annotation cascade system
 - ✅ Semantic validation phase (`Validate.models()`) — emits W301/W303–W306 diagnostics for unresolved types, duplicate names, and missing modules
@@ -895,7 +903,7 @@ Used by `DevTester` (via `Environment.debug`) to run the full pipeline against r
 
 | Location | Hardcoded Value | Should Be |
 |---|---|---|
-| `GenerateCodePass.swift:24` | `let blueprint = "api-nestjs-monorepo"` | Driven by model config or CLI flag |
+| `GenerateCodePass.swift` (`blueprintName`) | Hardcoded blueprint name string | Driven by model config or CLI flag |
 | `DevTester/Environment.swift:7` | Absolute path to a local test model folder inside `_Playground/` | Configurable |
 | `DevTester/Environment.swift:9` | Absolute path to sibling `modelhike-blueprints` repo | Configurable, documented |
 | `DevTester/DevMain.swift:31` | `config.containersToOutput = ["APIs"]` | Not hardcoded |
@@ -930,6 +938,7 @@ Test files (`Tests/`):
 | `TemplateSoup_String_Tests` | End-to-end template string rendering — 4 tests |
 | `PropertyParser_Tests` | `Property` parsing: defaults, valid value sets (`[String]`), constraints, attributes |
 | `MethodParameterMetadata_Tests` | `>>>` parameter metadata parsing: required/optional markers, `#output` tag, `defaultValue`, constraints, attributes, valid value set, multi-param methods, setext methods |
+| `FlatLogicLineData_Tests` | `FlatLogicLineData.flatten` — empty logic, single return, if/else chaining (no spurious close), `isChainedAfter` |
 
 No tests yet for:
 - Pipeline phases
@@ -954,6 +963,11 @@ No tests yet for:
 - `@discardableResult` on append/generate methods — common pattern.
 - `Sendable` conformance everywhere — required by Swift 6 strict concurrency. Actors, structs with `Sendable` properties.
 - `DynamicMemberLookup + HasAttributes` — the pattern for objects that can be accessed by property name from within templates.
+
+### String literals and line breaks
+
+- **Do not use magic strings** for Unix line feeds (`"\n"`), Windows line endings (`"\r\n"`), or similar repeated delimiters in Swift source. Use **`String.newLine`** and **`String.newLine2`** defined on `String` in [`Sources/_Common_/Extensions/String.swift`](Sources/_Common_/Extensions/String.swift) (`newLine` → `"\n"`, `newLine2` → `"\r\n"`). This keeps splitting, joining, and containment checks consistent and grep-friendly.
+- For other domain-specific character sequences (DSL prefixes, fence characters, etc.), prefer **`ModelConstants`**, **`TemplateConstants`**, or other named statics rather than scattering raw string literals.
 
 ### File Naming
 

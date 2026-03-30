@@ -56,6 +56,9 @@ public actor CodeObject_Wrap: ObjectWrapper {
             case "workflow": await item.dataType == .workflow
             case "has-push-apis": await pushDataApis.count != 0
             case "has-any-apis": await apis.count != 0
+            case "methods":
+                await item.methods.map { MethodObject_Wrap($0) }
+            case "has-methods": !(await item.methods.isEmpty)
             default:
                 //nothing found; so check in module attributes
                 try await resolveFallbackProperty(propname: propname, pInfo: pInfo)
@@ -79,7 +82,9 @@ public actor CodeObject_Wrap: ObjectWrapper {
             "cache",
             "workflow",
             "has-push-apis",
-            "has-any-apis"
+            "has-any-apis",
+            "methods",
+            "has-methods",
         ]
         return base + propertyFlags + propertyNames + attributeNames
     }

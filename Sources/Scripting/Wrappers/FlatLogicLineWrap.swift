@@ -1,0 +1,271 @@
+//
+//  FlatLogicLineWrap.swift
+//  ModelHike
+//
+
+import Foundation
+
+/// One row in a flattened method logic tree (language-independent); templates iterate this to emit target syntax.
+public struct FlatLogicLineData: Sendable {
+    public enum LineType: Sendable {
+        case open
+        case leaf
+        case close
+    }
+
+    /// Statement kind from the logic tree, or `.close` for a synthetic closing-brace row.
+    public enum FlatLogicLineKind: Sendable, Equatable {
+        case statement(CodeLogicStmtKind)
+        case close
+
+        /// Pipe-gutter keyword (`CodeLogicStmtKind.keyword`) or `"close"` for synthetic closes — matches template `line.kind == "…"` checks.
+        public var keyword: String {
+            switch self {
+            case .statement(let k): k.keyword
+            case .close: "close"
+            }
+        }
+    }
+
+    public let kind: FlatLogicLineKind
+    public let expression: String
+    public let depth: Int
+    public let lineType: LineType
+    public let condition: String
+    public let forItem: String
+    public let forCollection: String
+    public let assignLhs: String
+    public let assignRhs: String
+    public let callExpression: String
+    public let catchVariable: String
+    public let catchType: String
+    public let switchSubject: String
+    public let caseValue: String
+    public let letName: String
+
+    /// Flattens a `CodeLogic` tree into a linear list with depth and open/close markers.
+    public static func flatten(logic: CodeLogic) async -> [FlatLogicLineData] {
+        await flatten(stmts: logic.statements, baseDepth: 0)
+    }
+
+    public static func flatten(stmts: [CodeLogicStmt], baseDepth: Int) async -> [FlatLogicLineData] {
+        var result: [FlatLogicLineData] = []
+        for (index, stmt) in stmts.enumerated() {
+            let kind = stmt.kind
+            let isBlock = kind.isBlock
+            if isBlock {
+                result.append(makeLineData(stmt: stmt, depth: baseDepth, lineType: .open))
+            } else {
+                result.append(makeLineData(stmt: stmt, depth: baseDepth, lineType: .leaf))
+            }
+            if isBlock {
+                let children = stmt.children
+                if !children.isEmpty {
+                    result.append(contentsOf: await flatten(stmts: children, baseDepth: baseDepth + 1))
+                }
+            }
+            if isBlock {
+                let nextIsChained: Bool
+                if index + 1 < stmts.count {
+                    let nextKind = stmts[index + 1].kind
+                    nextIsChained = Self.isChainedAfter(nextKind, previous: kind)
+                } else {
+                    nextIsChained = false
+                }
+                if !nextIsChained {
+                    result.append(closeLine(depth: baseDepth))
+                }
+            }
+        }
+        return result
+    }
+
+    private static func closeLine(depth: Int) -> FlatLogicLineData {
+        FlatLogicLineData(
+            kind: .close,
+            expression: "",
+            depth: depth,
+            lineType: .close,
+            condition: "",
+            forItem: "",
+            forCollection: "",
+            assignLhs: "",
+            assignRhs: "",
+            callExpression: "",
+            catchVariable: "",
+            catchType: "",
+            switchSubject: "",
+            caseValue: "",
+            letName: ""
+        )
+    }
+
+    /// `else` / `catch` / `finally` chain without an extra `}` before the next clause.
+    static func isChainedAfter(_ kind: CodeLogicStmtKind, previous: CodeLogicStmtKind) -> Bool {
+        switch (previous, kind) {
+        case (.if, .elseIf), (.if, .else),
+            (.elseIf, .elseIf), (.elseIf, .else),
+            (.try, .catch), (.try, .finally),
+            (.catch, .catch), (.catch, .finally):
+            return true
+        default:
+            return false
+        }
+    }
+
+    private static func makeLineData(
+        stmt: CodeLogicStmt,
+        depth: Int,
+        lineType: LineType
+    ) -> FlatLogicLineData {
+        let kind = stmt.kind
+        var expr = stmt.expression
+        let node = stmt.node
+
+        var condition = ""
+        var forItem = ""
+        var forCollection = ""
+        var assignLhs = ""
+        var assignRhs = ""
+        var callExpression = ""
+        var catchVariable = ""
+        var catchType = ""
+        var switchSubject = ""
+        var caseValue = ""
+        var letName = ""
+
+        switch node {
+        case .ifStmt(let n):
+            condition = n.condition
+        case .elseIfStmt(let n):
+            condition = n.condition
+        case .elseBranch:
+            break
+        case .forLoop(let n):
+            forItem = n.item
+            forCollection = n.collection
+        case .whileLoop(let n):
+            condition = n.condition
+        case .returnStmt(let n):
+            expr = n.expression
+        case .assign(let n):
+            assignLhs = n.lhs
+            assignRhs = n.rhs
+        case .call(let n):
+            callExpression = n.callExpression
+        case .expr(let n):
+            expr = n.expression
+        case .letBinding(let n):
+            letName = n.name
+            let parts = expr.slicingAroundFirstEquals()
+            expr = parts.rhs
+        case .tryBlock:
+            break
+        case .catchClause(let n):
+            catchVariable = n.variable
+            catchType = n.type ?? ""
+        case .finallyBlock:
+            break
+        case .throwStmt(let n):
+            expr = n.expression
+        case .switchStmt(let n):
+            switchSubject = n.subject
+        case .caseClause(let n):
+            caseValue = n.value
+        case .defaultCase:
+            break
+        case .breakStmt(let n):
+            if let label = n.label { expr = label }
+        case .continueStmt(let n):
+            if let label = n.label { expr = label }
+        default:
+            break
+        }
+
+        return FlatLogicLineData(
+            kind: .statement(kind),
+            expression: expr,
+            depth: depth,
+            lineType: lineType,
+            condition: condition,
+            forItem: forItem,
+            forCollection: forCollection,
+            assignLhs: assignLhs,
+            assignRhs: assignRhs,
+            callExpression: callExpression,
+            catchVariable: catchVariable,
+            catchType: catchType,
+            switchSubject: switchSubject,
+            caseValue: caseValue,
+            letName: letName
+        )
+    }
+}
+
+private extension String {
+    func slicingAroundFirstEquals() -> (lhs: String, rhs: String) {
+        guard let range = range(of: " = ") else {
+            return (trimmingCharacters(in: .whitespacesAndNewlines), "")
+        }
+        let lhs = String(self[startIndex..<range.lowerBound]).trimmingCharacters(in: .whitespaces)
+        let rhs = String(self[range.upperBound...]).trimmingCharacters(in: .whitespaces)
+        return (lhs, rhs)
+    }
+}
+
+public actor FlatLogicLine_Wrap: DynamicMemberLookup, SendableDebugStringConvertible {
+    private let data: FlatLogicLineData
+
+    private static let propertyCandidates: [String] = [
+        "kind", "expression", "depth", "indent",
+        "is-open", "is-close", "is-leaf",
+        "condition", "for-item", "for-collection",
+        "assign-lhs", "assign-rhs", "call-expression",
+        "catch-variable", "catch-type",
+        "switch-subject", "case-value", "let-name",
+        "return-expression", "throw-expression",
+    ]
+
+    public func getValueOf(property propname: String, with pInfo: ParsedInfo) async throws -> Sendable? {
+        let value: Sendable =
+            switch propname {
+            case "kind": data.kind.keyword
+            case "expression": data.expression
+            case "depth": data.depth
+            case "indent": String(repeating: "    ", count: data.depth)
+            case "is-open": data.lineType == .open
+            case "is-close": data.lineType == .close
+            case "is-leaf": data.lineType == .leaf
+            case "condition": data.condition
+            case "for-item": data.forItem
+            case "for-collection": data.forCollection
+            case "assign-lhs": data.assignLhs
+            case "assign-rhs": data.assignRhs
+            case "call-expression": data.callExpression
+            case "catch-variable": data.catchVariable
+            case "catch-type": data.catchType
+            case "switch-subject": data.switchSubject
+            case "case-value": data.caseValue
+            case "let-name": data.letName
+            case "return-expression":
+                if case .statement(.return) = data.kind { data.expression } else { "" }
+            case "throw-expression":
+                if case .statement(.throw) = data.kind { data.expression } else { "" }
+            default:
+                throw Suggestions.invalidPropertyInCall(
+                    propname,
+                    candidates: Self.propertyCandidates,
+                    pInfo: pInfo
+                )
+            }
+        return value
+    }
+
+    public var debugDescription: String {
+        "FlatLogicLine(kind: \(data.kind.keyword), depth: \(data.depth), type: \(data.lineType))"
+    }
+
+    public init(_ data: FlatLogicLineData) {
+        self.data = data
+    }
+}

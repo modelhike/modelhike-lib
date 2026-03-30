@@ -21,7 +21,7 @@ import Foundation
 /// - `GrpcNode.PayloadNode`, `.MetadataNode`
 /// - `HttpRawNode.NoteNode`
 ///
-/// Both `children` and `node` are `let` (nonisolated), so they are readable without `await`.
+/// Immutable fields set at construction; external reads use `await` (actor isolation).
 public actor CodeLogicStmt {
     public let kind: CodeLogicStmtKind
     /// Raw expression string following the keyword (retained for diagnostics and fallback).

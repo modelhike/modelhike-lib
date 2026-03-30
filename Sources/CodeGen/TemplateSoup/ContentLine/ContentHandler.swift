@@ -76,8 +76,21 @@ public enum ContentHandler {
             //print(text, inlineCall, expression)
             
             if text.count > 0 {
-                let textContent = TextContent(text, pInfo: pInfo, level: level)
-                items.append(textContent)
+                if items.isEmpty && text.allSatisfy({ $0 == " " }) {
+                    items.append(
+                        WhitespaceContent(
+                            kind: .spaces(text.count), pInfo: pInfo, level: level))
+                } else if items.isEmpty && text.allSatisfy({ $0 == "\t" }) {
+                    items.append(
+                        WhitespaceContent(kind: .tabs(text.count), pInfo: pInfo, level: level))
+                } else if items.isEmpty
+                    && text.allSatisfy({ $0.isWhitespace && $0 != "\n" && $0 != "\r" })
+                {
+                    items.append(
+                        WhitespaceContent(kind: .mixed(text), pInfo: pInfo, level: level))
+                } else {
+                    items.append(TextContent(text, pInfo: pInfo, level: level))
+                }
             }
             
             if let inlineCall = inlineCall {
