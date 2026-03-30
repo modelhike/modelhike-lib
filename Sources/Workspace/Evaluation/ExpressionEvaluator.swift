@@ -6,6 +6,11 @@
 
 import Foundation
 
+/// Resolves **single** operands (string/number/bool literals, `["a","b"]` via ``parseStringArrayLiteral``, variables).
+/// **Compound** expressions (`kind == "if"`, `x in ["a","b"]`, `a and b`) are parsed and evaluated by
+/// ``RegularExpressionEvaluator``; infix operators are **not** implemented here—they are registered in
+/// ``DefaultOperatorsLibrary`` (e.g. `==`, `in` for string or numeric arrays, `not-in`, `and`, `or`, …) and applied via
+/// overload resolution in ``RegularExpressionEvaluator``.
 public actor ExpressionEvaluator {
     public func evaluate(value valueStr: String, pInfo: ParsedInfo) async throws -> Sendable? {
         let value = valueStr.trim()
@@ -24,7 +29,12 @@ public actor ExpressionEvaluator {
             let (_, int, dbl) = match.output
             return int ?? dbl ?? 0
         }
-        
+
+        // String array literal — RHS of `in` is parsed here; the `in` operator itself is ``DefaultOperatorsLibrary/inStringArrayOperator``.
+        if let arr = Self.parseStringArrayLiteral(value) {
+            return arr
+        }
+
         //check if variable or object property
         if let _ = value.wholeMatch(of: CommonRegEx.variableOrObjectProperty) {
             if let value = try await ctx.valueOf(variableOrObjProp: value, with: pInfo) {
@@ -59,7 +69,7 @@ public actor ExpressionEvaluator {
         let parser: RegularExpressionEvaluator = RegularExpressionEvaluator()
         return try await parser.evaluate(expression: expn, pInfo: pInfo)
     }
-    
+
     public func evaluateCondition(expression: String, pInfo: ParsedInfo) async throws -> Bool {
         if let result = try await evaluate(expression: expression, pInfo: pInfo) {
             return getEvaluatedBoolValueFor(result)
@@ -140,7 +150,43 @@ public actor ExpressionEvaluator {
             return true
         }
     }
-    
+
+    /// Parses a **string array literal** token into `[String]` for use as the RHS of `in` / `not-in` in template expressions.
+    ///
+    /// **Accepted shape:** After trim, the whole value must start with `[` and end with `]` (as produced by the expression
+    /// tokenizer for `kind in ["a", "b"]`). Anything else returns `nil` so callers fall through to other literal parsers.
+    ///
+    /// **Empty array:** `[]` → `[]`.
+    ///
+    /// **Elements:** The content inside the brackets is split on **commas** (`,`) only. Each segment is trimmed of
+    /// surrounding whitespace. This matches blueprint usage where elements are `"if"`, `elseif`, or similar—not JSON with
+    /// nested structures inside elements.
+    ///
+    /// **Quoted vs bare:** If a segment both starts and ends with `"` and has length ≥ 2, the quotes are stripped and the
+    /// inner text is the element (e.g. `"hello world"` → `hello world`). Otherwise the segment is used as-is (e.g.
+    /// bare identifiers `elseif` without quotes, if the model or template emits them that way).
+    ///
+    /// **Limitations (by design):** No escape sequences inside `"..."`; commas inside a quoted string would still split
+    /// incorrectly—avoid commas inside quoted elements in expressions. Single-quoted `'...'` literals are **not** handled
+    /// here; only double quotes strip as string delimiters for array elements.
+    static func parseStringArrayLiteral(_ raw: String) -> [String]? {
+        let value = raw.trim()
+        guard value.hasPrefix("["), value.hasSuffix("]") else { return nil }
+        let inner = String(value.dropFirst().dropLast()).trimmingCharacters(in: .whitespacesAndNewlines)
+        if inner.isEmpty { return [] }
+        
+        var result: [String] = []
+        for segment in inner.split(separator: ",") {
+            let seg = segment.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !seg.isEmpty else { continue }
+            if seg.hasPrefix("\""), seg.hasSuffix("\""), seg.count >= 2 {
+                result.append(String(seg.dropFirst().dropLast()))
+            } else {
+                result.append(seg)
+            }
+        }
+        return result
+    }
 }
 
 

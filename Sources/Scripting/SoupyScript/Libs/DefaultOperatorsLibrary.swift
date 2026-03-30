@@ -14,7 +14,10 @@ public struct DefaultOperatorsLibrary {
             endsWithOperator,
             containsOperator,
             matchesOperator,
-            
+
+            /// String equality (e.g. blueprint `line.kind == "if"`); evaluated by `RegularExpressionEvaluator`.
+            stringEqualsOperator,
+
             inNumericArrayOperator,
             notInNumericArrayOperator,
             inStringArrayOperator,
@@ -23,6 +26,10 @@ public struct DefaultOperatorsLibrary {
             orOperator,
             andOperator
         ]
+    }
+
+    public static var stringEqualsOperator: InfixOperatorProtocol {
+        CreateOperator.infix("==") { (lhs: String, rhs: String) in lhs == rhs }
     }
 
     public static var startsWithOperator: InfixOperatorProtocol {

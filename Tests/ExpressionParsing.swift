@@ -50,6 +50,59 @@ import Testing
         }
     }
 
+    @Test func stringEqualityOperator() async throws {
+        await context.replace(variables: ["kind": "if", "other": "else"])
+        let ok = try await evaluator.evaluate(expression: "kind == \"if\"", pInfo: pInfo) as! Bool
+        #expect(ok == true)
+        let no = try await evaluator.evaluate(expression: "kind == \"else\"", pInfo: pInfo) as! Bool
+        #expect(no == false)
+    }
+
+    @Test func stringInStringArrayLiteral() async throws {
+        await context.replace(variables: ["kind": "elseif", "missing": "xyz"])
+        let ok = try await evaluator.evaluate(expression: "kind in [\"if\", \"elseif\", \"else\"]", pInfo: pInfo) as! Bool
+        #expect(ok == true)
+        let no = try await evaluator.evaluate(expression: "missing in [\"if\", \"else\"]", pInfo: pInfo) as! Bool
+        #expect(no == false)
+    }
+
+    @Test func quotedStringWithSpaces() async throws {
+        await context.replace(variables: ["name": "hello world"])
+        let ok = try await evaluator.evaluate(expression: "name == \"hello world\"", pInfo: pInfo) as! Bool
+        #expect(ok == true)
+    }
+
+    @Test func bracketArrayInParenGroup() async throws {
+        await context.replace(variables: ["kind": "if", "var1": true])
+        let ok = try await evaluator.evaluate(expression: "(kind in [\"if\", \"else\"]) and var1", pInfo: pInfo) as! Bool
+        #expect(ok == true)
+    }
+
+    @Test func tokenizeDirectly() {
+        let t1 = RegularExpressionEvaluator.tokenize(#"kind in ["if", "elseif"]"#)
+        #expect(t1 == [
+            .value("kind"),
+            .value("in"),
+            .value(#"["if", "elseif"]"#),
+        ])
+
+        let t2 = RegularExpressionEvaluator.tokenize("(var1 or var2)")
+        #expect(t2 == [
+            .openParen,
+            .value("var1"),
+            .value("or"),
+            .value("var2"),
+            .closeParen,
+        ])
+
+        let t3 = RegularExpressionEvaluator.tokenize(#"name == "hello world""#)
+        #expect(t3 == [
+            .value("name"),
+            .value("=="),
+            .value(#""hello world""#),
+        ])
+    }
+
     actor DynamicTestObj: DynamicMemberLookup, HasAttributes {
         nonisolated let attribs = Attributes()
 
