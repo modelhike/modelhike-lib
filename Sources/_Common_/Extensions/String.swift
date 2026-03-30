@@ -265,11 +265,9 @@ public extension String {
         return withoutSpace.replacingOccurrences(of: "🔥", with: " ")
     }
     
-    nonisolated(unsafe) 
-    static var newLine = "\n"
+    static let newLine = "\n"
     
-    nonisolated(unsafe)
-    static var newLine2 = "\r\n"
+    static let newLine2 = "\r\n"
 
     func splitIntoLines() -> [String] {
         //return self.components(separatedBy: .newlines)

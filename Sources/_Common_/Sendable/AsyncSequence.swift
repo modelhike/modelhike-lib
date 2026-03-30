@@ -11,7 +11,7 @@ public protocol _DictionaryAsyncSequence: AsyncSequence, Sendable {
 }
 
 public extension _DictionaryAsyncSequence {
-    nonisolated func makeAsyncIterator() -> _DictionaryAsyncIterator<Self> {
+    func makeAsyncIterator() -> _DictionaryAsyncIterator<Self> {
         _DictionaryAsyncIterator(parent: self)
     }
 }
@@ -39,7 +39,7 @@ public protocol _CollectionAsyncSequence: AsyncSequence, Sendable {
 }
 
 public extension _CollectionAsyncSequence {
-    nonisolated func makeAsyncIterator() -> _CollectionAsyncIterator<Self> {
+    func makeAsyncIterator() -> _CollectionAsyncIterator<Self> {
         _CollectionAsyncIterator(parent: self)
     }
 }
@@ -68,7 +68,7 @@ public protocol _CollectionSequence: Sequence, Sendable {
 }
 
 public extension _CollectionSequence {
-    nonisolated func makeIterator() -> _CollectionIterator<Self> {
+    func makeIterator() -> _CollectionIterator<Self> {
         _CollectionIterator(parent: self)
     }
 }

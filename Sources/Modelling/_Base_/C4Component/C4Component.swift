@@ -49,10 +49,10 @@ public actor C4Component : ArtifactHolder {
     
     public var isEmpty: Bool { items.count == 0 }
     
-    public nonisolated var debugDescription: String {
+    public var debugDescription: String {
         get async {
-            let name = await self.name
-            let count = await self.items.count
+            let name = self.name
+            let count = self.items.count
             
             var str =  """
                     \(name)
@@ -60,7 +60,7 @@ public actor C4Component : ArtifactHolder {
                     """
             str += .newLine
             
-            for item in await items {
+            for item in items {
                 let givenname = await item.givenname
                 str += "| " + givenname + .newLine
                 

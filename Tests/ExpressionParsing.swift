@@ -165,7 +165,7 @@ import Testing
     }
 
     actor DynamicTestObj: DynamicMemberLookup, HasAttributes {
-        nonisolated let attribs = Attributes()
+        let attribs = Attributes()
 
         func getValueOf(property propname: String, with pInfo: ParsedInfo) async throws -> Sendable? {
             return await attribs[propname]

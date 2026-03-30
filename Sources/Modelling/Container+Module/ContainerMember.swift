@@ -62,7 +62,7 @@ public actor ContainerModuleMember : Artifact {
         }
     }
     
-    public nonisolated var debugDescription: String {
+    public var debugDescription: String {
         get async {
             var str =  """
                     \(self.name)

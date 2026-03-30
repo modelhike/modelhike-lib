@@ -32,7 +32,7 @@ public actor RegularExpressionEvaluator {
     }
 
     /// Tokenizer: quoted strings and bracket array literals stay single `.value` tokens.
-    nonisolated internal static func tokenize(_ expression: String) -> [ExpressionToken] {
+    internal static func tokenize(_ expression: String) -> [ExpressionToken] {
         var tokens: [ExpressionToken] = []
         var rest = expression[...]
 
@@ -92,7 +92,7 @@ public actor RegularExpressionEvaluator {
     /// **Cursor after return:** `rest` is set to everything after the closing `]` (when depth reached 0). If the literal
     /// is never closed (`depth > 0` at end of substring), `i` stops at `end`; the returned value is the unclosed prefix
     /// and `rest` becomes empty—same behavior as the previous hand-rolled tokenizer for malformed input.
-    private nonisolated static func consumeBalancedSquareBracketLiteral(_ rest: inout Substring) -> String? {
+    private static func consumeBalancedSquareBracketLiteral(_ rest: inout Substring) -> String? {
         guard rest.first == "[" else { return nil }
         let start = rest.startIndex
         // Position after the opening `[`; depth accounts for that bracket already.

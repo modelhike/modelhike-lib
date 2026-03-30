@@ -454,7 +454,7 @@ actor DebugRouter {
     }
     
     /// Non-isolated helper to search source files without triggering async closure inference.
-    private nonisolated static func findSourceFile(identifier: String, in files: [SourceFile]) -> SourceFile? {
+    private static func findSourceFile(identifier: String, in files: [SourceFile]) -> SourceFile? {
         // Exact match
         if let file = files.first(where: { $0.identifier == identifier }) {
             return file

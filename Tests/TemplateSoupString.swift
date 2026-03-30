@@ -160,7 +160,7 @@ import Testing
     }
 
     actor DynamicTestObj: HasAttributes {
-        nonisolated let attribs = Attributes()
+        let attribs = Attributes()
 
         init(name: String, age: Int) async {
             await attribs.set("name", value: name)

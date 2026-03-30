@@ -123,14 +123,14 @@ public actor Attributes: SendableDebugStringConvertible, Sendable {
         }
     }
 
-    public nonisolated var debugDescription: String {
+    public var debugDescription: String {
         get async {
             var str = """
-                    Attributes \(await items.count) items:
+                    Attributes \(items.count) items:
                     """
             str += .newLine
             
-            for item in await items {
+            for item in items {
                 str += item.key + .newLine
                 
             }
