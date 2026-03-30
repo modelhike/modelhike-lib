@@ -969,6 +969,21 @@ No tests yet for:
 - `name` — the normalised variable-name-safe form (spaces replaced, camelCased).
 - `pInfo: ParsedInfo` — threaded through virtually all methods for error reporting context.
 
+### Error Handling Philosophy
+
+Errors fall into two categories — choose the right one:
+
+| Category | When to use | Mechanism |
+|---|---|---|
+| **Recoverable / authoring mistakes** | The DSL or template has a problem the user can fix (wrong keyword placement, unresolved type, missing blank line, unknown modifier, etc.). The pipeline should continue and surface the issue. | Emit a `needsReview` node (CodeLogic parser), call `ctx.debugLog.recordDiagnostic(.warning, code: "W…", …)` (pipeline phases), or append a `DiagnosticSuggestion` to an existing error. Never `throw` for these. |
+| **Fatal / unrecoverable errors** | The input is structurally invalid and further processing would produce corrupt output or a crash (e.g. a required model element is missing, a type constraint is violated, an expression cannot be tokenised at all). | `throw` an explicit typed error — `Model_ParsingError`, `TemplateSoup_ParsingError`, `TemplateSoup_EvaluationError`, or `EvaluationError`. Always include `pInfo` for location context. |
+
+**Rules of thumb:**
+- If the user can fix it by editing their `.modelhike` or template file → diagnostic / `needsReview`, not a throw.
+- If continuing would produce nonsense output or a Swift crash → throw.
+- `needsReview` nodes in CodeLogic are emitted as `// NEEDS REVIEW: reason` comments in generated code, making the problem visible without stopping the pipeline.
+- Diagnostic codes: `W3xx` = model validation, `W2xx` = evaluation warnings, `E1xx` = blueprint preflight, `E6xx` = model parsing, `E7xx` = template/evaluation fatal.
+
 ### Code Patterns
 
 - `ResultBuilder<T>` — used for `@PipelineBuilder`, `@CodeMemberBuilder`, `@InlineModelBuilder` DSLs.
