@@ -42,12 +42,7 @@ public actor CodeObject_Wrap: ObjectWrapper {
             case "name": await item.name
             case "given-name": await item.givenname
             case "properties":
-                if await properties.count > 0 {
-                    await properties
-                } else {
-                    let msg = "properties empty for \(await item.name)"
-                    throw TemplateSoup_ParsingError.propertiesEmpty(msg, pInfo)
-                }
+                await properties
 
             case "entity": await item.dataType == .entity
             case "dto": await item.dataType == .dto
