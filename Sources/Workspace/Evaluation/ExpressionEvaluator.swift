@@ -23,11 +23,13 @@ public actor ExpressionEvaluator {
             return str ?? str2
         }
         
-        //check if number(int, double) literal
+        // Number literal — Double if it has a decimal point, Int otherwise. No coercion.
+        // flatMap unwraps the double-Optional produced by ChoiceOf's capture groups.
         if let match = value.wholeMatch(of: CommonRegEx.numberLiteralPattern_Capturing) {
-            
-            let (_, int, dbl) = match.output
-            return int ?? dbl ?? 0
+            let (_, dbl, int) = match.output
+            if let d = dbl.flatMap({ $0 }) { return d }
+            if let i = int.flatMap({ $0 }) { return i }
+            return 0
         }
 
         // String array literal — RHS of `in` is parsed here; the `in` operator itself is ``DefaultOperatorsLibrary/inStringArrayOperator``.
@@ -71,8 +73,16 @@ public actor ExpressionEvaluator {
     }
 
     public func evaluateCondition(expression: String, pInfo: ParsedInfo) async throws -> Bool {
-        if let result = try await evaluate(expression: expression, pInfo: pInfo) {
-            return getEvaluatedBoolValueFor(result)
+        var expressionToEval = expression.trim()
+        var negated = false
+        if let firstWord = expressionToEval.firstWord(), firstWord == "not" {
+            negated = true
+            expressionToEval = expressionToEval.remainingLine(after: firstWord)
+        }
+
+        if let result = try await evaluate(expression: expressionToEval, pInfo: pInfo) {
+            let boolResult = getEvaluatedBoolValueFor(result)
+            return negated ? !boolResult : boolResult
         } else {
             // Expression resolved to nil — likely a typo or undefined variable.
             // Emit a warning so the user knows this happened; do not throw (non-breaking).

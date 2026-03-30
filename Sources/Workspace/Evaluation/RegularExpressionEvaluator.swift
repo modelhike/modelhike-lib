@@ -132,21 +132,8 @@ public actor RegularExpressionEvaluator {
     }
 
     public func evaluate(expression: String, pInfo: ParsedInfo) async throws -> Sendable? {
-        let ctx = pInfo.ctx
+        var parsedArrList = try await parseAsArray(expression: expression, pInfo: pInfo)
 
-        var negatedResult = false
-
-        var expressionToParse = expression
-        if let firstWord = expression.firstWord(), firstWord == "not" {
-            negatedResult = true
-            expressionToParse = expressionToParse.remainingLine(after: firstWord)
-        }
-
-        var parsedArrList = try await parseAsArray(expression: expressionToParse, pInfo: pInfo)
-        //print(parsedArrList)
-
-        //there is some expression given, but there is no parsed output
-        //which means that something is wrong
         if parsedArrList.count == 0 && expression.trim().isNotEmpty {
             throw TemplateSoup_EvaluationError.errorInExpression(expression, pInfo)
         }
@@ -157,8 +144,6 @@ public actor RegularExpressionEvaluator {
         var accumulated = try await executeArrayItems(&lhsArray, expression, pInfo: pInfo)
 
         while parsedArrList.count > 0 {
-            //in the parsed array list, every even item is an operator,
-            //which will be a single item in an array
             guard let op = parsedArrList.removeFirst().first else {
                 throw TemplateSoup_EvaluationError.errorInExpression(expression, pInfo)
             }
@@ -172,10 +157,7 @@ public actor RegularExpressionEvaluator {
             accumulated = try await Self.applyInfix(named: op, lhs: accumulated, rhs: rhsResult, pInfo: pInfo)
         }
 
-        guard let accumulated = accumulated else { return nil }
-
-        let result = await ctx.evaluateCondition(value: accumulated, with: pInfo)
-        return negatedResult ? !result : result
+        return accumulated
     }
 
     fileprivate func executeArrayItems(_ arr: inout [String], _ expression: String, pInfo: ParsedInfo) async throws -> Sendable? {
