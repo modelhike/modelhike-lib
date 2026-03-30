@@ -31,4 +31,25 @@ extension CodeLogicStmtKind {
 
     /// Any codegen-relevant DB surface: data access and/or transaction control.
     public var isDatabaseRelatedStmt: Bool { isDataAccessStmt || isTransactionControlStmt }
+
+    /// REST/HTTP client surface: `http` and its sibling blocks, GraphQL-over-HTTP, raw HTTP, notes under HTTP flows (language-agnostic).
+    public var isHttpClientStmt: Bool {
+        switch self {
+        case .http, .path, .query, .headers, .auth, .expect, .body,
+             .httpGraphQL, .variables, .httpRaw, .note:
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// gRPC client surface: `grpc` and payload/metadata blocks (language-agnostic).
+    public var isGrpcClientStmt: Bool {
+        switch self {
+        case .grpc, .payload, .metadata:
+            return true
+        default:
+            return false
+        }
+    }
 }

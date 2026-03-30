@@ -42,6 +42,15 @@ public actor MethodObject_Wrap: ObjectWrapper {
         case .hasDbTxnLogic:
             guard let logic = await item.logic, !logic.isEmpty else { return false }
             return await logic.containsTransactionControlStatement()
+        case .hasHttpLogic:
+            guard let logic = await item.logic, !logic.isEmpty else { return false }
+            return await logic.containsHttpClientStatement()
+        case .hasWsLogic:
+            guard let logic = await item.logic, !logic.isEmpty else { return false }
+            return await logic.containsWebSocketClientHintStatement()
+        case .hasGrpcLogic:
+            guard let logic = await item.logic, !logic.isEmpty else { return false }
+            return await logic.containsGrpcClientStatement()
         }
     }
 
@@ -103,6 +112,9 @@ private enum MethodObjectProperty: String, CaseIterable {
     case logicLines = "logic-lines"
     case hasDbLogic = "has-db-logic"
     case hasDbTxnLogic = "has-db-txn-logic"
+    case hasHttpLogic = "has-http-logic"
+    case hasWsLogic = "has-ws-logic"
+    case hasGrpcLogic = "has-grpc-logic"
 }
 
 private enum MethodParameterProperty: String, CaseIterable {

@@ -57,6 +57,9 @@ public actor CodeObject_Wrap: ObjectWrapper {
         case .hasMethods: !(await item.methods.isEmpty)
         case .hasDbLogic: await hasAnyMethodWithDataAccessLogic()
         case .hasDbTxnLogic: await hasAnyMethodWithTransactionControlLogic()
+        case .hasHttpLogic: await hasAnyMethodWithHttpClientLogic()
+        case .hasWsLogic: await hasAnyMethodWithWebSocketClientLogic()
+        case .hasGrpcLogic: await hasAnyMethodWithGrpcClientLogic()
         }
         return value
     }
@@ -75,6 +78,30 @@ public actor CodeObject_Wrap: ObjectWrapper {
         for m in await item.methods {
             guard let logic = await m.logic, !logic.isEmpty else { continue }
             if await logic.containsTransactionControlStatement() { return true }
+        }
+        return false
+    }
+
+    private func hasAnyMethodWithHttpClientLogic() async -> Bool {
+        for m in await item.methods {
+            guard let logic = await m.logic, !logic.isEmpty else { continue }
+            if await logic.containsHttpClientStatement() { return true }
+        }
+        return false
+    }
+
+    private func hasAnyMethodWithWebSocketClientLogic() async -> Bool {
+        for m in await item.methods {
+            guard let logic = await m.logic, !logic.isEmpty else { continue }
+            if await logic.containsWebSocketClientHintStatement() { return true }
+        }
+        return false
+    }
+
+    private func hasAnyMethodWithGrpcClientLogic() async -> Bool {
+        for m in await item.methods {
+            guard let logic = await m.logic, !logic.isEmpty else { continue }
+            if await logic.containsGrpcClientStatement() { return true }
         }
         return false
     }
@@ -398,6 +425,9 @@ private enum WrapperDynamicPropertyKey {
         case hasMethods = "has-methods"
         case hasDbLogic = "has-db-logic"
         case hasDbTxnLogic = "has-db-txn-logic"
+        case hasHttpLogic = "has-http-logic"
+        case hasWsLogic = "has-ws-logic"
+        case hasGrpcLogic = "has-grpc-logic"
     }
 
     enum ForTypeProperty: String, CaseIterable {
