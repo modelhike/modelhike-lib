@@ -2,7 +2,7 @@ import Testing
 @testable import ModelHike
 
 /// `GetEmployeeLevelService` — `IF` / `ELSEIF` / `ELSE`, `DB-RAW` + `SQL` + `PARAMS`, `LET`, `assign`, `return`.
-/// SQL uses `EXEC …` (not `SELECT`/`WHERE` as line-leading tokens) to avoid Midlang keyword collision; see `Database_Tests.dbRawWithSqlAndParams`.
+/// SQL uses `EXEC …` (not `SELECT`/`WHERE` as line-leading tokens) to avoid CodeLogic keyword collision; see `Database_Tests.dbRawWithSqlAndParams`.
 @Suite struct GetEmployeeLevelServiceLogic_Tests {
     let ctx: LoadContext
 
@@ -68,7 +68,7 @@ import Testing
     /// Uses `IF` / `ELSEIF` / `ELSE` at the same depth so `return level` is a top-level sibling.
     /// (Deeply nested `ELSE` + `IF` + bare `return` can attach `return` to the outer `else` in the current tree builder.)
     ///
-    /// SQL uses `EXEC …` so the first token on SQL lines is not a Midlang keyword (`SELECT`, `WHERE`, …); see `Database_Tests`.
+    /// SQL uses `EXEC …` so the first token on SQL lines is not a CodeLogic keyword (`SELECT`, `WHERE`, …); see `Database_Tests`.
     private static let methodLogicBody = """
     |> DB-RAW unknown-table
     |> SQL

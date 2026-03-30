@@ -201,7 +201,7 @@ import Testing
 
     @Test func httpRawWithRawBlock() async throws {
         // Lines inside raw> / note> blocks: unknown first-word → full content stored as expression.
-        // Avoid words that are recognised Midlang keywords (e.g. "return", "call", "filter").
+        // Avoid words that are recognised CodeLogic keywords (e.g. "return", "call", "filter").
         let logic = try await parse("""
             |> HTTP-RAW curl
             |> RAW

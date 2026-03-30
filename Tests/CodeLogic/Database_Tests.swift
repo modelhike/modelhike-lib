@@ -254,7 +254,7 @@ import Testing
     // MARK: db-raw
 
     @Test func dbRawWithSqlAndParams() async throws {
-        // SQL keywords (SELECT, WHERE) collide with Midlang keywords, so use a stored-proc call
+        // SQL keywords (SELECT, WHERE) collide with CodeLogic keywords, so use a stored-proc call
         // that avoids those tokens while still testing the sql> block plumbing.
         let logic = try await parse("""
             |> DB-RAW postgres

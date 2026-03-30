@@ -6,7 +6,7 @@
 
 import Foundation
 
-/// The type of a single pipe-gutter logic statement, following the Midlang IR syntax.
+/// The type of a single pipe-gutter logic statement in CodeLogic (see `DSL/codelogic.dsl.md`).
 ///
 /// Statements are grouped into: control-flow, compiler directives, core imperatives,
 /// functional/pipeline, database, and HTTP/API categories.
