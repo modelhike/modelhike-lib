@@ -14,7 +14,7 @@ import Testing
         #expect(lines.count == 1)
         #expect(lines[0].kind == .statement(.return))
         #expect(lines[0].lineType == .leaf)
-        #expect(lines[0].depth == 0)
+        #expect(lines[0].depth == 1)
         #expect(lines[0].expression == "amount * 2")
     }
 
@@ -32,11 +32,11 @@ import Testing
             .statement(.if), .statement(.return), .statement(.else), .statement(.return), .close,
         ])
         #expect(types == [.open, .leaf, .open, .leaf, .close])
-        #expect(lines[0].depth == 0)
-        #expect(lines[1].depth == 1)
-        #expect(lines[2].depth == 0)
-        #expect(lines[3].depth == 1)
-        #expect(lines[4].depth == 0)
+        #expect(lines[0].depth == 1)
+        #expect(lines[1].depth == 2)
+        #expect(lines[2].depth == 1)
+        #expect(lines[3].depth == 2)
+        #expect(lines[4].depth == 1)
         #expect(lines[4].lineType == .close)
         #expect(lines[4].closingKind == "else")
         #expect(lines[4].parentKind == "")
@@ -70,8 +70,8 @@ import Testing
             dbRawClose = line
             break
         }
-        #expect(dbRawClose?.depth == 0)
-        #expect(String(repeating: "    ", count: (dbRawClose?.depth ?? 0) + 3) == "            ")
+        #expect(dbRawClose?.depth == 1)
+        #expect(String(repeating: "    ", count: (dbRawClose?.depth ?? 0) + 2) == "            ")
     }
 
     @Test func isChainedAfter() {

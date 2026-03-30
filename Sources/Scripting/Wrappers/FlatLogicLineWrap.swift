@@ -48,10 +48,14 @@ public struct FlatLogicLineData: Sendable {
     public let parentKind: String
     /// When `sql` opens under `db-raw` merged with `LET name = _`: the variable name to declare before `databaseClient.sql(`; also on `db-raw` close for `.map(row -> …)` vs `.fetch()`.
     public let mergedDbRawResultLetName: String
+    /// Depth of the enclosing parent block (same as `depth - 1` for direct children; 0 at top level).
+    public let parentDepth: Int
 
     /// Flattens a `CodeLogic` tree into a linear list with depth and open/close markers.
+    /// Starts at depth 1 so top-level statements emit one indent level (4 spaces) via `{{line.indent}}`,
+    /// matching the indentation expected inside a method body without needing leading whitespace at the call site.
     public static func flatten(logic: CodeLogic) async -> [FlatLogicLineData] {
-        await flatten(stmts: logic.statements, baseDepth: 0)
+        await flatten(stmts: logic.statements, baseDepth: 1)
     }
 
     public static func flatten(stmts: [CodeLogicStmt], baseDepth: Int, parentStmt: CodeLogicStmt? = nil) async -> [FlatLogicLineData] {
@@ -110,7 +114,8 @@ public struct FlatLogicLineData: Sendable {
             letName: "",
             closingKind: stmt.kind.keyword,
             parentKind: parentStmt?.kind.keyword ?? "",
-            mergedDbRawResultLetName: stmt.node.resultLetName
+            mergedDbRawResultLetName: stmt.node.resultLetName,
+            parentDepth: max(0, depth - 1)
         )
     }
 
@@ -223,7 +228,8 @@ public struct FlatLogicLineData: Sendable {
             letName: letName,
             closingKind: "",
             parentKind: parentStmt?.kind.keyword ?? "",
-            mergedDbRawResultLetName: mergedDbRawResultLetName
+            mergedDbRawResultLetName: mergedDbRawResultLetName,
+            parentDepth: max(0, depth - 1)
         )
     }
 }
@@ -255,8 +261,10 @@ public actor FlatLogicLine_Wrap: DynamicMemberLookup, SendableDebugStringConvert
         case .expression: data.expression
         case .depth: data.depth
         case .indent: String(repeating: "    ", count: data.depth)
-        /// Indent for R2DBC-style chained calls (e.g. `.fetch()`) so continuations line up with `.bind` under `params` (assign depth = closing block depth + 2, plus one indent step for `.bind`).
-        case .chainIndent: String(repeating: "    ", count: data.depth + 3)
+        /// One indent level above `indent` — useful for child statements that should render at the parent block's indentation (e.g. `sql` open line inside `db-raw`).
+        case .parentIndent: String(repeating: "    ", count: data.parentDepth)
+        /// Two indent levels deeper than `indent` — for chained continuations that should align with grandchild statements (e.g. method-call chains that follow a block close).
+        case .chainIndent: String(repeating: "    ", count: data.depth + 2)
         case .isOpen: data.lineType == .open
         case .isClose: data.lineType == .close
         case .isLeaf: data.lineType == .leaf
@@ -297,6 +305,7 @@ private enum FlatLogicLineProperty: String, CaseIterable {
     case expression
     case depth
     case indent
+    case parentIndent = "parent-indent"
     case chainIndent = "chain-indent"
     case isOpen = "is-open"
     case isClose = "is-close"
