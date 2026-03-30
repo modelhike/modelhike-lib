@@ -55,16 +55,26 @@ public actor CodeObject_Wrap: ObjectWrapper {
         case .hasAnyApis: await apis.count != 0
         case .methods: await item.methods.map { MethodObject_Wrap($0) }
         case .hasMethods: !(await item.methods.isEmpty)
-        case .hasDbLogic: await hasAnyMethodWithDatabaseLogic()
+        case .hasDbLogic: await hasAnyMethodWithDataAccessLogic()
+        case .hasDbTxnLogic: await hasAnyMethodWithTransactionControlLogic()
         }
         return value
     }
 
-    /// True if any method body’s logic tree contains a database-related statement (see `CodeLogic.containsDatabaseStatement()`).
-    private func hasAnyMethodWithDatabaseLogic() async -> Bool {
+    /// True if any method uses data-access statement kinds (SQL, queries, DML, etc.) — language-agnostic; blueprints map to e.g. R2DBC `DatabaseClient`.
+    private func hasAnyMethodWithDataAccessLogic() async -> Bool {
         for m in await item.methods {
             guard let logic = await m.logic, !logic.isEmpty else { continue }
-            if await logic.containsDatabaseStatement() { return true }
+            if await logic.containsDataAccessStatement() { return true }
+        }
+        return false
+    }
+
+    /// True if any method uses transaction-control kinds (`transaction`, `commit`, …) — for e.g. `ReactiveTransactionManager` injection.
+    private func hasAnyMethodWithTransactionControlLogic() async -> Bool {
+        for m in await item.methods {
+            guard let logic = await m.logic, !logic.isEmpty else { continue }
+            if await logic.containsTransactionControlStatement() { return true }
         }
         return false
     }
@@ -387,6 +397,7 @@ private enum WrapperDynamicPropertyKey {
         case methods
         case hasMethods = "has-methods"
         case hasDbLogic = "has-db-logic"
+        case hasDbTxnLogic = "has-db-txn-logic"
     }
 
     enum ForTypeProperty: String, CaseIterable {

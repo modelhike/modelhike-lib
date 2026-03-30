@@ -36,6 +36,12 @@ public actor MethodObject_Wrap: ObjectWrapper {
             }
             let lines = await FlatLogicLineData.flatten(logic: logic)
             return lines.map { FlatLogicLine_Wrap($0) }
+        case .hasDbLogic:
+            guard let logic = await item.logic, !logic.isEmpty else { return false }
+            return await logic.containsDataAccessStatement()
+        case .hasDbTxnLogic:
+            guard let logic = await item.logic, !logic.isEmpty else { return false }
+            return await logic.containsTransactionControlStatement()
         }
     }
 
@@ -95,6 +101,8 @@ private enum MethodObjectProperty: String, CaseIterable {
     case hasParameters = "has-parameters"
     case hasLogic = "has-logic"
     case logicLines = "logic-lines"
+    case hasDbLogic = "has-db-logic"
+    case hasDbTxnLogic = "has-db-txn-logic"
 }
 
 private enum MethodParameterProperty: String, CaseIterable {

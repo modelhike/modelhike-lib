@@ -20,6 +20,23 @@ import Testing
     @Test func returnOnlyIsNotDb() async throws {
         let logic = try await parse("return 1")
         #expect(await !logic.containsDatabaseStatement())
+        #expect(await !logic.containsDataAccessStatement())
+        #expect(await !logic.containsTransactionControlStatement())
+    }
+
+    @Test func dataAccessVsTransactionControl() async throws {
+        let txOnly = try await parse("""
+            |> TRANSACTION
+            | commit
+            """)
+        #expect(await txOnly.containsDatabaseStatement())
+        #expect(await !txOnly.containsDataAccessStatement())
+        #expect(await txOnly.containsTransactionControlStatement())
+
+        let dataOnly = try await parse("|> DB-RAW x")
+        #expect(await dataOnly.containsDatabaseStatement())
+        #expect(await dataOnly.containsDataAccessStatement())
+        #expect(await !dataOnly.containsTransactionControlStatement())
     }
 
     private func parse(_ dslString: String) async throws -> CodeLogic {
