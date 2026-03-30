@@ -66,17 +66,16 @@ public enum CodeLogicParser {
 
     /// Parses a raw logic string (already inside a fence) into a `CodeLogic` tree.
     ///
-    /// Convenience entry-point for tests — the input is treated as if it were already
-    /// between the opening and closing fences. No fence delimiter is expected.
-    public static func parse(dslString: String) async -> CodeLogic? {
-        let ctx = LoadContext(config: PipelineConfig())
+    /// Convenience entry-point for quick parsing and tests — the input is treated as if it were
+    /// already between the opening and closing fences. No fence delimiter is expected.
+    public static func parse(dslString: String, context: LoadContext, pInfo: ParsedInfo) async throws -> CodeLogic? {
         let parser = LineParserDuringLoad(
             string: dslString,
-            identifier: "logic",
+            identifier: pInfo.identifier,
             isStatementsPrefixedWithKeyword: false,
-            with: ctx
+            with: context
         )
-        return await parseFenced(from: parser)
+        return try await parseFenced(from: parser, pInfo: pInfo)
     }
 
     /// Reads lines from `parser` as fenced logic content and returns a `CodeLogic` tree.
@@ -93,7 +92,7 @@ public enum CodeLogicParser {
     /// - A line whose first non-whitespace character is a recognised DSL prefix
     ///   (`*`, `-`, `_`, `@`, `#`, `~`, `+`, `=`) — not consumed, returns what was parsed.
     /// - End of input — returns what was parsed.
-    public static func parseFenced(from parser: any LineParser, closingFence: String = fenceDelimiter) async -> CodeLogic? {
+    public static func parseFenced(from parser: any LineParser, pInfo: ParsedInfo, closingFence: String = fenceDelimiter) async throws -> CodeLogic? {
         var rawLines: [ParsedLogicLine] = []
 
         while await parser.linesRemaining {
@@ -120,7 +119,7 @@ public enum CodeLogicParser {
         guard !rawLines.isEmpty else { return nil }
 
         let stream = LineStream(rawLines)
-        return CodeLogic(statements: await buildStatements(from: stream, baseDepth: 1))
+        return CodeLogic(statements: try await buildStatements(from: stream, baseDepth: 1, pInfo: pInfo))
     }
 
     // MARK: - Line parsing
@@ -207,7 +206,7 @@ public enum CodeLogicParser {
         func advance() { index += 1 }
     }
 
-    private static func buildStatements(from stream: LineStream, baseDepth: Int) async -> [CodeLogicStmt] {
+    private static func buildStatements(from stream: LineStream, baseDepth: Int, pInfo: ParsedInfo) async throws -> [CodeLogicStmt] {
         var result: [CodeLogicStmt] = []
 
         while let line = stream.current, line.depth == baseDepth {
@@ -217,11 +216,11 @@ public enum CodeLogicParser {
 
             // Depth+1 children — for control-flow blocks and leaf sub-blocks (params>, sql>, etc.)
             var children: [CodeLogicStmt] = (stream.current?.depth ?? 0) > baseDepth
-                ? await buildStatements(from: stream, baseDepth: stream.current!.depth)
+                ? try await buildStatements(from: stream, baseDepth: stream.current!.depth, pInfo: pInfo)
                 : []
 
             // Same-depth sibling children — db>, http>, grpc> etc. claim their following
-            // siblings (where>, include>, path>, headers>, ...) from the stream directly.
+            // siblings (where>, include>, path>, headers>, let, ...) from the stream directly.
             let claimable = kind.siblingChildKinds
             if !claimable.isEmpty {
                 while let next = stream.current,
@@ -230,10 +229,22 @@ public enum CodeLogicParser {
                     stream.advance()
                     let childKind = CodeLogicStmtKind.parse(next.keyword)
                     let grandchildren: [CodeLogicStmt] = (stream.current?.depth ?? 0) > baseDepth
-                        ? await buildStatements(from: stream, baseDepth: stream.current!.depth)
+                        ? try await buildStatements(from: stream, baseDepth: stream.current!.depth, pInfo: pInfo)
                         : []
                     children.append(CodeLogicStmt(kind: childKind, expression: next.expression,
                                                   children: grandchildren))
+                }
+
+                // If the very next same-depth line is a sub-statement-only keyword not claimed
+                // by this block, the user forgot a blank line. Consume it as a needs-review
+                // child so the error is visible in generated output without halting the pipeline.
+                if let next = stream.current,
+                   next.depth == baseDepth,
+                   CodeLogicStmtKind.parse(next.keyword).isSubStatementOnly {
+                    stream.advance()
+                    let reason = "'\(next.keyword)' is not a sub-statement of '\(kind.keyword)' — add a blank line before '\(next.keyword)' to start a new block"
+                    children.append(CodeLogicStmt(kind: .needsReview, expression: reason,
+                                                  children: [CodeLogicStmt(kind: .unknown, expression: "\(next.keyword) \(next.expression)")]))
                 }
             }
 

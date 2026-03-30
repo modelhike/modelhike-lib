@@ -131,9 +131,9 @@ public actor MethodObject: CodeMember {
             // Tilde style has no underline line; setext style has signature + underline.
             await pInfo.parser.skipLine(by: tilde ? 1 : 2)
             if tilde {
-                await method.parseTildeLogicIfPresent(from: pInfo.parser)
+                try await method.parseTildeLogicIfPresent(from: pInfo.parser)
             } else {
-                await method.parseSetextLogicIfPresent(from: pInfo.parser)
+                try await method.parseSetextLogicIfPresent(from: pInfo.parser)
             }
         }
 
@@ -192,13 +192,13 @@ public actor MethodObject: CodeMember {
 
     /// **Setext style** — logic body starts immediately after the `~~~~~~` underline.
     /// No opening `~~~` fence; closing `~~~` is required to end the block.
-    public func parseSetextLogicIfPresent(from parser: any LineParser) async {
+    public func parseSetextLogicIfPresent(from parser: any LineParser) async throws {
         while await parser.linesRemaining {
             if await parser.isCurrentLineEmptyOrCommented() { await parser.skipLine(); continue }
             break
         }
         guard await parser.linesRemaining else { return }
-        if let logic = await CodeLogicParser.parseFenced(from: parser, closingFence: CodeLogicParser.setextFenceDelimiter) {
+        if let logic = try await CodeLogicParser.parseFenced(from: parser, pInfo: pInfo, closingFence: CodeLogicParser.setextFenceDelimiter) {
             self.logic = logic
         }
     }
@@ -207,7 +207,7 @@ public actor MethodObject: CodeMember {
     /// Supported fence styles: ` ``` `, `'''`, or `"""`.
     /// If none is present, the method has no logic body.
     /// The closing fence must match the opening fence.
-    public func parseTildeLogicIfPresent(from parser: any LineParser) async {
+    public func parseTildeLogicIfPresent(from parser: any LineParser) async throws {
         while await parser.linesRemaining {
             if await parser.isCurrentLineEmptyOrCommented() { await parser.skipLine(); continue }
             break
@@ -215,7 +215,7 @@ public actor MethodObject: CodeMember {
         guard await parser.linesRemaining else { return }
         guard let fence = CodeLogicParser.tildeFenceDelimiter(for: await parser.currentLine()) else { return }
         await parser.skipLine() // consume opening fence
-        if let logic = await CodeLogicParser.parseFenced(from: parser, closingFence: fence) {
+        if let logic = try await CodeLogicParser.parseFenced(from: parser, pInfo: pInfo, closingFence: fence) {
             self.logic = logic
         }
     }

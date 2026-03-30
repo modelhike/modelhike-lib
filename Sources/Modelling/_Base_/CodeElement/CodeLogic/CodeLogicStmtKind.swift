@@ -137,6 +137,23 @@ public enum CodeLogicStmtKind: String, Sendable, Equatable {
         }
     }
 
+    /// True if this kind only appears as a sub-statement claimed by a parent block and has no
+    /// standalone meaning (e.g. `where`, `include`, `path`, `params`, `sql`).
+    /// Used by the parser to detect a missing blank line between blocks.
+    public var isSubStatementOnly: Bool {
+        let allClaimable: Set<CodeLogicStmtKind> = CodeLogicStmt.DbQueryNode.siblingChildKinds
+            .union(CodeLogicStmt.DbUpdateNode.siblingChildKinds)
+            .union(CodeLogicStmt.DbProcCallNode.siblingChildKinds)
+            .union(CodeLogicStmt.DbRawNode.siblingChildKinds)
+            .union(CodeLogicStmt.HttpNode.siblingChildKinds)
+            .union(CodeLogicStmt.HttpGraphQLNode.siblingChildKinds)
+            .union(CodeLogicStmt.HttpRawNode.siblingChildKinds)
+            .union(CodeLogicStmt.GrpcNode.siblingChildKinds)
+        // `let` and `set` are also used as standalone statements — exclude them.
+        let standaloneAlso: Set<CodeLogicStmtKind> = [.let, .set]
+        return allClaimable.contains(self) && !standaloneAlso.contains(self)
+    }
+
     /// Whether this statement kind opens a scoped block whose body lines appear at depth+1.
     public var isBlock: Bool {
         switch self {

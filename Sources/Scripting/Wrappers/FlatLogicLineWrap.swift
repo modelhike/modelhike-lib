@@ -42,46 +42,57 @@ public struct FlatLogicLineData: Sendable {
     public let switchSubject: String
     public let caseValue: String
     public let letName: String
+    /// For `lineType == .close`: the pipe-gutter keyword of the block being closed (empty otherwise).
+    public let closingKind: String
+    /// The pipe-gutter keyword of the enclosing block (empty at top level).
+    public let parentKind: String
+    /// When `sql` opens under `db-raw` merged with `LET name = _`: the variable name to declare before `databaseClient.sql(`; also on `db-raw` close for `.map(row -> …)` vs `.fetch()`.
+    public let mergedDbRawResultLetName: String
 
     /// Flattens a `CodeLogic` tree into a linear list with depth and open/close markers.
     public static func flatten(logic: CodeLogic) async -> [FlatLogicLineData] {
         await flatten(stmts: logic.statements, baseDepth: 0)
     }
 
-    public static func flatten(stmts: [CodeLogicStmt], baseDepth: Int) async -> [FlatLogicLineData] {
+    public static func flatten(stmts: [CodeLogicStmt], baseDepth: Int, parentStmt: CodeLogicStmt? = nil) async -> [FlatLogicLineData] {
         var result: [FlatLogicLineData] = []
-        for (index, stmt) in stmts.enumerated() {
+        var i = stmts.startIndex
+        while i < stmts.endIndex {
+            let stmt = stmts[i]
             let kind = stmt.kind
+            let nextIdx = stmts.index(after: i)
+
+            // Skip `let` children absorbed into the parent block's letBinding.
+            if kind == .let, let p = parentStmt, !p.node.resultLetName.isEmpty {
+                i = nextIdx
+                continue
+            }
+
             let isBlock = kind.isBlock
             if isBlock {
-                result.append(makeLineData(stmt: stmt, depth: baseDepth, lineType: .open))
+                result.append(await makeLineData(stmt: stmt, depth: baseDepth, lineType: .open, parentStmt: parentStmt))
             } else {
-                result.append(makeLineData(stmt: stmt, depth: baseDepth, lineType: .leaf))
+                result.append(await makeLineData(stmt: stmt, depth: baseDepth, lineType: .leaf, parentStmt: parentStmt))
             }
             if isBlock {
                 let children = stmt.children
                 if !children.isEmpty {
-                    result.append(contentsOf: await flatten(stmts: children, baseDepth: baseDepth + 1))
+                    result.append(contentsOf: await flatten(stmts: children, baseDepth: baseDepth + 1, parentStmt: stmt))
                 }
             }
             if isBlock {
-                let nextIsChained: Bool
-                if index + 1 < stmts.count {
-                    let nextKind = stmts[index + 1].kind
-                    nextIsChained = Self.isChainedAfter(nextKind, previous: kind)
-                } else {
-                    nextIsChained = false
-                }
+                let nextIsChained = nextIdx < stmts.endIndex && Self.isChainedAfter(stmts[nextIdx].kind, previous: kind)
                 if !nextIsChained {
-                    result.append(closeLine(depth: baseDepth))
+                    result.append(closeLine(for: stmt, depth: baseDepth, parentStmt: parentStmt))
                 }
             }
+            i = nextIdx
         }
         return result
     }
 
-    private static func closeLine(depth: Int) -> FlatLogicLineData {
-        FlatLogicLineData(
+    private static func closeLine(for stmt: CodeLogicStmt, depth: Int, parentStmt: CodeLogicStmt?) -> FlatLogicLineData {
+        return FlatLogicLineData(
             kind: .close,
             expression: "",
             depth: depth,
@@ -96,7 +107,10 @@ public struct FlatLogicLineData: Sendable {
             catchType: "",
             switchSubject: "",
             caseValue: "",
-            letName: ""
+            letName: "",
+            closingKind: stmt.kind.keyword,
+            parentKind: parentStmt?.kind.keyword ?? "",
+            mergedDbRawResultLetName: stmt.node.resultLetName
         )
     }
 
@@ -113,11 +127,7 @@ public struct FlatLogicLineData: Sendable {
         }
     }
 
-    private static func makeLineData(
-        stmt: CodeLogicStmt,
-        depth: Int,
-        lineType: LineType
-    ) -> FlatLogicLineData {
+    private static func makeLineData(stmt: CodeLogicStmt, depth: Int, lineType: LineType, parentStmt: CodeLogicStmt? = nil) async -> FlatLogicLineData {
         let kind = stmt.kind
         var expr = stmt.expression
         let node = stmt.node
@@ -178,8 +188,21 @@ public struct FlatLogicLineData: Sendable {
             if let label = n.label { expr = label }
         case .continueStmt(let n):
             if let label = n.label { expr = label }
+        case .db(let n):
+            letName = n.letBinding?.name ?? ""
+        case .dbProcCall(let n):
+            letName = n.letBinding?.name ?? ""
         default:
             break
+        }
+
+        // Own node carries the name (db-raw, db-proc-call open rows).
+        // Child rows (e.g. sql open) inherit it from the parent stmt's node.
+        let mergedDbRawResultLetName: String
+        if !node.resultLetName.isEmpty {
+            mergedDbRawResultLetName = node.resultLetName
+        } else {
+            mergedDbRawResultLetName = parentStmt?.node.resultLetName ?? ""
         }
 
         return FlatLogicLineData(
@@ -197,7 +220,10 @@ public struct FlatLogicLineData: Sendable {
             catchType: catchType,
             switchSubject: switchSubject,
             caseValue: caseValue,
-            letName: letName
+            letName: letName,
+            closingKind: "",
+            parentKind: parentStmt?.kind.keyword ?? "",
+            mergedDbRawResultLetName: mergedDbRawResultLetName
         )
     }
 }
@@ -229,6 +255,8 @@ public actor FlatLogicLine_Wrap: DynamicMemberLookup, SendableDebugStringConvert
         case .expression: data.expression
         case .depth: data.depth
         case .indent: String(repeating: "    ", count: data.depth)
+        /// Indent for R2DBC-style chained calls (e.g. `.fetch()`) so continuations line up with `.bind` under `params` (assign depth = closing block depth + 2, plus one indent step for `.bind`).
+        case .chainIndent: String(repeating: "    ", count: data.depth + 3)
         case .isOpen: data.lineType == .open
         case .isClose: data.lineType == .close
         case .isLeaf: data.lineType == .leaf
@@ -243,6 +271,9 @@ public actor FlatLogicLine_Wrap: DynamicMemberLookup, SendableDebugStringConvert
         case .switchSubject: data.switchSubject
         case .caseValue: data.caseValue
         case .letName: data.letName
+        case .closingKind: data.closingKind
+        case .parentKind: data.parentKind
+        case .mergedDbRawResultLet: data.mergedDbRawResultLetName
         case .returnExpression:
             if case .statement(.return) = data.kind { data.expression } else { "" }
         case .throwExpression:
@@ -266,6 +297,7 @@ private enum FlatLogicLineProperty: String, CaseIterable {
     case expression
     case depth
     case indent
+    case chainIndent = "chain-indent"
     case isOpen = "is-open"
     case isClose = "is-close"
     case isLeaf = "is-leaf"
@@ -280,6 +312,9 @@ private enum FlatLogicLineProperty: String, CaseIterable {
     case switchSubject = "switch-subject"
     case caseValue = "case-value"
     case letName = "let-name"
+    case closingKind = "closing-kind"
+    case parentKind = "parent-kind"
+    case mergedDbRawResultLet = "merged-db-raw-result-let"
     case returnExpression = "return-expression"
     case throwExpression = "throw-expression"
 }

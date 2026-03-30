@@ -55,8 +55,18 @@ public actor CodeObject_Wrap: ObjectWrapper {
         case .hasAnyApis: await apis.count != 0
         case .methods: await item.methods.map { MethodObject_Wrap($0) }
         case .hasMethods: !(await item.methods.isEmpty)
+        case .hasDbLogic: await hasAnyMethodWithDatabaseLogic()
         }
         return value
+    }
+
+    /// True if any method body’s logic tree contains a database-related statement (see `CodeLogic.containsDatabaseStatement()`).
+    private func hasAnyMethodWithDatabaseLogic() async -> Bool {
+        for m in await item.methods {
+            guard let logic = await m.logic, !logic.isEmpty else { continue }
+            if await logic.containsDatabaseStatement() { return true }
+        }
+        return false
     }
 
     private func propertyCandidates() async -> [String] {
@@ -376,6 +386,7 @@ private enum WrapperDynamicPropertyKey {
         case hasAnyApis = "has-any-apis"
         case methods
         case hasMethods = "has-methods"
+        case hasDbLogic = "has-db-logic"
     }
 
     enum ForTypeProperty: String, CaseIterable {

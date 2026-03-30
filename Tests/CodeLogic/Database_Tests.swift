@@ -264,11 +264,10 @@ import Testing
             |  EXEC GetOrderById :id
             |> LET result = _
             """)
-        // db-raw> claims params/sql; let is a separate statement (DbRawNode has no letBinding).
-        #expect(logic.statements.count == 2)
+        // db-raw> claims params, sql, and let as children
+        #expect(logic.statements.count == 1)
         let s = logic.statements[0]
         #expect(await s.kind == .dbRaw)
-        #expect(await logic.statements[1].kind == .`let`)
 
         guard case .dbRaw(let node) = await s.node else { Issue.record("Expected .dbRaw"); return }
         #expect(node.source == "postgres")
@@ -276,12 +275,15 @@ import Testing
         #expect(node.params[0].key == "id")
         #expect(node.sqlLines.count == 1)
         #expect(node.sqlLines[0].contains("GetOrderById"))
+        #expect(node.letBinding?.name == "result")
     }
 
     // MARK: Helper
 
     private func parse(_ dslString: String) async throws -> CodeLogic {
-        let logic = await CodeLogicParser.parse(dslString: dslString)
+        let ctx = LoadContext(config: PipelineConfig())
+        let pInfo = await ParsedInfo.dummy(line: "", identifier: "Database_Tests", loadCtx: ctx)
+        let logic = try await CodeLogicParser.parse(dslString: dslString, context: ctx, pInfo: pInfo)
         return try #require(logic)
     }
 }

@@ -120,7 +120,9 @@ import Testing
     // MARK: Helper
 
     private func parse(_ dslString: String) async throws -> CodeLogic {
-        let logic = await CodeLogicParser.parse(dslString: dslString)
+        let ctx = LoadContext(config: PipelineConfig())
+        let pInfo = await ParsedInfo.dummy(line: "", identifier: "GRPC_Tests", loadCtx: ctx)
+        let logic = try await CodeLogicParser.parse(dslString: dslString, context: ctx, pInfo: pInfo)
         return try #require(logic)
     }
 }

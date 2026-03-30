@@ -251,15 +251,19 @@ import Testing
         #expect(await logic.statements[0].expression == "someExpression")
     }
 
-    @Test func emptyStringReturnsNil() async {
-        let logic = await CodeLogicParser.parse(dslString: "")
+    @Test func emptyStringReturnsNil() async throws {
+        let ctx = LoadContext(config: PipelineConfig())
+        let pInfo = await ParsedInfo.dummy(line: "", identifier: "CodeLogic_Tests", loadCtx: ctx)
+        let logic = try await CodeLogicParser.parse(dslString: "", context: ctx, pInfo: pInfo)
         #expect(logic == nil)
     }
 
     // MARK: Helper
 
     private func parse(_ dslString: String) async throws -> CodeLogic {
-        let logic = await CodeLogicParser.parse(dslString: dslString)
+        let ctx = LoadContext(config: PipelineConfig())
+        let pInfo = await ParsedInfo.dummy(line: "", identifier: "CodeLogic_Tests", loadCtx: ctx)
+        let logic = try await CodeLogicParser.parse(dslString: dslString, context: ctx, pInfo: pInfo)
         return try #require(logic, "Expected LogicParser to return a non-nil CodeLogic")
     }
 }

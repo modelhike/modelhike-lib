@@ -16,26 +16,42 @@ import Testing
         #expect(await method.hasLogic == true)
 
         let logic = try await requireLogic(of: method)
-        // db-raw, let, if, elseif, elseif, else, return
-        #expect(logic.statements.count == 7)
+        // db-raw (let absorbed as child), if, elseif, elseif, else, return
+        #expect(logic.statements.count == 6)
         #expect(await logic.statements[0].kind == .dbRaw)
-        #expect(await logic.statements[1].kind == .`let`)
-        #expect(await logic.statements[2].kind == .`if`)
+        #expect(await logic.statements[1].kind == .`if`)
+        #expect(await logic.statements[2].kind == .elseIf)
         #expect(await logic.statements[3].kind == .elseIf)
-        #expect(await logic.statements[4].kind == .elseIf)
-        #expect(await logic.statements[5].kind == .`else`)
-        #expect(await logic.statements[6].kind == .`return`)
+        #expect(await logic.statements[4].kind == .`else`)
+        #expect(await logic.statements[5].kind == .`return`)
 
         let lines = await FlatLogicLineData.flatten(logic: logic)
         let kinds = lines.map { $0.kind }
         #expect(kinds.contains(.statement(.dbRaw)))
         #expect(kinds.contains(.statement(.`return`)))
         #expect(kinds.last == .statement(.`return`))
+
+        var sqlOpen: FlatLogicLineData?
+        var dbRawClose: FlatLogicLineData?
+        for line in lines {
+            if sqlOpen == nil, line.kind == .statement(.sql), line.lineType == .open { sqlOpen = line }
+            if dbRawClose == nil, line.lineType == .close, line.closingKind == "db-raw" { dbRawClose = line }
+        }
+        #expect(sqlOpen?.parentKind == "db-raw")
+        #expect(sqlOpen?.mergedDbRawResultLetName == "years")
+        #expect(dbRawClose?.parentKind == "")
+        #expect(dbRawClose?.mergedDbRawResultLetName == "years")
+        var letLineKinds: [FlatLogicLineData.LineType] = []
+        for line in lines where line.kind == .statement(.`let`) {
+            letLineKinds.append(line.lineType)
+        }
+        #expect(letLineKinds.isEmpty, "LET years = _ is merged into DB-RAW + sql chain")
     }
 
     @Test func logicParsesStandalone() async throws {
         let logic = try await parseLogicOnly(Self.methodLogicBody)
-        #expect(logic.statements.count == 7)
+        // let absorbed into db-raw as child
+        #expect(logic.statements.count == 6)
     }
 
     // MARK: - Helpers
@@ -59,7 +75,8 @@ import Testing
     }
 
     private func parseLogicOnly(_ body: String) async throws -> CodeLogic {
-        let logic = await CodeLogicParser.parse(dslString: body)
+        let pInfo = await ParsedInfo.dummy(line: "", identifier: "GetEmployeeLevelServiceLogic_Tests", loadCtx: ctx)
+        let logic = try await CodeLogicParser.parse(dslString: body, context: ctx, pInfo: pInfo)
         return try #require(logic)
     }
 

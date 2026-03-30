@@ -284,7 +284,7 @@ Statement | Syntax | Description |
 `select` | `\|> SELECT x -> projection` | Project items |
 `map` | `\|> MAP x -> projection` | Alias of `select` (JS/TS style) |
 `reduce` | `\|> REDUCE source -> (acc,x) -> expr -> init` | Reduce/fold |
-`let` | `\|> LET name = _` | Bind the last pipeline result to a name |
+`let` | `\|> LET name = expression` | Declare a local variable. Two forms: (1) **standalone** — `LET x = someValue` declares a variable anywhere in the logic body; (2) **result-binding** — `LET name = _` as the last child of a `db>`, `db-raw>`, `db-proc-call>`, or pipeline block binds the block's result to `name`. The `_` placeholder is only valid inside a block and signals result-binding, not a literal value. |
 `match` | `\|> MATCH expr` | Pattern match |
 `when` | `\|> WHEN pattern` | Branch of a match |
 `endmatch` | `\|> ENDMATCH` | Close a match block |

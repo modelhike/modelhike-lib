@@ -455,11 +455,13 @@ extension CodeLogicStmt {
 
 extension CodeLogicStmt {
 
-    /// `db-raw> source` — claims `params>` and `sql>` siblings; absorbs into typed fields.
+    /// `db-raw> source` — claims `params>`, `sql>`, and an optional trailing `let>` child; absorbs into typed fields.
     public struct DbRawNode: Sendable {
         public let source: String
         public let sqlLines: [String]
         public let params: [AssignNode.FieldPair]
+        /// Optional result-variable binding — the last child `let name = _` inside the block.
+        public let letBinding: LetNode?
 
         // MARK: Sub-nodes
         /// `params>` — depth+1 children are `assign` statements.
@@ -479,25 +481,30 @@ extension CodeLogicStmt {
             }
         }
 
-        public init(source: String, sqlLines: [String] = [], params: [AssignNode.FieldPair] = []) {
-            self.source   = source
-            self.sqlLines = sqlLines
-            self.params   = params
+        public init(source: String, sqlLines: [String] = [], params: [AssignNode.FieldPair] = [], letBinding: LetNode? = nil) {
+            self.source     = source
+            self.sqlLines   = sqlLines
+            self.params     = params
+            self.letBinding = letBinding
         }
 
-        static let siblingChildKinds: Set<CodeLogicStmtKind> = [.params, .sql]
+        static let siblingChildKinds: Set<CodeLogicStmtKind> = [.params, .sql, .let]
 
         static func parse(source: String, from children: [CodeLogicStmt]) -> DbRawNode {
             var sqlLines: [String] = []
             var params: [AssignNode.FieldPair] = []
+            var letBinding: LetNode?
             for child in children {
                 switch child.kind {
                 case .sql:    sqlLines = child.children.compactMap { $0.expression.blankToNil }
                 case .params: params   = parseKV(from: child.children)
+                case .let:
+                    let name = child.expression.slicing(around: " = ").lhs
+                    letBinding = .init(name: name.blankToNil ?? child.expression)
                 default: break
                 }
             }
-            return DbRawNode(source: source, sqlLines: sqlLines, params: params)
+            return DbRawNode(source: source, sqlLines: sqlLines, params: params, letBinding: letBinding)
         }
     }
 }

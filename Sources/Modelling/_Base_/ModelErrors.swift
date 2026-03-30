@@ -24,6 +24,7 @@ public enum Model_ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeProvidin
     case invalidAnnotationLine(ParsedInfo)
     case invalidAttachedSection(ParsedInfo)
     case invalidApiLine(ParsedInfo)
+    case invalidCodeLogicStatement(String, ParsedInfo)
 
     public var info: String {
         switch self {
@@ -50,6 +51,7 @@ public enum Model_ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeProvidin
         case .invalidUIViewLine(let pInfo): return "invalid ui view: \(pInfo.line)"
 
         case .invalidApiLine(let pInfo): return "invalid api: \(pInfo.line)"
+        case .invalidCodeLogicStatement(let message, _): return message
         }
     }
 
@@ -72,6 +74,7 @@ public enum Model_ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeProvidin
         case .invalidAnnotationLine: return "E615"
         case .invalidAttachedSection: return "E616"
         case .invalidApiLine: return "E617"
+        case .invalidCodeLogicStatement: return "E618"
         }
     }
 
@@ -98,6 +101,7 @@ public enum Model_ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeProvidin
         case .invalidUIViewLine(let pInfo): pInfo
 
         case .invalidApiLine(let pInfo): pInfo
+        case .invalidCodeLogicStatement(_, let pInfo): pInfo
         }
     }
 }

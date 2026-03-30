@@ -38,6 +38,40 @@ import Testing
         #expect(lines[3].depth == 1)
         #expect(lines[4].depth == 0)
         #expect(lines[4].lineType == .close)
+        #expect(lines[4].closingKind == "else")
+        #expect(lines[4].parentKind == "")
+    }
+
+    @Test func closingKindAndParentKindForDbRaw() async throws {
+        let logic = try await parseLogic("""
+            |> DB-RAW src
+            |> SQL
+            |  EXEC foo
+            |> PARAMS
+            |  a = b
+            """)
+        let lines = await FlatLogicLineData.flatten(logic: logic)
+        var sqlOpen: FlatLogicLineData?
+        var unknownLeaf: FlatLogicLineData?
+        var assignInParams: FlatLogicLineData?
+        var sqlClose: FlatLogicLineData?
+        for line in lines {
+            if sqlOpen == nil, line.kind == .statement(.sql), line.lineType == .open { sqlOpen = line }
+            if unknownLeaf == nil, line.kind == .statement(.unknown), line.lineType == .leaf { unknownLeaf = line }
+            if assignInParams == nil, line.kind == .statement(.assign), line.lineType == .leaf { assignInParams = line }
+            if sqlClose == nil, line.lineType == .close, line.closingKind == "sql" { sqlClose = line }
+        }
+        #expect(sqlOpen?.parentKind == "db-raw")
+        #expect(unknownLeaf?.parentKind == "sql")
+        #expect(assignInParams?.parentKind == "params")
+        #expect(sqlClose?.parentKind == "db-raw")
+        var dbRawClose: FlatLogicLineData?
+        for line in lines where line.lineType == .close && line.closingKind == "db-raw" {
+            dbRawClose = line
+            break
+        }
+        #expect(dbRawClose?.depth == 0)
+        #expect(String(repeating: "    ", count: (dbRawClose?.depth ?? 0) + 3) == "            ")
     }
 
     @Test func isChainedAfter() {
@@ -49,7 +83,9 @@ import Testing
     }
 
     private func parseLogic(_ dslString: String) async throws -> CodeLogic {
-        let logic = await CodeLogicParser.parse(dslString: dslString)
+        let ctx = LoadContext(config: PipelineConfig())
+        let pInfo = await ParsedInfo.dummy(line: "", identifier: "FlatLogicLineData_Tests", loadCtx: ctx)
+        let logic = try await CodeLogicParser.parse(dslString: dslString, context: ctx, pInfo: pInfo)
         return try #require(logic, "Expected CodeLogicParser to return non-nil CodeLogic")
     }
 }
