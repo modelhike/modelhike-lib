@@ -243,7 +243,7 @@ import Testing
             (TemplateSoup_ParsingError.invalidFrontMatter("bad", pInfo), "E201"),
             (TemplateSoup_ParsingError.modifierNotFound("missing", pInfo), "E205"),
             (TemplateSoup_ParsingError.variableOrPropertyNotFound("missing", pInfo), "E212"),
-            (TemplateSoup_ParsingError.templateFunctionNotFound("missing", pInfo), "E218"),
+            (TemplateSoup_ParsingError.templateFunctionNotFound("missing", pInfo), "E219"),
             (TemplateSoup_EvaluationError.unIdentifiedStmt(pInfo), "E302"),
             (TemplateSoup_EvaluationError.invalidFileSystemPath(
                 operation: "copy-file",

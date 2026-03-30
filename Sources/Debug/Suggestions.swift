@@ -347,9 +347,8 @@ public enum Suggestions {
     /// see what combinations are supported.
     public static func infixOperatorTypeMismatch(_ name: String, lhsType: String, rhsType: String, expectedPairs: [String], pInfo: ParsedInfo) -> TemplateSoup_ParsingError {
         let pairsStr = expectedPairs.joined(separator: ", ")
-        return .infixOperatorCalledOnwrongLhsType(
-            "Operator '\(name)' called with (\(lhsType), \(rhsType)). Registered type pairs: \(pairsStr)",
-            lhsType, pInfo
+        return .infixOperatorTypeMismatch(
+            "Operator '\(name)' cannot be applied to (\(lhsType), \(rhsType)). Expected one of: \(pairsStr).", pInfo
         )
     }
 

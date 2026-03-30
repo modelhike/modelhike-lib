@@ -302,23 +302,6 @@ public actor RegularExpressionEvaluator {
     public init() {
     }
 
-    /// Dispatches an infix operator by **name** to the correct `InfixOperatorProtocol` implementation.
-    ///
-    /// **Why overload resolution exists:** The symbol table registers multiple operators with the same `name` but
-    /// different generic `(lhs, rhs)` pairs—e.g. `in` for `(String, [String])` and `(Double, [Double])`. At runtime we
-    /// only have `Sendable?` values, so we cannot pick an overload statically; we try each registration in order.
-    ///
-    /// **Per candidate:** `applyTo` checks types and either returns a result or throws `TemplateSoup_ParsingError`.
-    /// - **Wrong LHS/RHS type** (`.infixOperatorCalledOnwrongLhsType` / `.infixOperatorCalledOnwrongRhsType`): treat as
-    ///   “not this overload”—try the next registration. If this was the **last** candidate, rethrow that error so the
-    ///   user still gets a precise E216/E217-style message (expected vs actual type), not a vague “operator not found”.
-    /// - **Any other** parsing error: rethrow immediately (e.g. bad state; not overload selection).
-    ///
-    /// **No matching name:** If `filter` yields an empty list, throw `infixOperatorNotFound` (E215) with the full list
-    /// of operator names for “did you mean?” style diagnostics.
-    ///
-    /// **Trailing throw:** After a non-empty `candidates` loop, every path either `return`s or `throw`s inside the
-    /// `for`; the final `throw` exists to satisfy the compiler and as a defensive fallback (should be unreachable).
     /// Selects and applies an infix operator by **name + runtime LHS/RHS types**.
     ///
     /// 1. Filter all registered operators by name → `nameMatches`.

@@ -24,6 +24,7 @@ public enum TemplateSoup_ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeP
     case infixOperatorNotFound(String, ParsedInfo)
     case infixOperatorCalledOnwrongLhsType(String, String, ParsedInfo)
     case infixOperatorCalledOnwrongRhsType(String, String, ParsedInfo)
+    case infixOperatorTypeMismatch(String, ParsedInfo)
     case templateFunctionNotFound(String, ParsedInfo)
 
     public var info: String {
@@ -54,6 +55,8 @@ public enum TemplateSoup_ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeP
             return "Operator '\(infix)' cannot be applied: left-hand side has unexpected type '\(typeName)'."
         case .infixOperatorCalledOnwrongRhsType(let infix, let typeName, _) :
             return "Operator '\(infix)' cannot be applied: right-hand side has unexpected type '\(typeName)'."
+        case .infixOperatorTypeMismatch(let msg, _) :
+            return msg
 
         case .invalidExpression(let expn, _) :
             return "Expression syntax error: '\(expn)'"
@@ -93,7 +96,8 @@ public enum TemplateSoup_ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeP
         case .infixOperatorNotFound: return "E215"
         case .infixOperatorCalledOnwrongLhsType: return "E216"
         case .infixOperatorCalledOnwrongRhsType: return "E217"
-        case .templateFunctionNotFound: return "E218"
+        case .infixOperatorTypeMismatch: return "E218"
+        case .templateFunctionNotFound: return "E219"
         }
     }
 
@@ -112,6 +116,7 @@ public enum TemplateSoup_ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeP
         case .infixOperatorNotFound(_, let pInfo) : pInfo
         case .infixOperatorCalledOnwrongLhsType(_, _, let pInfo) : pInfo
         case .infixOperatorCalledOnwrongRhsType(_, _, let pInfo) : pInfo
+        case .infixOperatorTypeMismatch(_, let pInfo) : pInfo
 
         case .invalidExpression(_, let pInfo) : pInfo
         case .propertiesEmpty(_, let pInfo) : pInfo

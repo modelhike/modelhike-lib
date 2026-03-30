@@ -328,7 +328,7 @@ Scripting/
 │   │   └── TemplateFunction.swift  # User-defined template functions
 │   ├── Libs/
 │   │   ├── DefaultModifiersLibrary.swift   # String, math, array, dict, date modifiers
-│   │   ├── DefaultOperatorsLibrary.swift   # and, or, not, comparisons, arithmetic
+│   │   ├── DefaultOperatorsLibrary.swift   # and, or, comparisons, arithmetic, membership (in/not-in)
 │   │   ├── StatementsLibrary.swift         # Registry of all statement types
 │   │   └── ModifierLibs/
 │   │       ├── GenerationLib.swift
@@ -905,7 +905,7 @@ Used by `DevTester` (via `Environment.debug`) to run the full pipeline against r
 - ✅ Structured diagnostics in debug UI — `/api/diagnostics` endpoint; Problems panel in debug console
 - ✅ Type inference and hydration (entity/dto/cache/apiInput/embeddedType classification)
 - ✅ Mock data generation library
-- ✅ Expression evaluator (boolean/arithmetic/comparison) with proper tokenizer: handles bracket array literals (`["a", "b"]`), quoted strings with spaces, and **type-aware operator dispatch** — operators are registered per type pair (e.g. `==` for `(String,String)`, `(Int,Int)`, `(Double,Double)`) and the runtime types of both operands are matched against registrations without coercion; full operator set: `==`, `!=`, `<`, `>`, `<=`, `>=`, `+`, `-`, `*`, `/`, `in`, `not-in`, `starts-with`, `ends-with`, `contains`, `matches`, `and`, `or`, `not`
+- ✅ Expression evaluator (boolean/arithmetic/comparison) with proper tokenizer: handles bracket array literals (`["a", "b"]`), quoted strings with spaces, and **type-aware operator dispatch** — operators are registered per type pair (e.g. `==` for `(String,String)`, `(Int,Int)`, `(Double,Double)`) and the runtime types of both operands are matched against registrations without coercion; full infix operator set: `==`, `!=`, `<`, `>`, `<=`, `>=`, `+`, `-`, `*`, `/`, `in`, `not-in`, `starts-with`, `ends-with`, `contains`, `matches`, `and`, `or`; `not` is a condition prefix handled in `ExpressionEvaluator.evaluateCondition`, not a registered operator
 - ✅ Scoped variable isolation (snapshot stack)
 - ✅ Debug hooks (event system in `CodeGenerationEvents`)
 - ✅ Visual debugger — post-mortem browser UI (`swift run DevTester --debug`) and live WebSocket event streaming (`swift run DevTester --debug-stepping`); SwiftNIO-based server with full HTTP + WebSocket upgrade pipeline; stepper-panel UI for future breakpoint-driven stepping; see [Docs/debug/VISUALDEBUG.md](Docs/debug/VISUALDEBUG.md)
