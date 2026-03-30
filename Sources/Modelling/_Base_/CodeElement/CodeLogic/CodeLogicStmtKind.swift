@@ -92,6 +92,8 @@ public enum CodeLogicStmtKind: String, Sendable, Equatable {
 
     // MARK: HTTP / API
     case http       = "http"
+    /// WebSocket client call — same child shape as `http` (`path`, `query`, `headers`, `auth`, `body`, `let`); URL typically `ws://` / `wss://`.
+    case websocket  = "websocket"
     case path       = "path"
     case query      = "query"
     case headers    = "headers"
@@ -129,7 +131,8 @@ public enum CodeLogicStmtKind: String, Sendable, Equatable {
         case .dbUpdate:    return CodeLogicStmt.DbUpdateNode.siblingChildKinds
         case .dbProcCall:  return CodeLogicStmt.DbProcCallNode.siblingChildKinds
         case .dbRaw:       return CodeLogicStmt.DbRawNode.siblingChildKinds
-        case .http:        return CodeLogicStmt.HttpNode.siblingChildKinds
+        case .http:      return CodeLogicStmt.HttpNode.siblingChildKinds
+        case .websocket: return CodeLogicStmt.WebSocketNode.siblingChildKinds
         case .httpGraphQL: return CodeLogicStmt.HttpGraphQLNode.siblingChildKinds
         case .httpRaw:     return CodeLogicStmt.HttpRawNode.siblingChildKinds
         case .grpc:        return CodeLogicStmt.GrpcNode.siblingChildKinds
@@ -146,6 +149,7 @@ public enum CodeLogicStmtKind: String, Sendable, Equatable {
             .union(CodeLogicStmt.DbProcCallNode.siblingChildKinds)
             .union(CodeLogicStmt.DbRawNode.siblingChildKinds)
             .union(CodeLogicStmt.HttpNode.siblingChildKinds)
+            .union(CodeLogicStmt.WebSocketNode.siblingChildKinds)
             .union(CodeLogicStmt.HttpGraphQLNode.siblingChildKinds)
             .union(CodeLogicStmt.HttpRawNode.siblingChildKinds)
             .union(CodeLogicStmt.GrpcNode.siblingChildKinds)
@@ -167,7 +171,7 @@ public enum CodeLogicStmtKind: String, Sendable, Equatable {
              .db, .dbUpdate, .dbProcCall, .dbRaw,
              .transaction, .savepoint,
              .needsReview,
-             .http, .path, .query, .headers, .body,
+             .http, .websocket, .path, .query, .headers, .body,
              .httpGraphQL, .variables,
              .httpRaw,
              .grpc, .payload, .metadata,

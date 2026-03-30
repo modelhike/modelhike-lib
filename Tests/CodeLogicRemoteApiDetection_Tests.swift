@@ -10,7 +10,7 @@ import Testing
             """)
         #expect(await logic.containsHttpClientStatement())
         #expect(await !logic.containsGrpcClientStatement())
-        #expect(await !logic.containsWebSocketClientHintStatement())
+        #expect(await !logic.containsWebSocketStatement())
     }
 
     @Test func detectsGrpc() async throws {
@@ -23,16 +23,19 @@ import Testing
         #expect(await !logic.containsHttpClientStatement())
     }
 
-    @Test func detectsWebSocketUrlOnHttp() async throws {
-        let logic = try await parse("|> HTTP GET wss://echo.example.com/socket")
-        #expect(await logic.containsHttpClientStatement())
-        #expect(await logic.containsWebSocketClientHintStatement())
+    @Test func detectsWebSocketStatement() async throws {
+        let logic = try await parse("""
+            |> WEBSOCKET GET wss://echo.example.com/socket
+            |> LET r = _
+            """)
+        #expect(await logic.containsWebSocketStatement())
+        #expect(await !logic.containsHttpClientStatement())
     }
 
-    @Test func plainHttpUrlIsNotWsHint() async throws {
-        let logic = try await parse("|> HTTP GET https://api.example.com/x")
+    @Test func httpWithWssUrlIsHttpOnlyNotWebSocketStmt() async throws {
+        let logic = try await parse("|> HTTP GET wss://echo.example.com/socket")
         #expect(await logic.containsHttpClientStatement())
-        #expect(await !logic.containsWebSocketClientHintStatement())
+        #expect(await !logic.containsWebSocketStatement())
     }
 
     private func parse(_ dslString: String) async throws -> CodeLogic {

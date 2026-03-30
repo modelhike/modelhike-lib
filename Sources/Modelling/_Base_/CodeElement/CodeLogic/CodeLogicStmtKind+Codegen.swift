@@ -52,4 +52,14 @@ extension CodeLogicStmtKind {
             return false
         }
     }
+
+    /// WebSocket client surface: `websocket` opener only (`path` / `query` / … are shared with `http` and are not tagged as WebSocket-only).
+    public var isWebSocketClientStmt: Bool {
+        switch self {
+        case .websocket:
+            return true
+        default:
+            return false
+        }
+    }
 }

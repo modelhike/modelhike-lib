@@ -47,7 +47,7 @@ public actor MethodObject_Wrap: ObjectWrapper {
             return await logic.containsHttpClientStatement()
         case .hasWsLogic:
             guard let logic = await item.logic, !logic.isEmpty else { return false }
-            return await logic.containsWebSocketClientHintStatement()
+            return await logic.containsWebSocketStatement()
         case .hasGrpcLogic:
             guard let logic = await item.logic, !logic.isEmpty else { return false }
             return await logic.containsGrpcClientStatement()

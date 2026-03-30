@@ -121,6 +121,8 @@ extension CodeLogicStmt {
         /// Owns: `.httpPath`, `.httpQuery`, `.httpHeaders`, `.httpAuth`,
         ///       `.httpExpect`, `.httpBody`, `.letBinding`
         case http(HttpNode)
+        /// WebSocket client call — same sibling kinds and payload shape as `HttpNode`, distinct AST type.
+        case webSocket(WebSocketNode)
         /// Owns: parsed `params: [AssignNode.FieldPair]`
         case httpPath(HttpNode.PathNode)
         /// Owns: parsed `params: [AssignNode.FieldPair]` (REST) or `lines: [String]` (GraphQL)
@@ -641,6 +643,54 @@ extension CodeLogicStmt {
                             letBinding: letBinding)
         }
     }
+
+    /// `websocket> METHOD url` — claims the same sibling block kinds as `http>` (`path`, `query`, …).
+    /// Nested parameter types (`PathNode`, `AuthNode`, …) are shared with `HttpNode`.
+    public struct WebSocketNode: Sendable {
+        public let method: String
+        public let url: String
+        public let pathParams: [AssignNode.FieldPair]
+        public let queryParams: [AssignNode.FieldPair]
+        public let headerFields: [AssignNode.FieldPair]
+        public let auth: HttpNode.AuthNode?
+        public let expectedStatus: String?
+        public let bodyFields: [AssignNode.FieldPair]
+        public let letBinding: LetNode?
+
+        public init(method: String, url: String,
+                    pathParams: [AssignNode.FieldPair] = [], queryParams: [AssignNode.FieldPair] = [],
+                    headerFields: [AssignNode.FieldPair] = [], auth: HttpNode.AuthNode? = nil,
+                    expectedStatus: String? = nil, bodyFields: [AssignNode.FieldPair] = [],
+                    letBinding: LetNode? = nil) {
+            self.method = method
+            self.url = url
+            self.pathParams = pathParams
+            self.queryParams = queryParams
+            self.headerFields = headerFields
+            self.auth = auth
+            self.expectedStatus = expectedStatus
+            self.bodyFields = bodyFields
+            self.letBinding = letBinding
+        }
+
+        /// Same as `HttpNode` — `path`, `query`, `headers`, `auth`, `expect`, `body`, `let`.
+        static let siblingChildKinds: Set<CodeLogicStmtKind> = HttpNode.siblingChildKinds
+
+        static func parse(expression: String, from children: [CodeLogicStmt]) -> WebSocketNode {
+            let h = HttpNode.parse(expression: expression, from: children)
+            return WebSocketNode(
+                method: h.method,
+                url: h.url,
+                pathParams: h.pathParams,
+                queryParams: h.queryParams,
+                headerFields: h.headerFields,
+                auth: h.auth,
+                expectedStatus: h.expectedStatus,
+                bodyFields: h.bodyFields,
+                letBinding: h.letBinding
+            )
+        }
+    }
 }
 
 // MARK: - HttpGraphQLNode
@@ -1005,6 +1055,7 @@ extension CodeLogicStmt.Node {
 
         // MARK: HTTP / REST
         case .http:        return .http(CodeLogicStmt.HttpNode.parse(expression: expression, from: children))
+        case .websocket:   return .webSocket(CodeLogicStmt.WebSocketNode.parse(expression: expression, from: children))
         case .path:        return .httpPath(CodeLogicStmt.HttpNode.PathNode.parse(from: children))
         case .query:       return .httpQuery(CodeLogicStmt.HttpNode.QueryNode.parse(from: children))
         case .headers:     return .httpHeaders(CodeLogicStmt.HttpNode.HeadersNode.parse(from: children))

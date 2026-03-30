@@ -626,6 +626,20 @@ return payment
 ---
 ````
 
+### WebSocket (client)
+
+Same child statements as REST (`path`, `query`, `headers`, `auth`, `expect`, `body`, `let`). Use **`websocket`** so WebSocket traffic is distinct from **`http`** at parse and codegen time; URLs are typically `ws://` or `wss://`.
+
+````modelhike
+subscribeEcho(url: String) : Unit
+----------------------------------
+|> WEBSOCKET GET wss://echo.example.com/socket
+| |> HEADERS
+| |  Sec-WebSocket-Protocol = "v1"
+| |> LET _ = _
+---
+````
+
 ### 9.2 GraphQL
 
 ````modelhike
@@ -678,6 +692,7 @@ legacyCall() : any
 Statement | Syntax |
 --------- | ------ |
 `http` | `\|> HTTP METHOD url` |
+`websocket` | `\|> WEBSOCKET METHOD url` — same block shape as `http`; use for WebSocket clients (not inferred from URL scheme on `http`) |
 `path` | `\|> PATH` (block; children are `param = value` pairs) |
 `query` | `\|> QUERY` (block; children are `param = value` pairs) |
 `headers` | `\|> HEADERS` (block; children are `key = value` pairs) |

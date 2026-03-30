@@ -93,7 +93,7 @@ public actor CodeObject_Wrap: ObjectWrapper {
     private func hasAnyMethodWithWebSocketClientLogic() async -> Bool {
         for m in await item.methods {
             guard let logic = await m.logic, !logic.isEmpty else { continue }
-            if await logic.containsWebSocketClientHintStatement() { return true }
+            if await logic.containsWebSocketStatement() { return true }
         }
         return false
     }

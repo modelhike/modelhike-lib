@@ -24,17 +24,11 @@ extension CodeLogicStmt {
         return false
     }
 
-    /// True if an `http` node’s URL suggests WebSocket (`ws://` / `wss://`) — no separate DSL keyword.
-    public func subtreeContainsWebSocketClientHint() async -> Bool {
-        switch node {
-        case .http(let n):
-            let u = n.url.lowercased()
-            if u.contains("ws://") || u.contains("wss://") { return true }
-        default:
-            break
-        }
+    /// True if this node or any descendant uses a `websocket>` statement (`isWebSocketClientStmt`).
+    public func subtreeContainsWebSocketStatement() async -> Bool {
+        if kind.isWebSocketClientStmt { return true }
         for child in children {
-            if await child.subtreeContainsWebSocketClientHint() { return true }
+            if await child.subtreeContainsWebSocketStatement() { return true }
         }
         return false
     }
@@ -57,10 +51,10 @@ extension CodeLogic {
         return false
     }
 
-    /// WebSocket-style URL on an `http` line — for e.g. `WebSocketClient` injection.
-    public func containsWebSocketClientHintStatement() async -> Bool {
+    /// `websocket>` blocks — for e.g. `WebSocketClient` injection (distinct from `http>`).
+    public func containsWebSocketStatement() async -> Bool {
         for stmt in statements {
-            if await stmt.subtreeContainsWebSocketClientHint() { return true }
+            if await stmt.subtreeContainsWebSocketStatement() { return true }
         }
         return false
     }

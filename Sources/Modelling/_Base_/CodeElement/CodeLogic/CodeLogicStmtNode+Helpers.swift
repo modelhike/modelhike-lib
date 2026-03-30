@@ -13,7 +13,10 @@ public extension CodeLogicStmt.Node {
         case .db(let n):          return n.letBinding?.name ?? ""
         case .dbProcCall(let n):  return n.letBinding?.name ?? ""
         case .dbRaw(let n):       return n.letBinding?.name ?? ""
-        case .http(let n):        return n.letBinding?.name ?? ""
+        case .http(let n):
+            return n.letBinding?.name ?? ""
+        case .webSocket(let n):
+            return n.letBinding?.name ?? ""
         case .httpGraphQL(let n): return n.letBinding?.name ?? ""
         case .grpc(let n):        return n.letBinding?.name ?? ""
         default:                  return ""
