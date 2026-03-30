@@ -410,17 +410,40 @@ Common chains: `lowercase + kebabcase`, `lowercase + plural`, `package-case + lo
 
 Infix operators used in conditions and expressions:
 
-| Operator | Type        | Example                       |
-| -------- | ----------- | ----------------------------- |
-| `and`    | logical     | `if condA and condB`          |
-| `or`     | logical     | `if condA or condB`           |
-| `not`    | logical     | `if not condA`                |
-| `==`     | equality    | `if entity.name == "Order"`   |
-| `!=`     | inequality  | `if property.is-id != true`   |
-| `<` `>` `<=` `>=` | comparison | `if module.port >= 3001` |
-| `+` `-` `*` `/` | arithmetic | `set total = count + 1` |
+| Operator | Type | LHS | RHS | Example |
+| --- | --- | --- | --- | --- |
+| `and` | logical | Bool | Bool | `if condA and condB` |
+| `or` | logical | Bool | Bool | `if condA or condB` |
+| `not` | logical (prefix) | — | — | `if not condA` |
+| `==` | equality | String / Int / Double | (same as LHS) | `if entity.name == "Order"` |
+| `!=` | equality | String / Int / Double | (same as LHS) | `if kind != "else"` |
+| `<` | comparison | Int / Double | (same as LHS) | `if port < 4000` |
+| `>` | comparison | Int / Double | (same as LHS) | `if port > 3000` |
+| `<=` | comparison | Int / Double | (same as LHS) | `if port <= 3001` |
+| `>=` | comparison | Int / Double | (same as LHS) | `if port >= 3001` |
+| `+` | arithmetic | Int / Double | (same as LHS) | `set total = count + 1` |
+| `-` | arithmetic | Int / Double | (same as LHS) | `set diff = count - 1` |
+| `*` | arithmetic | Int / Double | (same as LHS) | `set doubled = count * 2` |
+| `/` | arithmetic | Int / Double | (same as LHS) | `set half = count / 2` |
+| `starts-with` | string test | String | String | `if name starts-with "Get"` |
+| `ends-with` | string test | String | String | `if name ends-with "Service"` |
+| `contains` | string test | String | String | `if name contains "Employee"` |
+| `matches` | regex test | String | String (regex) | `if name matches "^Get.*"` |
+| `in` | membership | String / Int / Double | `[same as LHS]` | `if kind in ["if", "elseif"]` |
+| `not-in` | membership | String / Int / Double | `[same as LHS]` | `if kind not-in ["return"]` |
 
-Parentheses group sub-expressions: `if (condA and condB) or condC`.
+Parentheses group sub-expressions (single level only; nested parentheses not supported):
+
+```
+if (condA and condB) or condC
+if (kind in ["if", "else"]) and hasBody
+```
+
+**Bracket array literals** `["a", "b", "c"]` are valid on the RHS of `in` / `not-in`. Spaces inside the brackets (after `[` and `,`) are handled correctly by the tokenizer.
+
+**Type-aware operator dispatch:** Each operator is registered with explicit LHS/RHS types. When an expression like `port > 3000` is evaluated, the runtime types of both operands are checked against all registrations for `>`. The first registration whose `(lhsType, rhsType)` matches the runtime types is selected. If no match is found, an error is thrown listing the expected type pairs. **LHS and RHS must be the same numeric type** — e.g. an `Int` variable compared to a `Double` literal is an error; use consistent types.
+
+Use `==` for single-value equality checks and `in` only when testing against multiple values.
 
 ---
 
