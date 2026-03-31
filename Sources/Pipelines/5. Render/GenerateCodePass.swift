@@ -17,69 +17,56 @@ public struct GenerateCodePass : RenderingPass {
         return true
     }
     
-    public func runIn(_ sandbox: GenerationSandbox, phase: RenderPhase) async throws -> Bool {
-        let pInfo = await ParsedInfo.dummyForAppState(with: sandbox.context)
-        
+    public func runIn(_ pipeline: Pipeline, phase: RenderPhase) async throws -> Bool {
         if await phase.config.outputItemType == .container {
-            for container in await containerNamesToRender(in: phase, sandbox: sandbox) {
-                guard let templatesRepo = try await blueprint(for: container, sandbox: sandbox, pInfo: pInfo) else {
-                    return false
+            let pInfo = await ParsedInfo.dummyForAppState(with: pipeline.ws.context)
+            for container in try await containersToRender(in: phase, pInfo: pInfo) {
+                let sandbox = await pipeline.ws.newGenerationSandbox()
+                await pipeline.append(sandbox: sandbox)
+                let sandboxPInfo = await ParsedInfo.dummyForAppState(with: sandbox.context)
+
+                guard let templatesRepo = try await blueprint(for: container, sandbox: sandbox, pInfo: sandboxPInfo) else {
+                    continue  // W307: missing tag — diagnostic already emitted, skip this container
                 }
-                try await generateCodebase(container: container, usingBlueprintsFrom: templatesRepo, sandbox: sandbox)
+                try await generateCodebase(container: container, usingBlueprint: templatesRepo, sandbox: sandbox)
             }
         }
-                        
+
         return true
     }
-    
+
     @discardableResult
-    public func generateCodebase(container: String, usingBlueprintsFrom blueprintLoader: Blueprint, sandbox: GenerationSandbox) async throws -> String? {
+    public func generateCodebase(container: C4Container, usingBlueprint blueprint: Blueprint, sandbox: GenerationSandbox) async throws -> String? {
+        let containerName = await container.name
+        let outputFolderSuffix = await outputFolderSuffix(for: container)
         let output = await sandbox.config.output
-        
-        print("🛠️ Container used: \(container)")
-        print("🛠️ Output folder: \(output.path.string)")
-        
-        let rendering = try await sandbox.generateFilesFor(container: container, usingBlueprintsFrom: blueprintLoader)
-        
-        return rendering
+        let outputPath = output.path / outputFolderSuffix
+
+        print("🛠️ Container used: \(containerName)")
+        print("🛠️ Output folder: \(outputPath.string)")
+
+        return try await sandbox.generateFilesFor(container: containerName, usingBlueprint: blueprint, outputFolderSuffix: outputFolderSuffix)
     }
 
-
-    private func containerNamesToRender(in phase: RenderPhase, sandbox: GenerationSandbox) async -> [String] {
+    private func containersToRender(in phase: RenderPhase, pInfo: ParsedInfo) async throws -> [C4Container] {
         let containersToOutput = await phase.config.containersToOutput
         if !containersToOutput.isEmpty {
-            return containersToOutput
+            var resolved: [C4Container] = []
+            for name in containersToOutput {
+                resolved.append(try await resolveContainer(named: name, model: phase.context.model, pInfo: pInfo))
+            }
+            return resolved
         }
-
-        var names: [String] = []
-        for container in await sandbox.model.containers.snapshot() {
-            names.append(await container.name)
-        }
-        return names
+        return await phase.context.model.containers.snapshot()
     }
 
-    private func blueprint(for containerName: String, sandbox: GenerationSandbox, pInfo: ParsedInfo) async throws -> Blueprint? {
-        let container = try await container(named: containerName, sandbox: sandbox, pInfo: pInfo)
-        guard let blueprintName = await blueprintName(for: container, sandbox: sandbox, pInfo: pInfo) else {
-            return nil
-        }
-        let templatesRepo = try await sandbox.context.blueprint(named: blueprintName, with: pInfo)
-
-        if await !hasRequiredEntryPointScript(in: templatesRepo, blueprintName: blueprintName, sandbox: sandbox, pInfo: pInfo) {
-            return nil
-        }
-
-        try await templatesRepo.loadSymbols(to: sandbox)
-        return templatesRepo
-    }
-
-    private func container(named containerName: String, sandbox: GenerationSandbox, pInfo: ParsedInfo) async throws -> C4Container {
-        if let container = await sandbox.model.container(named: containerName) {
+    private func resolveContainer(named containerName: String, model: AppModel, pInfo: ParsedInfo) async throws -> C4Container {
+        if let container = await model.container(named: containerName) {
             return container
         }
 
         var candidates: [String] = []
-        for existingContainer in await sandbox.model.containers.snapshot() {
+        for existingContainer in await model.containers.snapshot() {
             candidates.append(await existingContainer.name)
             candidates.append(await existingContainer.givenname)
         }
@@ -93,6 +80,20 @@ public struct GenerateCodePass : RenderingPass {
             ),
             pInfo
         )
+    }
+
+    private func blueprint(for container: C4Container, sandbox: GenerationSandbox, pInfo: ParsedInfo) async throws -> Blueprint? {
+        guard let blueprintName = await blueprintName(for: container, sandbox: sandbox, pInfo: pInfo) else {
+            return nil
+        }
+        let templatesRepo = try await sandbox.context.blueprint(named: blueprintName, with: pInfo)
+
+        if await !hasRequiredEntryPointScript(in: templatesRepo, blueprintName: blueprintName, sandbox: sandbox, pInfo: pInfo) {
+            return nil
+        }
+
+        try await templatesRepo.loadSymbols(to: sandbox)
+        return templatesRepo
     }
 
     func blueprintName(for container: C4Container, sandbox: GenerationSandbox, pInfo: ParsedInfo) async -> String? {
@@ -115,7 +116,16 @@ public struct GenerateCodePass : RenderingPass {
         )
         return nil
     }
-    
+
+    func outputFolderSuffix(for container: C4Container) async -> String {
+        if let outputFolderTag = await container.tags[TagConstants.outputFolder],
+           let outputFolderSuffix = outputFolderTag.arg?.trim(),
+           outputFolderSuffix.isNotEmpty {
+            return outputFolderSuffix.normalizeForFolderName()
+        }
+        return (await container.givenname).normalizeForFolderName()
+    }
+
     private func hasRequiredEntryPointScript(in templatesRepo: Blueprint, blueprintName: String, sandbox: GenerationSandbox, pInfo: ParsedInfo) async -> Bool {
         // Blueprint pre-flight: verify main.ss exists before committing to generation
         let mainScriptName = TemplateConstants.MainScriptFile + "." + TemplateConstants.ScriptExtension

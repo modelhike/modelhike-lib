@@ -551,8 +551,8 @@ private static func inlineModel(_ ws: Workspace) async -> InlineModelLoader {
         InlineModel {
             """
             ===
-            APIs
-            ====
+            APIs #blueprint(api-springboot-monorepo)
+            ===
             + Registry Management
 
             === Registry Management ===

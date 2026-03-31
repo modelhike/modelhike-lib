@@ -32,6 +32,7 @@ public enum ModelRegEx {
     nonisolated(unsafe)
     public static let tags: Regex<Substring> = Regex {
         OneOrMore {
+            whitespace
             "#"
             variable
             
@@ -49,6 +50,7 @@ public enum ModelRegEx {
     nonisolated(unsafe)
     public static let tags_Capturing: Regex<(Substring, String, Optional<String>)> = Regex {
         OneOrMore {
+            whitespace
             "#"
             Capture {
                 variable

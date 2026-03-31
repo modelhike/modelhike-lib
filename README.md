@@ -102,7 +102,7 @@ ModelHike uses a Markdown-flavoured DSL to describe software systems. Here's wha
 1. **Create a domain model** (`models/payments.dsl.md`):
 ```modelhike
 ==============================
-Payments Service (microservices)
+Payments Service (microservices) #blueprint(api-springboot-monorepo)
 ==============================
 + Payments Module
 @ auth:: JWT

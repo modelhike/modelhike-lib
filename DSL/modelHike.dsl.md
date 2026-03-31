@@ -39,6 +39,7 @@ ModelHike DSL lets you capture **architecture, data models, and APIs** in a sing
 | `@`                | **Annotation** (scaffold / metadata)  | Any element              |
 | `#tag`             | **Tag** – free‑form label             | End of header / property |
 | `#blueprint(name)` | **Blueprint tag** – selects templates | Container header         |
+| `#output-folder(name)` | **Output folder tag** – overrides container output suffix | Container header |
 | `# APIs`           | Begin API block                       | In a module or class     |
 | `//`               | **Line comment** – ignored by parser  | Anywhere                 |
 
@@ -50,7 +51,7 @@ A **Container** is a deployable thing—micro‑service, DB, message queue. Wra
 
 ```modelhike
 ===
-Payments Service
+Payments Service #blueprint(api-springboot-monorepo)
 ===
 + Billing Module
 + Receipts Module
@@ -65,6 +66,7 @@ Payments Service
 | Optional parent template `(Base…)`     | Share infra / tags across services |
 | Human‑readable names                   | "User Service" beats `user_srv`    |
 | `#blueprint(name)` tag                 | Selects which blueprint to render  |
+| `#output-folder(name)` tag             | Overrides the output subfolder     |
 
 ### Blueprint selection
 
@@ -73,6 +75,16 @@ Every container that will be rendered **must** declare a `#blueprint(name)` tag.
 ```modelhike
 ===
 APIs #blueprint(api-springboot-monorepo)
+===
+```
+
+### Output folder selection
+
+Each rendered container is written under its own subfolder inside the configured output root. By default that subfolder is derived from the container name. Use `#output-folder(name)` to override it.
+
+```modelhike
+===
+APIs #blueprint(api-springboot-monorepo) #output-folder(base-services)
 ===
 ```
 
@@ -284,7 +296,7 @@ Attributes add key‑value pairs to **any element**.
 Parentheses after container/module/class names list parents and act like an `extends` attribute.
 
 ```modelhike
-=== Logistics Service (Base Service) ===
+=== Logistics Service (Base Service) #blueprint(api-springboot-monorepo) ===
 === Stock Module (Auditable) ===
 Order (BaseEntity, SoftDelete)
 =====
@@ -641,7 +653,7 @@ Annotate a property or import with `(backend)` to mark it as server‑side only.
 A full example combining **every** concept.
 
 ```modelhike
-=== Order Management Service ===
+=== Order Management Service #blueprint(api-springboot-monorepo) ===
 + Order Module
 + Reports Module
 

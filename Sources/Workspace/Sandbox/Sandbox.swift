@@ -7,7 +7,7 @@
 import Foundation
 
 public protocol GenerationSandbox : Sandbox, FileGeneratorProtocol {
-    func generateFilesFor(container: String, usingBlueprintsFrom templateLoader: Blueprint) async throws -> String?
+    func generateFilesFor(container: String, usingBlueprint blueprint: Blueprint, outputFolderSuffix: String) async throws -> String?
 }
 
 public protocol Sandbox: Actor {

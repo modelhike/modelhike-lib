@@ -29,8 +29,14 @@ public actor CodeGenerationSandbox : GenerationSandbox {
     }
     
     //MARK: Generation code
-    public func generateFilesFor(container: String, usingBlueprintsFrom blueprint: Blueprint) async throws -> String? {
-        
+    public func generateFilesFor(container: String, usingBlueprint blueprint: Blueprint, outputFolderSuffix: String = "") async throws -> String? {
+
+        if outputFolderSuffix.isNotEmpty {
+            let rebased = await base_generation_dir.relativeFolder(outputFolderSuffix)
+            base_generation_dir = rebased
+            generation_dir = rebased
+        }
+
         if !isSymbolsLoaded {
             try await loadSymbols()
         }

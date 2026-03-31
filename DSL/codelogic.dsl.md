@@ -711,7 +711,7 @@ Statement | Syntax |
 ## 10. Full Example
 
 ````modelhike
-=== Order Service ===
+=== Order Service #blueprint(api-springboot-monorepo) ===
 + Order Module
 
 === Order Module ===

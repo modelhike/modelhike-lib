@@ -44,6 +44,46 @@ import Testing
         #expect(blueprintName == nil)
     }
 
+    @Test func outputFolderDefaultsToContainerName() async throws {
+        let (container, _) = try await parseFirstContainerWithSandbox("""
+            ===
+            APIs #blueprint(api-springboot-monorepo)
+            ===
+            + HR
+
+            === HR ===
+
+            Employee
+            ========
+            ** employeeId : Id
+            """)
+        let pass = GenerateCodePass()
+
+        let outputFolderSuffix = await pass.outputFolderSuffix(for: container)
+
+        #expect(outputFolderSuffix == "APIs")
+    }
+
+    @Test func outputFolderTagOverridesContainerName() async throws {
+        let (container, _) = try await parseFirstContainerWithSandbox("""
+            ===
+            APIs #blueprint(api-springboot-monorepo) #output-folder(base-services-hrservices)
+            ===
+            + HR
+
+            === HR ===
+
+            Employee
+            ========
+            ** employeeId : Id
+            """)
+        let pass = GenerateCodePass()
+
+        let outputFolderSuffix = await pass.outputFolderSuffix(for: container)
+
+        #expect(outputFolderSuffix == "base-services-hrservices")
+    }
+
     @Test func blueprintTagWithEmptyParensIsParseError() async throws {
         let dsl = """
             ===

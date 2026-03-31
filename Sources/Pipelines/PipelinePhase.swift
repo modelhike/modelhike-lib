@@ -129,13 +129,10 @@ public struct RenderPhase: PipelinePhase {
 
     @discardableResult
     public func runIn(pipeline: Pipeline) async throws -> Bool {
-        let sandbox = await pipeline.ws.newGenerationSandbox()
-        await pipeline.append(sandbox: sandbox)
-
         return try await runIn(pipeline: pipeline, passes: passes) { pass, phase in
 
             if try await pass.canRunIn(phase: phase) {
-                return try await pass.runIn(sandbox, phase: phase)
+                return try await pass.runIn(pipeline, phase: phase)
             } else {
                 context.debugLog.pipelinePassCannotRun(pass)
                 return false

@@ -462,6 +462,7 @@ Each phase is a `PipelinePhase` that holds a list of `PipelinePass` implementati
   3. Creates a `CodeGenerationSandbox`.
   4. Calls `sandbox.generateFilesFor(container:)` which:
      - Sets `@container` and `@mock` template variables.
+     - Scopes output under a per-container subfolder. Default suffix: normalized container name. Override with `#output-folder(name)` on the container.
      - Renders the blueprint's `Root/` special folder.
      - Executes `main.ss` (the blueprint's entry-point SoupyScript file).
 
@@ -576,11 +577,11 @@ A **Blueprint** is a named folder inside `localBlueprintsPath` containing `.teso
 
 ### Current Blueprints
 
-Two blueprints live in `modelhike-blueprints/Sources/Resources/blueprints/`. `GenerateCodePass` now resolves the active one from each container's `#blueprint(name)` tag, for example:
+Two blueprints live in `modelhike-blueprints/Sources/Resources/blueprints/`. `GenerateCodePass` now resolves the active one from each container's `#blueprint(name)` tag, and can optionally override the container's output subfolder via `#output-folder(name)`, for example:
 
 ```text
 ===
-APIs #blueprint(api-springboot-monorepo)
+APIs #blueprint(api-springboot-monorepo) #output-folder(base-services)
 ===
 ```
 
