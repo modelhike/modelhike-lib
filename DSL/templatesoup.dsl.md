@@ -76,10 +76,15 @@ end-set
 Product-name : GenProduct
 Company-name : WowCompany
 api-base-path : /api/v1
+symbols-to-load : java
 -----
 ```
 
 These values become template variables available throughout the render.
+
+Special key:
+
+- `symbols-to-load` — comma-separated `PreDefinedSymbols` to load before `main.ss` runs, e.g. `java` or `typescript, mongodb_typescript`
 
 ---
 
@@ -430,7 +435,7 @@ Common chains: `lowercase + kebabcase`, `lowercase + plural`, `package-case + lo
 | `default-value`       | `JavaLib`             | Maps `PropertyKind` to Java default value string      |
 | `graphql-typename`    | `GraphQLLib`          | Maps `PropertyKind` to GraphQL type string            |
 
-> Which library is active depends on which symbols are loaded. NestJS blueprints load `.typescript` + `.mongodb_typescript`; Spring Boot loads `.java`. Both always include `GraphQLLib`.
+> Which library is active depends on the `symbols-to-load:` front matter in `main.ss`. NestJS blueprints typically declare `typescript, mongodb_typescript`; Spring Boot declares `java`. Any explicit symbol load also includes `GraphQLLib` unless the blueprint opts out of mocking with `noMocking`.
 
 ### 6.9 Mock data modifiers (`MockDataLib`)
 

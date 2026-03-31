@@ -165,6 +165,60 @@ import Testing
     }
 }
 
+// MARK: - PreDefinedSymbols / blueprint symbol-loading tests
+
+@Suite("Blueprint symbol loading") struct BlueprintSymbolLoading_Tests {
+
+    @Test func parseList_acceptsMultipleSymbols() async throws {
+        let pInfo = await makePInfo()
+        let symbols = try PreDefinedSymbols.parseList("typescript, mongodb_typescript", pInfo: pInfo)
+
+        #expect(symbols.contains(.typescript))
+        #expect(symbols.contains(.mongodb_typescript))
+        #expect(symbols.count == 2)
+    }
+
+    @Test func parseList_unknownSymbol_throwsHelpfulError() async throws {
+        let pInfo = await makePInfo()
+
+        do {
+            _ = try PreDefinedSymbols.parseList("jvaa", pInfo: pInfo)
+            Issue.record("Expected parseList to throw for an unknown symbol")
+        } catch {
+            let message = String(describing: error)
+            #expect(message.contains("Unknown blueprint symbol"))
+            #expect(message.contains("jvaa"))
+            #expect(message.contains("java"))
+        }
+    }
+
+    @Test func blueprintLoadsJavaSymbolsFromMainScriptFrontMatter() async throws {
+        let blueprint = InlineBlueprint(name: "test") {
+            InlineScript("main", contents: """
+                ---
+                symbols-to-load: java
+                ---
+                """)
+        }
+        let sandbox = await makeSandbox()
+
+        try await blueprint.loadSymbols(to: sandbox)
+
+        let rendered = try await sandbox.render(string: "{{ kind | typename }}", data: ["kind": PropertyKind.int])
+        #expect(rendered?.trim() == "Integer")
+    }
+
+    private func makeSandbox() async -> CodeGenerationSandbox {
+        await CodeGenerationSandbox(model: LoadContext(config: PipelineConfig()).model,
+                                    config: PipelineConfig())
+    }
+
+    private func makePInfo() async -> ParsedInfo {
+        let ctx = LoadContext(config: PipelineConfig())
+        return await ParsedInfo.dummy(line: "", identifier: "test", loadCtx: ctx)
+    }
+}
+
 // MARK: - InlineBlueprint unit tests
 
 @Suite("InlineBlueprint") struct InlineBlueprint_Tests {

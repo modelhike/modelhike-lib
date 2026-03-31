@@ -53,6 +53,51 @@ public actor Workspace {
     }
 }
 
-public enum PreDefinedSymbols {
-    case typescript, mongodb_typescript, java, noMocking
+public enum PreDefinedSymbols: String, CaseIterable, Sendable {
+    case typescript
+    case mongodb_typescript
+    case java
+    case noMocking
+
+    public static func parseList(_ value: String, pInfo: ParsedInfo) throws -> Set<PreDefinedSymbols> {
+        let tokens = value
+            .split(separator: ",")
+            .map { String($0).trim() }
+            .filter { $0.isNotEmpty }
+        var symbols: Set<PreDefinedSymbols> = []
+
+        for token in tokens {
+            guard let symbol = PreDefinedSymbols(symbolName: token) else {
+                let knownSymbols = Self.allCases.map(\.rawValue)
+                throw EvaluationError.invalidInput(
+                    Suggestions.lookupFailureMessage(
+                        "Unknown blueprint symbol '\(token)' in main.ss front matter.",
+                        for: token,
+                        in: knownSymbols,
+                        availableOptionsLabel: "available blueprint symbols"
+                    ),
+                    pInfo
+                )
+            }
+
+            symbols.insert(symbol)
+        }
+
+        return symbols
+    }
+
+    public init?(symbolName: String) {
+        switch symbolName.trim().lowercased().replacingOccurrences(of: "-", with: "_") {
+        case "typescript":
+            self = .typescript
+        case "mongodb_typescript":
+            self = .mongodb_typescript
+        case "java":
+            self = .java
+        case "nomocking", "no_mocking":
+            self = .noMocking
+        default:
+            return nil
+        }
+    }
 }

@@ -679,7 +679,7 @@ Since the pipeline processes many objects and files, Xcode conditional breakpoin
 1. Use `:console-log <variable>` to print the raw value before it enters the expression.
 2. Use `runTemplateStr()` to test the expression in isolation with known data (see [section 10](#10-isolating-with-runtemplatestr)).
 3. Enable `config.flags.printParsedTree = true` to see how the parser interpreted the expression (it shows the full AST including the expression node).
-4. If the expression involves modifiers, verify the modifier is loaded — a `modifierNotFound` error means the modifier wasn't registered. Check that the correct `loadSymbols()` call was made (`.typescript`, `.java`, etc.) and that any blueprint-defined modifiers are in the `_modifiers_/` folder.
+4. If the expression involves modifiers, verify the modifier is loaded. A `modifierNotFound` error usually means the blueprint's `main.ss` front matter is missing or has the wrong `symbols-to-load:` entry (`java`, `typescript`, `mongodb_typescript`, etc.), or that blueprint-defined modifiers are missing from `_modifiers_/`.
 
 ### "A `working_dir` issue — files appear in the wrong place"
 

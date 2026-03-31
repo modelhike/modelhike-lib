@@ -313,7 +313,7 @@ CodeGen/
 - Manages `GenerationContext` snapshots (push/pop) for scoped variable isolation
 - Provides `forEach(forInExpression:)` for programmatic loop driving
 
-The special entry-point file in a blueprint is **`main.ss`** — `TemplateConstants.MainScriptFile = "main"` + `TemplateConstants.ScriptExtension = "ss"`. Before `main.ss` is invoked, `main.tconfig` from the model folder is loaded during Phase 2 (Load), injecting variables into the context that `main.ss` can reference.
+The special entry-point file in a blueprint is **`main.ss`** — `TemplateConstants.MainScriptFile = "main"` + `TemplateConstants.ScriptExtension = "ss"`. Before `main.ss` is invoked, `main.tconfig` from the model folder is loaded during Phase 2 (Load), injecting variables into the context that `main.ss` can reference. Blueprint symbol libraries are also loaded from `main.ss` front matter via `symbols-to-load: ...` before script execution begins.
 
 ### `Sources/Scripting/`
 
@@ -698,7 +698,7 @@ CodeGenerationSandbox
     └── fillPlaceholdersAndCopyFile(_:with:)
 ```
 
-**Symbol loading** (via `loadSymbols([PreDefinedSymbols])`):
+**Symbol loading** (via `Blueprint.loadSymbols(to:)` reading `main.ss` front matter `symbols-to-load: ...`):
 - `.typescript` → loads `TypescriptLib`
 - `.mongodb_typescript` → additionally loads `MongoDB_TypescriptLib`
 - `.java` → loads `JavaLib`

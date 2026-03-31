@@ -23,12 +23,6 @@ public struct GenerateCodePass : RenderingPass {
         //let blueprintName = "api-nestjs-monorepo"
         let blueprintName = "api-springboot-monorepo"
         
-        if blueprintName == "api-nestjs-monorepo" {
-            try await sandbox.loadSymbols([.typescript, .mongodb_typescript])
-        } else if blueprintName == "api-springboot-monorepo" {
-            try await sandbox.loadSymbols([.java])
-        }
-        
         let pInfo = await ParsedInfo.dummyForAppState(with: sandbox.context)
         templatesRepo = try await sandbox.context.blueprint(named: blueprintName, with: pInfo)
 
@@ -40,6 +34,8 @@ public struct GenerateCodePass : RenderingPass {
         ) {
             return false
         }
+
+        try await templatesRepo.loadSymbols(to: sandbox)
         
         if await phase.config.outputItemType == .container {
             //if there is only one container in the model, generate for that container

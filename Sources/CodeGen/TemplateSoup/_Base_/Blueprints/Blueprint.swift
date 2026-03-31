@@ -11,6 +11,7 @@ public protocol Blueprint : InputFileRepository {
     func exists() async throws -> Bool
     func loadTemplate(fileName: String, with pInfo: ParsedInfo) async throws -> Template
     func loadScriptFile(fileName: String, with pInfo: ParsedInfo) async throws -> Script
+    func loadSymbols(to sandbox: any Sandbox) async throws
 }
 
 public protocol InputFileRepository: Actor {
@@ -30,6 +31,17 @@ public protocol InputFileRepository: Actor {
 public typealias RenderClosure = (@Sendable (String, ParsedInfo) async throws -> Void)
 
 public extension Blueprint {
+    /// Registers modifier libraries on `sandbox` from this blueprint's `main.ss` front matter.
+    /// Reads the `symbols-to-load:` key (comma-separated); an empty or missing value loads the sandbox default set.
+    func loadSymbols(to sandbox: any Sandbox) async throws {
+        let pInfo = await ParsedInfo.dummyForMainFile(with: sandbox.context)
+        let mainScript = try await loadScriptFile(fileName: TemplateConstants.MainScriptFile, with: pInfo)
+        // Same delimiter-based front matter as other `.ss` files; keys become the `values` map.
+        let frontMatter = FrontMatter.parse(contents: mainScript.toString()).values
+        let symbols = try PreDefinedSymbols.parseList(frontMatter["symbols-to-load"] ?? "", pInfo: pInfo)
+        try await sandbox.loadSymbols(symbols)
+    }
+
     /// Returns all modifiers declared as `.teso` files inside this blueprint's `_modifiers_/` folder.
     func modifiers(templateSoup: TemplateSoup, with pInfo: ParsedInfo) async throws -> [Modifier] {
         try await BlueprintModifierLoader.loadModifiers(from: self, templateSoup: templateSoup, with: pInfo)
