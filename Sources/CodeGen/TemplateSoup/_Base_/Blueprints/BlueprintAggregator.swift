@@ -29,6 +29,16 @@ public actor BlueprintAggregator: Sendable {
         )
     }
 
+    public var availableBlueprints: [String] {
+        get async {
+            var names: [String] = []
+            for finder in blueprintFinders {
+                names.append(contentsOf: await finder.blueprintsAvailable)
+            }
+            return names
+        }
+    }
+
     @discardableResult
     public func add(_ finder: BlueprintFinder) -> Bool {
         blueprintFinders.append(finder)

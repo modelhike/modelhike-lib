@@ -263,7 +263,7 @@ Pipelines/
 │   └── Plugins.swift
 ├── 5. Render/
 │   ├── Render.swift        # Factory: Render.code()
-│   ├── GenerateCodePass.swift  # Hardcodes `blueprintName` (currently `api-springboot-monorepo`)
+│   ├── GenerateCodePass.swift  # Resolves blueprint per container via `#blueprint(name)` tag
 │   └── DebugRenderer.swift
 └── 6. Persist/
     ├── Persist.swift       # Factory: Persist.toOutputFolder()
@@ -448,6 +448,7 @@ Each phase is a `PipelinePhase` that holds a list of `PipelinePass` implementati
   - **W304** — Duplicate type name within the same container.
   - **W305** — Duplicate property name within the same class/entity.
   - **W306** — Duplicate method name within the same class/entity.
+  - **W307** — Container missing `#blueprint(name)` tag — skipped during render.
 
 ### Phase 4 — Transform
 
@@ -456,7 +457,7 @@ Each phase is a `PipelinePhase` that holds a list of `PipelinePass` implementati
 ### Phase 5 — Render
 
 - `GenerateCodePass` — the main code generation pass:
-  1. Selects a blueprint (`blueprintName` in `GenerateCodePass.swift` is currently hardcoded — e.g. `api-springboot-monorepo` or `api-nestjs-monorepo`).
+  1. Resolves a blueprint per target container from that container's `#blueprint(name)` tag (for example `#blueprint(api-springboot-monorepo)` or `#blueprint(api-nestjs-monorepo)`).
   2. Loads language-specific modifier symbols (Java for Spring Boot; TypeScript + MongoDB for NestJS).
   3. Creates a `CodeGenerationSandbox`.
   4. Calls `sandbox.generateFilesFor(container:)` which:
@@ -575,11 +576,12 @@ A **Blueprint** is a named folder inside `localBlueprintsPath` containing `.teso
 
 ### Current Blueprints
 
-Two blueprints live in `modelhike-blueprints/Sources/Resources/blueprints/`. `GenerateCodePass` selects one via `blueprintName`, for example:
+Two blueprints live in `modelhike-blueprints/Sources/Resources/blueprints/`. `GenerateCodePass` now resolves the active one from each container's `#blueprint(name)` tag, for example:
 
-```swift
-// let blueprintName = "api-nestjs-monorepo"
-let blueprintName = "api-springboot-monorepo"
+```text
+===
+APIs #blueprint(api-springboot-monorepo)
+===
 ```
 
 ---
@@ -900,7 +902,7 @@ Used by `DevTester` (via `Environment.debug`) to run the full pipeline against r
 - ✅ Spring Boot monorepo blueprint (`api-springboot-monorepo`) with Java symbols when that blueprint is active
 - ✅ GraphQL + gRPC API scaffolding support in the DSL and modifier libraries
 - ✅ Annotation cascade system
-- ✅ Semantic validation phase (`Validate.models()`) — emits W301/W303–W306 diagnostics for unresolved types, duplicate names, and missing modules
+- ✅ Semantic validation phase (`Validate.models()`) — emits W301/W303–W307 diagnostics for unresolved types, duplicate names, missing modules, and missing blueprint tags
 - ✅ World-class error messages — modifier/operator errors include structured `DiagnosticSuggestion` hints generated via `Suggestions` utility (Levenshtein distance + available-options metadata); nil-condition and nil-variable-clear warnings (W201/W202); blueprint preflight check (E101)
 - ✅ Structured diagnostics in debug UI — `/api/diagnostics` endpoint; Problems panel in debug console
 - ✅ Type inference and hydration (entity/dto/cache/apiInput/embeddedType classification)
@@ -914,7 +916,6 @@ Used by `DevTester` (via `Environment.debug`) to run the full pipeline against r
 
 | Location | Hardcoded Value | Should Be |
 |---|---|---|
-| `GenerateCodePass.swift` (`blueprintName`) | Hardcoded blueprint name string | Driven by model config or CLI flag |
 | `DevTester/Environment.swift:7` | Absolute path to a local test model folder inside `_Playground/` | Configurable |
 | `DevTester/Environment.swift:9` | Absolute path to sibling `modelhike-blueprints` repo | Configurable, documented |
 | `DevTester/DevMain.swift:31` | `config.containersToOutput = ["APIs"]` | Not hardcoded |
@@ -983,6 +984,13 @@ Errors fall into two categories — choose the right one:
 - If continuing would produce nonsense output or a Swift crash → throw.
 - `needsReview` nodes in CodeLogic are emitted as `// NEEDS REVIEW: reason` comments in generated code, making the problem visible without stopping the pipeline.
 - Diagnostic codes: `W3xx` = model validation, `W2xx` = evaluation warnings, `E1xx` = blueprint preflight, `E6xx` = model parsing, `E7xx` = template/evaluation fatal.
+
+CRITICAL:
+**Always include suggestions when known alternatives exist:**
+- When emitting a diagnostic about a missing or invalid value, **always** provide suggestions if there is a known set of valid options.
+- Use `ctx.debugLog.recordLookupDiagnostic(...)` instead of plain `recordDiagnostic` when you can supply a list of candidates — it automatically generates "did you mean?" hints and lists available options.
+- Example: missing `#blueprint(name)` tag should show available blueprints; unknown modifier should show available modifiers; unresolved type should show known types.
+- The `Suggestions` utility (`Sources/Debug/Suggestions.swift`) provides helpers like `lookupFailureMessage` and `lookupSuggestions` for building rich error context.
 
 ### Code Patterns
 

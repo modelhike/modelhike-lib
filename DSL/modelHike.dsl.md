@@ -38,6 +38,7 @@ ModelHike DSL lets you capture **architecture, data models, and APIs** in a sing
 | `[ … ]`            | **Attribute** (inferred)              | Usually after `# APIs`   |
 | `@`                | **Annotation** (scaffold / metadata)  | Any element              |
 | `#tag`             | **Tag** – free‑form label             | End of header / property |
+| `#blueprint(name)` | **Blueprint tag** – selects templates | Container header         |
 | `# APIs`           | Begin API block                       | In a module or class     |
 | `//`               | **Line comment** – ignored by parser  | Anywhere                 |
 
@@ -63,11 +64,24 @@ Payments Service
 | Only `+ Module` or nested `===` inside | Keeps root tidy                    |
 | Optional parent template `(Base…)`     | Share infra / tags across services |
 | Human‑readable names                   | "User Service" beats `user_srv`    |
+| `#blueprint(name)` tag                 | Selects which blueprint to render  |
+
+### Blueprint selection
+
+Every container that will be rendered **must** declare a `#blueprint(name)` tag. This tells the render pipeline which set of templates to use for code generation.
+
+```modelhike
+===
+APIs #blueprint(api-springboot-monorepo)
+===
+```
 
 #### Mini‑cheatsheet
 
 ```modelhike
-=== Analytics Pipeline (Base Service) ===
+=== 
+Analytics Pipeline (Base Service) #blueprint(api-nestjs-monorepo) 
+===
 + Collector Module
 + Aggregator Module
 ```

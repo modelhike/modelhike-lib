@@ -7,5 +7,6 @@
 import Foundation
 
 public enum TagConstants {
+    public static let blueprint = "blueprint"
     public static let savedFrom = "saved-from"
 }
