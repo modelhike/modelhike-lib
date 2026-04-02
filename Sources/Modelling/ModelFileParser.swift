@@ -10,6 +10,7 @@ public actor ModelFileParser {
     let modelSpace = ModelSpace()
     var component = C4Component()
     var subComponent : C4Component?
+    var currentSystem: C4System?
     var lineParser : LineParserDuringLoad
     let ctx: LoadContext
     

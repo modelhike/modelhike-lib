@@ -42,6 +42,14 @@ public extension _CollectionAsyncSequence {
     func makeAsyncIterator() -> _CollectionAsyncIterator<Self> {
         _CollectionAsyncIterator(parent: self)
     }
+
+    @inlinable
+    func first(where predicate: @Sendable (TSendable) async -> Bool) async -> TSendable? {
+        for item in await snapshot() {
+            if await predicate(item) { return item }
+        }
+        return nil
+    }
 }
 
 public struct _CollectionAsyncIterator<Parent: _CollectionAsyncSequence>: AsyncIteratorProtocol {

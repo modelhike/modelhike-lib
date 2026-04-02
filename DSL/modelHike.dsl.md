@@ -45,6 +45,119 @@ ModelHike DSL lets you capture **architecture, data models, and APIs** in a sing
 
 ---
 
+## 0 · Systems — the Grand Boundary
+
+A **System** is the outermost C4 boundary — a named collection of containers and infrastructure that together deliver a product or capability. It maps to a C4 *Software System*.
+
+The system uses an **asterism fence**: spaced `*` characters on otherwise empty lines, with the name sandwiched in between. The body follows after the second fence and runs until a third closing asterism.
+
+```modelhike
+* * * * * * * * * * * * * * * * * * *
+E-Commerce Platform
+* * * * * * * * * * * * * * * * * * *
+
++ Payments Service
++ Order Service
++ Frontend App
+
+PostgreSQL [database] #primary-db -- Main relational store
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+host    = db.internal
+port    = 5432
+version = 14
+
+Kafka Events [message-broker] #async
++++++++++++++++++++++++++++++++++++++
+bootstrap.servers = kafka:9092
+group.id          = platform
+
+* * * * * * * * * * * * * * * * * * *
+```
+
+### System anatomy
+
+```
+* * * * * * * * *   ← opening title fence
+System Name (attributes) #tags
+* * * * * * * * *   ← closing title fence / body starts
+  body …
+* * * * * * * * *   ← end of system body (consumed by parser)
+```
+
+### Key ideas
+
+| Concept                              | Why it matters                             |
+| ------------------------------------ | ------------------------------------------ |
+| Three asterism lines total           | Open title, close title, close body        |
+| `+ Container Name`                   | Reference to a full container — resolved at load time |
+| Infra node (setext `++++` header)    | Inline infra element with typed properties |
+| `[type]` after infra name            | Classifies the node (database, broker, …)  |
+| `key = value` lines after underline  | Configuration properties for the infra node |
+| Fence width is cosmetic              | Match name length or use a fixed width     |
+| Multiple systems in one file allowed | Model a multi-system landscape             |
+
+### `+` container references
+
+Any `+ Name` line inside the body is stored as an unresolved reference and wired to the matching `C4Container` during the load phase (matched by givenname, then normalised name).
+
+```modelhike
+* * * * * * * * * * * * *
+Logistics Platform
+* * * * * * * * * * * * *
++ Inventory Service
++ Shipping Service
+* * * * * * * * * * * * *
+```
+
+### Infra nodes
+
+Inline infrastructure elements use a **setext header** with a `++++` underline (width ≥ name length), followed by `key = value` property lines. The type is given in `[...]` brackets after the name.
+
+```modelhike
+Redis Cache [cache] #session
++++++++++++++++++++++++++++++
+host    = redis.internal
+port    = 6379
+db      = 0
+```
+
+Infra node properties end at the first blank line, the next infra node header, a `+` container ref, or the closing asterism.
+
+### System name with attributes and tags
+
+```modelhike
+* * * * * * * * * * * * * * * * * * *
+E-Commerce Platform (owner="platform-team") #production
+* * * * * * * * * * * * * * * * * * *
++ Payments Service
+* * * * * * * * * * * * * * * * * * *
+```
+
+### Visual hierarchy at a glance
+
+```
+* * * * *          ← System — asterism fence, grandest
+ └── ===           ← Container — triple = fence
+      └── === Module ===     ← Module — inline
+           └── Class ====    ← Class — underline
+```
+
+#### Mini‑cheatsheet
+
+```modelhike
+* * * * * * * * * * * * *
+Auth Platform
+* * * * * * * * * * * * *
++ Identity Service
++ MFA Service
+PostgreSQL [database]
++++++++++++++++++++++
+host = auth-db.internal
+port = 5432
+* * * * * * * * * * * * *
+```
+---
+
 ## 1 · Containers — the Big Boxes 🏢
 
 A **Container** is a deployable thing—micro‑service, DB, message queue. Wrap its name in `===` fences.

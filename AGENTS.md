@@ -131,13 +131,14 @@ The DSL is a Markdown-flavoured text format.
 ### 4.1 Structural Hierarchy
 
 ```
-Container  (===...===)
-  └─ Module  (=== Name === or === Name ====)
-       └─ SubModule  (extra = closing fence)
-            ├─ Class / Entity  (Name \n underline of =)
-            ├─ DTO             (Name \n /===/  underline)
-            ├─ UIView          (Name \n ~~~~ underline)
-            └─ Method          (~ prefix inside a class)
+System  (* * * ... * * * asterism fence)
+  └─ Container  (===...===)
+        └─ Module  (=== Name === or === Name ====)
+             └─ SubModule  (extra = closing fence)
+                  ├─ Class / Entity  (Name \n underline of =)
+                  ├─ DTO             (Name \n /===/  underline)
+                  ├─ UIView          (Name \n ~~~~ underline)
+                  └─ Method          (~ prefix inside a class)
 ```
 
 > **Syntax reference:** All DSL syntax — property prefixes, type names, array notation, attribute/annotation/tag grammar, UIView syntax, method syntax, API protocol options, and the `(backend)` attribute convention — is documented in [`DSL/modelHike.dsl.md`](DSL/modelHike.dsl.md). Fenced method-body logic block syntax (fence styles, depth rules, all statement keywords) is documented in [`DSL/codelogic.dsl.md`](DSL/codelogic.dsl.md). Those files are the single source of truth. **Update them when any syntax changes; do not duplicate syntax here.**
@@ -180,7 +181,7 @@ Modelling/
 │   ├── CodeElement/            # CodeMember, CodeObject, MethodObject, Property, TypeInfo
 │   ├── Loader/                 # InlineModelLoader, LocalFileModelLoader, ModelRepository
 │   ├── RegEx/                  # ModelRegEX — DSL-specific regex patterns
-│   ├── System/                 # C4System
+│   ├── System/                 # C4System, C4SystemList, SystemParser, InfraNode, InfraNodeParser
 │   ├── Artifact.swift          # Artifact protocol + ArtifactKind enum
 │   ├── Imports.swift
 │   ├── ModelConfigConstants.swift
@@ -214,7 +215,7 @@ Modelling/
 **Key types:**
 
 - `ModelFileParser` (actor) — main entry point; dispatches to `ContainerParser`, `ModuleParser`, `SubModuleParser`, `DomainObjectParser`, `DtoObjectParser`, `UIViewParser`.
-- `ModelSpace` (actor) — root model: holds `C4ContainerList` + `C4ComponentList`.
+- `ModelSpace` (actor) — root model: holds `C4SystemList` + `C4ContainerList` + `C4ComponentList`.
 - `C4Container` (actor) — `name`, `givenname`, `containerType` (unknown/microservices/webApp/mobileApp), `C4ComponentList`, `unresolvedMembers`.
 - `C4Component` (actor) — module; holds `CodeObject`s (domain objects, DTOs, UIViews) + submodules.
 - `DomainObject` (actor) — class with `[CodeMember]` (properties + methods), `mixins`, `attachedSections`, `Annotations`, `Attributes`, `Tags`. `properties` returns members that are `Property`; `methods` returns members that are `MethodObject`.
@@ -478,10 +479,38 @@ Each phase is a `PipelinePhase` that holds a list of `PipelinePass` implementati
 
 ```
 Artifact (protocol)
-├── ArtifactHolder (protocol) → C4Container, C4Component
+├── ArtifactHolder (protocol) → C4System, C4Container, C4Component
 ├── CodeObject (protocol) → DomainObject, DtoObject
 │   └── CodeMember (protocol) → Property, MethodObject
 └── UIObject (protocol) → UIView
+```
+
+### `C4System` (actor)
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | String | Normalised (variable-name safe) |
+| `givenname` | String | Original human-readable name |
+| `description` | String? | Inline or prose description |
+| `containers` | `C4ContainerList` | Resolved containers (populated during hydration) |
+| `unresolvedContainerRefs` | `[String]` | Container names from `+` lines — resolved during load (in `AppModel.resolveAndLinkItems`) |
+| `infraNodes` | `[InfraNode]` | Inline infra elements (databases, brokers, caches, etc.) |
+| `attribs` | `Attributes` | |
+| `tags` | `Tags` | |
+| `annotations` | `Annotations` | |
+
+**DSL syntax:**
+```text
+* * * * * * * * * * * * * * * * * * *     ← opening title fence
+System Name (attributes) #tags
+* * * * * * * * * * * * * * * * * * *     ← closing title fence / body begins
++ Container A                             ← container reference (resolved at load)
++ Container B
+PostgreSQL [database] #primary-db         ← infra node
++++++++++++++++++++++++++++++++++
+host = db.internal
+port = 5432
+* * * * * * * * * * * * * * * * * * *     ← end of system body
 ```
 
 ### `C4Container` (actor)
@@ -1065,6 +1094,8 @@ CRITICAL:
 | Term | Definition |
 |---|---|
 | **Blueprint** | A repository of `.teso` template files, static files, and a `main.ss` entry-point SoupyScript. Blueprints drive what code is generated. |
+| **System** | The outermost C4 boundary — a named collection of containers and infra nodes. Uses three asterism fences: open title / close title / close body. `+` lines reference containers (resolved at load); infra nodes use a setext `++++` header with `key = value` properties. Maps to `C4System`. |
+| **InfraNode** | An inline infrastructure element inside a system body (database, broker, cache, etc.). Declared with a setext `++++` header, `[type]` bracket, and `key = value` property lines. Stored as `InfraNode` struct on `C4System.infraNodes`. |
 | **Container** | A deployable unit in the C4 model — maps to a microservice, web app, or database. Defined with `===...===` fences. |
 | **Module / Component** | A C4 Component inside a Container; maps to a bounded context or functional grouping. |
 | **DomainObject** | A persisted entity class with typed properties, mixins, and optional APIs. |

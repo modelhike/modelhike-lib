@@ -37,4 +37,13 @@ public enum ModelConstants {
 
     public static let ModelFile_Extension = "modelhike"
     public static let ConfigFile_Extension = "tconfig"
+
+    /// The asterism fence character for system-level blocks (`* * * * *`).
+    /// A valid system fence is two or more space-separated `*` characters on an otherwise empty line.
+    public static let SystemFenceChar = "*"
+    /// Minimum number of asterisks required to form a valid system fence line (e.g. `* * *`).
+    public static let SystemFenceMinCount = 3
+
+    /// Underline character for infra-node setext headers inside a system body (`++++`).
+    public static let InfraNodeUnderlineChar = "+"
 }

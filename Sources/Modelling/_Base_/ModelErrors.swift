@@ -24,6 +24,7 @@ public enum Model_ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeProvidin
     case invalidAnnotationLine(ParsedInfo)
     case invalidAttachedSection(ParsedInfo)
     case invalidApiLine(ParsedInfo)
+    case invalidSystemLine(ParsedInfo)
     case invalidCodeLogicStatement(String, ParsedInfo)
 
     public var info: String {
@@ -39,6 +40,7 @@ public enum Model_ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeProvidin
         case .invalidAnnotationLine(let pInfo):
             return "invalid annotation: \(pInfo.line)"
 
+        case .invalidSystemLine(let pInfo): return "invalid system: \(pInfo.line)"
         case .invalidContainerLine(let pInfo): return "invalid container: \(pInfo.line)"
         case .invalidContainerMemberLine(let pInfo):
             return "invalid container member: \(pInfo.line)"
@@ -74,6 +76,7 @@ public enum Model_ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeProvidin
         case .invalidAnnotationLine: return "E615"
         case .invalidAttachedSection: return "E616"
         case .invalidApiLine: return "E617"
+        case .invalidSystemLine: return "E619"
         case .invalidCodeLogicStatement: return "E618"
         }
     }
@@ -90,6 +93,7 @@ public enum Model_ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeProvidin
         case .invalidMapping(_, let pInfo): pInfo
         case .invalidAnnotationLine(let pInfo): pInfo
 
+        case .invalidSystemLine(let pInfo): pInfo
         case .invalidContainerLine(let pInfo): pInfo
         case .invalidContainerMemberLine(let pInfo): pInfo
         case .invalidModuleLine(let pInfo): pInfo

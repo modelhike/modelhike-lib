@@ -11,6 +11,7 @@ public actor AppModel {
     public internal(set) var commonModel = C4ComponentList()
     private var modules = C4ComponentList()
     public private(set) var containers = C4ContainerList()
+    public private(set) var systems = C4SystemList()
     public private(set) var isModelsLoaded = false
 
     public func resolveAndLinkItems(with ctx: LoadContext) async throws {
@@ -21,6 +22,23 @@ public actor AppModel {
                 if let module = await module(named: unresolvedMember.name) {
                     await container.append(module)
                     await container.remove(unResolved: unresolvedMember)
+                }
+            }
+        }
+
+        // Resolve system → container references.
+        // A `+ Container Name` line inside a system body is stored as an unresolved ref.
+        // Match by givenname first, then by normalised name.
+        for system in await systems.snapshot() {
+            for refName in await system.unresolvedContainerRefs {
+                let normalised = refName.normalizeForVariableName()
+                if let found = await containers.first(where: {
+                    let itemGivenname = await $0.givenname
+                    let itemName = await $0.name
+                    return itemGivenname == refName || itemName == normalised
+                }) {
+                    await system.append(found)
+                    await system.removeUnresolvedRef(refName)
                 }
             }
         }
@@ -71,7 +89,7 @@ public actor AppModel {
     public func container(named name: String) async -> C4Container? {
         return await containers.first(where: {await $0.name == name})
     }
-    
+
     public func module(named name: String) async -> C4Component? {
         return await modules.first(where: {
             let itemname = await $0.name
@@ -94,8 +112,13 @@ public actor AppModel {
     }
     
     public func append(contentsOf modelSpace: ModelSpace) async {
+        let modelSystems = await modelSpace.systems.snapshot()
         let modelContainers = await modelSpace.containers.snapshot()
         let modelModules = await modelSpace.modules.snapshot()
+
+        for system in modelSystems {
+            await systems.append(system)
+        }
 
         for container in modelContainers {
             await containers.append(container)

@@ -15,10 +15,35 @@ public actor C4System: ArtifactHolder {
     public var givenname: String = ""
     public let dataType: ArtifactKind = .container
 
+    public private(set) var description: String?
+
+    public func setDescription(_ value: String?) {
+        self.description = value
+    }
+
     public internal(set) var containers = C4ContainerList()
+
+    /// Container names declared with `+` inside a system fence — resolved during load.
+    public private(set) var unresolvedContainerRefs: [String] = []
+
+    /// Inline infrastructure elements (databases, brokers, caches, etc.) declared
+    /// as plain name lines inside the system body.
+    public private(set) var infraNodes: [InfraNode] = []
 
     public func append(_ item: C4Container) async {
         await containers.append(item)
+    }
+
+    public func appendUnresolvedRef(_ name: String) {
+        unresolvedContainerRefs.append(name)
+    }
+
+    public func removeUnresolvedRef(_ name: String) {
+        unresolvedContainerRefs.removeAll(where: { $0 == name })
+    }
+
+    public func appendInfraNode(_ node: InfraNode) {
+        infraNodes.append(node)
     }
 
     public var count: Int { get async { await containers.count }}
@@ -33,14 +58,25 @@ public actor C4System: ArtifactHolder {
             containers \(await self.containers.count):
             """
         str += .newLine
-        
+
         for item in await containers.snapshot() {
-            await str += item.givenname + .newLine
-            
+            await str += "  " + item.givenname + .newLine
         }
-        
+
+        if !infraNodes.isEmpty {
+            str += "infra \(infraNodes.count):" + .newLine
+            for node in infraNodes {
+                str += "  " + node.givenname + .newLine
+            }
+        }
+
         return str
     }}
+
+    public init(name: String) {
+        self.givenname = name.trim()
+        self.name = self.givenname.normalizeForVariableName()
+    }
 
     public init(name: String, items: C4Container...) async {
         self.givenname = name.trim()
