@@ -17,6 +17,8 @@ public actor LocalFileBlueprint: Blueprint {
     public let blueprintName: String
 
     public func loadScriptFile(fileName: String, with pInfo: ParsedInfo) async throws -> any Script {
+        if let cached = scriptFileCache[fileName] { return cached }
+
         for loadPath in paths {
             if !loadPath.exists {
                 let pInfo = await ParsedInfo.dummyForAppState(with: context)
@@ -44,6 +46,8 @@ public actor LocalFileBlueprint: Blueprint {
     }
 
     public func loadTemplate(fileName: String, with pInfo: ParsedInfo) async throws -> Template {
+        if let cached = templateCache[fileName] { return cached }
+
         for loadPath in paths {
             if !loadPath.exists {
                 let pInfo = await ParsedInfo.dummyForAppState(with: context)

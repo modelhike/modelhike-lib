@@ -7,6 +7,7 @@
 public actor LocalFileBlueprintFinder: BlueprintFinder {
     public var paths: [LocalPath]
     public let rootPath: LocalPath
+    private var cachedBlueprintNames: [String]?
     
     public func hasBlueprint(named name: String) -> Bool {
         blueprintsAvailable.contains(name)
@@ -21,6 +22,12 @@ public actor LocalFileBlueprintFinder: BlueprintFinder {
     }
     
     public var blueprintsAvailable: [String] {
+        let names = cachedBlueprintNames ?? loadBlueprintNames()
+        cachedBlueprintNames = names
+        return names
+    }
+
+    private func loadBlueprintNames() -> [String] {
         var names: [String] = []
         let folder = LocalFolder(path: rootPath)
         

@@ -18,6 +18,8 @@ public actor ResourceBlueprint: Blueprint {
     public var resourceRoot: String
 
     public func loadScriptFile(fileName: String, with pInfo: ParsedInfo) async throws -> any Script {
+        if let cached = scriptFileCache[fileName] { return cached }
+
         if let resourceURL = bundle.url(
             forResource: fileName,
             withExtension: TemplateConstants.ScriptExtension,
@@ -38,6 +40,8 @@ public actor ResourceBlueprint: Blueprint {
     }
 
     public func loadTemplate(fileName: String, with pInfo: ParsedInfo) throws -> Template {
+        if let cached = templateCache[fileName] { return cached }
+
         if let resourceURL = bundle.url(
             forResource: fileName,
             withExtension: TemplateConstants.TemplateExtension,
