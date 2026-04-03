@@ -14,7 +14,7 @@ public struct PrintExpressionContent: ContentLineItem {
     var ModifiersList: [ModifierInstance] = []
 
     nonisolated(unsafe)
-    let expressionRegex = Regex {
+    static let expressionRegex = Regex {
         ZeroOrMore(.whitespace)
         Capture {
             CommonRegEx.anything
@@ -24,7 +24,7 @@ public struct PrintExpressionContent: ContentLineItem {
     }
     
     fileprivate mutating func parseLine(_ line: String) async throws {
-        guard let match = line.wholeMatch(of: expressionRegex )
+        guard let match = line.wholeMatch(of: Self.expressionRegex)
                             else {
             throw TemplateSoup_ParsingError.invalidExpression(line, pInfo)
                             }

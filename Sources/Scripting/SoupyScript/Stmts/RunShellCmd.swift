@@ -15,7 +15,7 @@ public struct RunShellCmdStmt: LineTemplateStmt, CustomDebugStringConvertible {
     public private(set) var CommandToRun: String = ""
 
     nonisolated(unsafe)
-    let stmtRegex = Regex {
+    static let stmtRegex = Regex {
         START_KEYWORD
         OneOrMore(.whitespace)
         Capture {
@@ -29,7 +29,7 @@ public struct RunShellCmdStmt: LineTemplateStmt, CustomDebugStringConvertible {
     }
 
     public mutating func matchLine(line: String) throws -> Bool {
-        guard let match = line.wholeMatch(of: stmtRegex) else { return false }
+        guard let match = line.wholeMatch(of: Self.stmtRegex) else { return false }
 
         let (_, expn) = match.output
 

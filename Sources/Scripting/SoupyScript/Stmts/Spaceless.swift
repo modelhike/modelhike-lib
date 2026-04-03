@@ -13,14 +13,14 @@ public struct SpacelessStmt: BlockTemplateStmt {
     static let START_KEYWORD = "spaceless"
     
     nonisolated(unsafe)
-    let stmtRegex = Regex {
+    static let stmtRegex = Regex {
         START_KEYWORD
         
         CommonRegEx.comments
     }
     
     public mutating func matchLine(line: String) throws -> Bool {
-        guard let match = line.wholeMatch(of: stmtRegex ) else { return false }
+        guard let match = line.wholeMatch(of: Self.stmtRegex) else { return false }
 
         let (_) = match.output
         

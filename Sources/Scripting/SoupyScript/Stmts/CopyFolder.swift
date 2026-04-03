@@ -16,7 +16,7 @@ public struct CopyFolderStmt: LineTemplateStmt, CustomDebugStringConvertible {
     public private(set) var ToFolder: String = ""
     
     nonisolated(unsafe)
-    let stmtRegex = Regex {
+    static let stmtRegex = Regex {
         START_KEYWORD
         
         OneOrMore(.whitespace)
@@ -37,7 +37,7 @@ public struct CopyFolderStmt: LineTemplateStmt, CustomDebugStringConvertible {
     }
     
     public mutating func matchLine(line: String) throws -> Bool {
-        guard let match = line.wholeMatch(of: stmtRegex ) else { return false }
+        guard let match = line.wholeMatch(of: Self.stmtRegex) else { return false }
         
         let (_, fromValue, toValue) = match.output
         

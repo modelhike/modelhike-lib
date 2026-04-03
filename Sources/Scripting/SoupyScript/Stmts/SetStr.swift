@@ -18,7 +18,7 @@ public struct SetStrVarStmt: BlockOrLineTemplateStmt {
     public private(set) var ModifiersList: [ModifierInstance] = []
 
     nonisolated(unsafe)
-    let setVarBlockRegex = Regex {
+    static let setVarBlockRegex = Regex {
         START_KEYWORD
         OneOrMore(.whitespace)
         Capture {
@@ -31,7 +31,7 @@ public struct SetStrVarStmt: BlockOrLineTemplateStmt {
     }
     
     nonisolated(unsafe)
-    let setVarLineRegex = Regex {
+    static let setVarLineRegex = Regex {
         START_KEYWORD
         OneOrMore(.whitespace)
         Capture {
@@ -52,12 +52,12 @@ public struct SetStrVarStmt: BlockOrLineTemplateStmt {
     }
     
     public func checkIfLineVariant(line: String) -> Bool {
-        let match = line.wholeMatch(of: setVarLineRegex )
+        let match = line.wholeMatch(of: Self.setVarLineRegex)
         return match != nil
     }
 
     public mutating func matchLine_BlockVariant(line: String) async throws -> Bool {
-        guard let match = line.wholeMatch(of: setVarBlockRegex )
+        guard let match = line.wholeMatch(of: Self.setVarBlockRegex)
                                                                 else { return false }
 
         let (_, setVar, modifiersList) = match.output
@@ -69,7 +69,7 @@ public struct SetStrVarStmt: BlockOrLineTemplateStmt {
     }
     
     public mutating func matchLine_LineVariant(line: String) async throws -> Bool {
-        guard let match = line.wholeMatch(of: setVarLineRegex )
+        guard let match = line.wholeMatch(of: Self.setVarLineRegex)
                                                                 else { return false }
         
         let (_, setVar, value, modifiersList) = match.output

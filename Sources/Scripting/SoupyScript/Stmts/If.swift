@@ -19,7 +19,7 @@ public struct IfStmt: MultiBlockTemplateStmt {
     public private(set) var elseBlock : Generic_PartOfMultiBlockContainer? = nil
 
     nonisolated(unsafe)
-    let ifRegex = Regex {
+    static let ifRegex = Regex {
         START_KEYWORD
         OneOrMore(.whitespace)
         Capture {
@@ -31,7 +31,7 @@ public struct IfStmt: MultiBlockTemplateStmt {
     }
     
     nonisolated(unsafe)
-    let elseIfRegex = Regex {
+    static let elseIfRegex = Regex {
         ELSE_IF_KEYWORD
         OneOrMore(.whitespace)
         Capture {
@@ -58,7 +58,7 @@ public struct IfStmt: MultiBlockTemplateStmt {
         if keyWord == Self.ELSE_IF_KEYWORD {
             
             //check for 'Else if" stmt
-            if let match = line.wholeMatch(of: elseIfRegex ) {
+            if let match = line.wholeMatch(of: Self.elseIfRegex) {
                 let (_, ELSEIFCondition) = match.output
                 
                 let block = ElseIfBlock(condition: ELSEIFCondition, pInfo: blockLime.pInfo)
@@ -87,7 +87,7 @@ public struct IfStmt: MultiBlockTemplateStmt {
     }
     
     public mutating func matchLine(line: String) throws -> Bool {
-        guard let match = line.wholeMatch(of: ifRegex ) else { return false }
+        guard let match = line.wholeMatch(of: Self.ifRegex) else { return false }
 
         let (_, IFCondition) = match.output
         self.IFCondition = IFCondition

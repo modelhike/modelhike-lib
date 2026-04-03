@@ -17,7 +17,7 @@ public struct SetVarStmt: LineTemplateStmt, CustomDebugStringConvertible {
     public let state: LineTemplateStmtState
     
     nonisolated(unsafe)
-    let setVarLineRegex = Regex {
+    static let setVarLineRegex = Regex {
         START_KEYWORD
         OneOrMore(.whitespace)
         Capture {
@@ -42,7 +42,7 @@ public struct SetVarStmt: LineTemplateStmt, CustomDebugStringConvertible {
     }
 
     public mutating func matchLine(line: String) async throws -> Bool {
-        guard let match = line.wholeMatch(of: setVarLineRegex)
+        guard let match = line.wholeMatch(of: Self.setVarLineRegex)
         else { return false }
 
         let (_, setVar, value, modifiersList) = match.output

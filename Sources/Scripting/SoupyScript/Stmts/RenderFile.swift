@@ -16,7 +16,7 @@ public struct RenderTemplateFileStmt: LineTemplateStmt, CallStackable, CustomDeb
     public private(set) var FromTemplate: String = ""
     
     nonisolated(unsafe)
-    let stmtRegex = Regex {
+    static let stmtRegex = Regex {
         START_KEYWORD
         
         OneOrMore(.whitespace)
@@ -37,7 +37,7 @@ public struct RenderTemplateFileStmt: LineTemplateStmt, CallStackable, CustomDeb
     }
     
     public mutating func matchLine(line: String) throws -> Bool {
-        guard let match = line.wholeMatch(of: stmtRegex ) else { return false }
+        guard let match = line.wholeMatch(of: Self.stmtRegex) else { return false }
         
         let (_, fromTemplate, toFile) = match.output
         

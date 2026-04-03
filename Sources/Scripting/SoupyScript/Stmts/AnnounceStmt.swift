@@ -15,7 +15,7 @@ public struct AnnounceStmt: LineTemplateStmt {
     public private(set) var Expression: String = ""
 
     nonisolated(unsafe)
-    private let stmtRegex = Regex {
+    private static let stmtRegex = Regex {
         START_KEYWORD
         OneOrMore(.whitespace)
         Capture {
@@ -29,7 +29,7 @@ public struct AnnounceStmt: LineTemplateStmt {
     }
 
     public mutating func matchLine(line: String) throws -> Bool {
-        guard let match = line.wholeMatch(of: stmtRegex) else { return false }
+        guard let match = line.wholeMatch(of: Self.stmtRegex) else { return false }
 
         let (_, expn) = match.output
 
