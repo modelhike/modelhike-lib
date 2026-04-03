@@ -29,18 +29,22 @@ public actor AppModel {
         // Resolve system → container references.
         // A `+ Container Name` line inside a system body is stored as an unresolved ref.
         // Match by givenname first, then by normalised name.
+        let containerSnapshot = await containers.snapshot()
         for system in await systems.snapshot() {
             for refName in await system.unresolvedContainerRefs {
                 let normalised = refName.normalizeForVariableName()
-                if let found = await containers.first(where: {
-                    let itemGivenname = await $0.givenname
-                    let itemName = await $0.name
-                    return itemGivenname == refName || itemName == normalised
-                }) {
+                if let found = await findContainer(named: refName, normalised: normalised, in: containerSnapshot) {
                     await system.append(found)
                     await system.removeUnresolvedRef(refName)
                 }
             }
+
+            // Resolve container refs inside virtual groups (recursively).
+            var systemGroups = await system.groups
+            for i in systemGroups.indices {
+                await resolveGroupRefs(&systemGroups[i], in: containerSnapshot)
+            }
+            await system.setGroups(systemGroups)
         }
         
         await commonModel.addTypesTo(model: types)
@@ -135,6 +139,34 @@ public actor AppModel {
     
     public init() {
         
+    }
+
+    /// Returns the first container whose `givenname` equals `name` or whose normalised
+    /// `name` equals `normalised`.
+    private func findContainer(named name: String, normalised: String, in snapshot: [C4Container]) async -> C4Container? {
+        for container in snapshot {
+            let g = await container.givenname
+            let n = await container.name
+            if g == name || n == normalised { return container }
+        }
+        return nil
+    }
+
+    /// Recursively resolves `+ Container` references inside a `VirtualGroup` and its
+    /// nested sub-groups.  Called with an `inout` group so the resolved references are
+    /// written back to the caller's value.
+    private func resolveGroupRefs(_ group: inout VirtualGroup, in snapshot: [C4Container]) async {
+        for refName in group.unresolvedContainerRefs {
+            let normalised = refName.normalizeForVariableName()
+            if let found = await findContainer(named: refName, normalised: normalised, in: snapshot) {
+                group.resolveRef(refName, to: found)
+            }
+        }
+        var resolvedSubs = group.subGroups
+        for i in resolvedSubs.indices {
+            await resolveGroupRefs(&resolvedSubs[i], in: snapshot)
+        }
+        group.setSubGroups(resolvedSubs)
     }
 
     private func resolveReferenceTargets(for property: Property, in ctx: LoadContext) async {

@@ -17,6 +17,17 @@
 //      host = db.internal
 //      port = 5432
 //
+//      +--- Infrastructure                       ← virtual group opening fence
+//      |                                         ← body line (empty)
+//      | + Auth Service                          ← container ref inside group
+//      | Redis [cache]                           ← infra node inside group
+//      | +++++++++++++++
+//      | host = redis.internal
+//      | +--- Nested Group                       ← nested virtual group
+//      | | + Billing Service
+//      | +---                                    ← nested group close
+//      +---                                      ← virtual group closing fence
+//
 //      * * * * * * * * * * * * * * * * * * *    ← end of system body (consumed)
 //
 
@@ -106,6 +117,14 @@ public enum SystemParser {
                     await item.appendUnresolvedRef(rest)
                 }
                 await parser.skipLine()
+                continue
+            }
+
+            // Virtual group — `+--- Group Name … +---`.
+            if await VirtualGroupParser.canParse(parser: parser) {
+                if let group = try await VirtualGroupParser.parse(parser: parser, with: ctx) {
+                    await item.appendGroup(group)
+                }
                 continue
             }
 

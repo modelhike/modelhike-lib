@@ -132,6 +132,11 @@ The DSL is a Markdown-flavoured text format.
 
 ```
 System  (* * * ... * * * asterism fence)
+  ├─ VirtualGroup  (+--- Name … +--- fence; body lines prefixed with |; nests)
+  │     ├─ + Container reference
+  │     ├─ InfraNode  (setext ++++ header with [type])
+  │     └─ VirtualGroup  (nested; body lines prefixed with | |)
+  ├─ InfraNode  (setext ++++ header with [type]; top-level in system body)
   └─ Container  (===...===)
         └─ Module  (=== Name === or === Name ====)
              └─ SubModule  (extra = closing fence)
@@ -181,7 +186,7 @@ Modelling/
 │   ├── CodeElement/            # CodeMember, CodeObject, MethodObject, Property, TypeInfo
 │   ├── Loader/                 # InlineModelLoader, LocalFileModelLoader, ModelRepository
 │   ├── RegEx/                  # ModelRegEX — DSL-specific regex patterns
-│   ├── System/                 # C4System, C4SystemList, SystemParser, InfraNode, InfraNodeParser
+│   ├── System/                 # C4System, C4SystemList, SystemParser, InfraNode, InfraNodeParser, VirtualGroup, VirtualGroupParser
 │   ├── Artifact.swift          # Artifact protocol + ArtifactKind enum
 │   ├── Imports.swift
 │   ├── ModelConfigConstants.swift
@@ -496,6 +501,7 @@ Artifact (protocol)
 | `containers` | `C4ContainerList` | Resolved containers (populated during hydration) |
 | `unresolvedContainerRefs` | `[String]` | Container names from `+` lines — resolved during load (in `AppModel.resolveAndLinkItems`) |
 | `infraNodes` | `[InfraNode]` | Inline infra elements (databases, brokers, caches, etc.) |
+| `groups` | `[VirtualGroup]` | Named visual clusters (`+--- Name … +---`) declared inside the system body |
 | `attribs` | `Attributes` | |
 | `tags` | `Tags` | |
 | `annotations` | `Annotations` | |
@@ -1077,6 +1083,8 @@ CRITICAL:
 | `SystemFenceChar` | `*` | Asterism fence character for system-level blocks |
 | `SystemFenceMinCount` | `3` | Minimum number of asterisks in a valid system fence line |
 | `InfraNodeUnderlineChar` | `+` | Setext underline character for infra-node headers inside a system body |
+| `VirtualGroupFence` | `+---` | Opening/closing fence for a virtual group; opening has a name after it, closing has nothing |
+| `VirtualGroupBodyPrefix` | `\|` | Prefix for body lines inside a virtual group |
 | `External_Import_File` | `+` | File import (same prefix as container member) |
 | `AttachedSection` | `#` | API block or other attached section |
 | `AttachedSubSection` | `##` | Sub-section entry (custom API operation) |
@@ -1101,8 +1109,9 @@ CRITICAL:
 | Term | Definition |
 |---|---|
 | **Blueprint** | A repository of `.teso` template files, static files, and a `main.ss` entry-point SoupyScript. Blueprints drive what code is generated. |
-| **System** | The outermost C4 boundary — a named collection of containers and infra nodes. Uses three asterism fences: open title / close title / close body. `+` lines reference containers (resolved at load); infra nodes use a setext `++++` header with `key = value` properties. Maps to `C4System`. |
+| **System** | The outermost C4 boundary — a named collection of containers, infra nodes, and virtual groups. Uses three asterism fences: open title / close title / close body. `+` lines reference containers (resolved at load); infra nodes use a setext `++++` header with `key = value` properties; virtual groups use `+--- Name … +---` fences. Maps to `C4System`. |
 | **InfraNode** | An inline infrastructure element inside a system body (database, broker, cache, etc.). Declared with a setext `++++` header, `[type]` bracket, and `key = value` property lines. Stored as `InfraNode` struct on `C4System.infraNodes`. |
+| **VirtualGroup** | A named visual cluster inside a system body (or nested inside another group). Opening fence: `+--- Name #tags -- desc`. Closing fence: `+---` alone. Body lines prefixed with `\|`. Can contain container refs, infra nodes, and nested virtual groups. Carries no semantic meaning — exists for diagram layout. Stored as `VirtualGroup` struct on `C4System.groups` (or `VirtualGroup.subGroups`). Container refs are resolved during load in `AppModel.resolveAndLinkItems`. |
 | **Container** | A deployable unit in the C4 model — maps to a microservice, web app, or database. Defined with `===...===` fences. |
 | **Module / Component** | A C4 Component inside a Container; maps to a bounded context or functional grouping. |
 | **DomainObject** | A persisted entity class with typed properties, mixins, and optional APIs. |

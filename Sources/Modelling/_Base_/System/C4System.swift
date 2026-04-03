@@ -30,6 +30,9 @@ public actor C4System: ArtifactHolder {
     /// as plain name lines inside the system body.
     public private(set) var infraNodes: [InfraNode] = []
 
+    /// Named visual groupings (`+--- Name … +---`) declared inside the system body.
+    public private(set) var groups: [VirtualGroup] = []
+
     public func append(_ item: C4Container) async {
         await containers.append(item)
     }
@@ -44,6 +47,16 @@ public actor C4System: ArtifactHolder {
 
     public func appendInfraNode(_ node: InfraNode) {
         infraNodes.append(node)
+    }
+
+    public func appendGroup(_ group: VirtualGroup) {
+        groups.append(group)
+    }
+
+    /// Replaces the full groups array — used by `AppModel.resolveAndLinkItems`
+    /// to write back resolved container references.
+    public func setGroups(_ newGroups: [VirtualGroup]) {
+        groups = newGroups
     }
 
     public var count: Int { get async { await containers.count }}
@@ -67,6 +80,13 @@ public actor C4System: ArtifactHolder {
             str += "infra \(infraNodes.count):" + .newLine
             for node in infraNodes {
                 str += "  " + node.givenname + .newLine
+            }
+        }
+
+        if !groups.isEmpty {
+            str += "groups \(groups.count):" + .newLine
+            for g in groups {
+                str += "  +--- " + g.givenname + .newLine
             }
         }
 

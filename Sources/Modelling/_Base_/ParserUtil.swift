@@ -63,6 +63,25 @@ public class ParserUtil {
         return false
     }
 
+    /// Splits a raw header string of the form `Name #tags` into the trimmed name and
+    /// the raw tag substring (starting with `#`).
+    ///
+    /// Unlike `containerName_Capturing`, this handles names whose first character is a
+    /// digit (e.g. `1st Layer`) or any other character that the standard regex rejects.
+    /// The ` -- inline description` suffix should be stripped before calling this
+    /// (via `extractInlineDescription`).
+    ///
+    /// Returns `(name, nil)` when no `#` is present.
+    public static func extractNameAndTagString(from line: String) -> (name: String, tagString: String?) {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        if let hashRange = trimmed.range(of: "#") {
+            let name = String(trimmed[..<hashRange.lowerBound]).trimmingCharacters(in: .whitespaces)
+            let tagStr = String(trimmed[hashRange.lowerBound...])
+            return (name, tagStr.isEmpty ? nil : tagStr)
+        }
+        return (trimmed, nil)
+    }
+
     /// Strips inline ` -- description` from the end of a DSL line (mutates `line`). Returns the description or `nil`.
     public static func extractInlineDescription(from line: inout String) -> String? {
         let trimmed = line.trimmingCharacters(in: .whitespaces)

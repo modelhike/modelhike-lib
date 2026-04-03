@@ -512,6 +512,511 @@ import Testing
         let system = try #require(await systemNamed("Bracket Platform", space: space))
         #expect(await system.infraNodes.isEmpty)
     }
+
+    // MARK: - Virtual groups
+
+    @Test func virtualGroupFenceDetection() {
+        #expect(VirtualGroupParser.isOpeningFence("+--- Data Tier") == true)
+        #expect(VirtualGroupParser.isOpeningFence("+--- A") == true)
+        #expect(VirtualGroupParser.isOpeningFence("+---") == false)     // no name → closing
+        #expect(VirtualGroupParser.isOpeningFence("+---   ") == false)  // whitespace only → closing
+        #expect(VirtualGroupParser.isOpeningFence("+ Data Tier") == false) // container ref
+        #expect(VirtualGroupParser.isClosingFence("+---") == true)
+        #expect(VirtualGroupParser.isClosingFence("+---   ") == true)
+        #expect(VirtualGroupParser.isClosingFence("+--- Data") == false)
+        #expect(VirtualGroupParser.isClosingFence("---") == false)
+    }
+
+    @Test func virtualGroupNameIsParsed() async throws {
+        let (_, space) = try await parseModel("""
+            * * * * * * * * *
+            Group System
+            * * * * * * * * *
+            +--- Infrastructure
+            |
+            +---
+            * * * * * * * * *
+            """)
+
+        let system = try #require(await systemNamed("Group System", space: space))
+        let groups = await system.groups
+        #expect(groups.count == 1)
+        let g0 = groups[0]
+        #expect(g0.givenname == "Infrastructure")
+        #expect(g0.name == "Infrastructure")
+    }
+
+    @Test func virtualGroupNameNormalisedCorrectly() async throws {
+        let (_, space) = try await parseModel("""
+            * * * * * * * * *
+            Norm System
+            * * * * * * * * *
+            +--- Data Services Layer
+            |
+            +---
+            * * * * * * * * *
+            """)
+
+        let system = try #require(await systemNamed("Norm System", space: space))
+        let groups = await system.groups
+        #expect(groups.count == 1)
+        #expect(groups[0].givenname == "Data Services Layer")
+        #expect(groups[0].name == "DataServicesLayer")
+    }
+
+    @Test func virtualGroupInlineDescriptionIsParsed() async throws {
+        let (_, space) = try await parseModel("""
+            * * * * * * * * *
+            Desc System
+            * * * * * * * * *
+            +--- Infrastructure -- Core data layer
+            |
+            +---
+            * * * * * * * * *
+            """)
+
+        let system = try #require(await systemNamed("Desc System", space: space))
+        #expect((await system.groups)[0].description == "Core data layer")
+    }
+
+    @Test func virtualGroupTagsAreParsed() async throws {
+        let (_, space) = try await parseModel("""
+            * * * * * * * * *
+            Tag System
+            * * * * * * * * *
+            +--- Backend #tier=data #critical
+            |
+            +---
+            * * * * * * * * *
+            """)
+
+        let system = try #require(await systemNamed("Tag System", space: space))
+        let tags = (await system.groups)[0].tags
+        #expect(tags.count == 2)
+    }
+
+    @Test func virtualGroupContainerRefIsStored() async throws {
+        let (_, space) = try await parseModel("""
+            * * * * * * * * *
+            Ref System
+            * * * * * * * * *
+            +--- Backend
+            | + Orders Service
+            +---
+            * * * * * * * * *
+            """)
+
+        let system = try #require(await systemNamed("Ref System", space: space))
+        let group = (await system.groups)[0]
+        #expect(group.unresolvedContainerRefs == ["Orders Service"])
+    }
+
+    @Test func virtualGroupContainerRefIsResolved() async throws {
+        let (_, space) = try await parseModel("""
+            * * * * * * * * *
+            Resolved System
+            * * * * * * * * *
+            +--- Backend
+            | + Orders Service
+            +---
+            * * * * * * * * *
+
+            ===
+            Orders Service
+            ===
+            """)
+
+        let system = try #require(await systemNamed("Resolved System", space: space))
+        let group = (await system.groups)[0]
+        #expect(group.unresolvedContainerRefs.isEmpty)
+        #expect(group.containers.count == 1)
+        let name = await group.containers[0].givenname
+        #expect(name == "Orders Service")
+    }
+
+    @Test func virtualGroupInfraNodeIsParsed() async throws {
+        let (_, space) = try await parseModel("""
+            * * * * * * * * *
+            Infra Group System
+            * * * * * * * * *
+            +--- Data
+            | PostgreSQL [database]
+            | +++++++++++++++++++++
+            | host = db.internal
+            +---
+            * * * * * * * * *
+            """)
+
+        let system = try #require(await systemNamed("Infra Group System", space: space))
+        let group = (await system.groups)[0]
+        #expect(group.infraNodes.count == 1)
+        #expect(group.infraNodes[0].givenname == "PostgreSQL")
+        #expect(group.infraNodes[0].infraType == "database")
+        #expect(group.infraNodes[0].properties == [InfraProperty(key: "host", value: "db.internal")])
+    }
+
+    @Test func virtualGroupEmptyBodyIsParsed() async throws {
+        let (_, space) = try await parseModel("""
+            * * * * * * * * *
+            Empty Group System
+            * * * * * * * * *
+            +--- Placeholder
+            |
+            |
+            +---
+            * * * * * * * * *
+            """)
+
+        let system = try #require(await systemNamed("Empty Group System", space: space))
+        let group = (await system.groups)[0]
+        #expect(group.unresolvedContainerRefs.isEmpty)
+        #expect(group.infraNodes.isEmpty)
+        #expect(group.subGroups.isEmpty)
+    }
+
+    @Test func multipleVirtualGroupsAtTopLevel() async throws {
+        let (_, space) = try await parseModel("""
+            * * * * * * * * *
+            Multi Group System
+            * * * * * * * * *
+            +--- Frontend
+            | + Web App
+            +---
+            +--- Backend
+            | + API Service
+            +---
+            * * * * * * * * *
+
+            ===
+            Web App
+            ===
+
+            ===
+            API Service
+            ===
+            """)
+
+        let system = try #require(await systemNamed("Multi Group System", space: space))
+        let groups = await system.groups
+        #expect(groups.count == 2)
+        #expect(groups[0].givenname == "Frontend")
+        #expect(groups[1].givenname == "Backend")
+        #expect(groups[0].containers.count == 1)
+        #expect(groups[1].containers.count == 1)
+    }
+
+    @Test func nestedVirtualGroupIsParsed() async throws {
+        let (_, space) = try await parseModel("""
+            * * * * * * * * *
+            Nested System
+            * * * * * * * * *
+            +--- Outer
+            | + Top Level Service
+            | +--- Inner
+            | | + Inner Service
+            | +---
+            +---
+            * * * * * * * * *
+
+            ===
+            Top Level Service
+            ===
+
+            ===
+            Inner Service
+            ===
+            """)
+
+        let system = try #require(await systemNamed("Nested System", space: space))
+        let groups = await system.groups
+        #expect(groups.count == 1)
+        let outer = groups[0]
+        #expect(outer.givenname == "Outer")
+        #expect(outer.subGroups.count == 1)
+
+        let inner = outer.subGroups[0]
+        #expect(inner.givenname == "Inner")
+        #expect(inner.containers.count == 1)
+        let innerContainerName = await inner.containers[0].givenname
+        #expect(innerContainerName == "Inner Service")
+    }
+
+    @Test func deeplyNestedVirtualGroups() async throws {
+        let (_, space) = try await parseModel("""
+            * * * * * * * * *
+            Deep Nest System
+            * * * * * * * * *
+            +--- L1
+            | +--- L2
+            | | +--- L3
+            | | | + Deep Service
+            | | +---
+            | +---
+            +---
+            * * * * * * * * *
+
+            ===
+            Deep Service
+            ===
+            """)
+
+        let system = try #require(await systemNamed("Deep Nest System", space: space))
+        let allGroups = await system.groups
+        let l1 = try #require(allGroups.first)
+        let l2 = try #require(l1.subGroups.first)
+        let l3 = try #require(l2.subGroups.first)
+        #expect(l3.givenname == "L3")
+        #expect(l3.containers.count == 1)
+        let svc = await l3.containers[0].givenname
+        #expect(svc == "Deep Service")
+    }
+
+    @Test func virtualGroupMixedContent() async throws {
+        // A group can hold container refs, infra nodes, and sub-groups all at once.
+        let (_, space) = try await parseModel("""
+            * * * * * * * * *
+            Mixed System
+            * * * * * * * * *
+            +--- Everything
+            | + Order Service
+            | Redis [cache]
+            | ++++++++++++++
+            | host = redis.internal
+            | +--- Sub
+            | | + Payment Service
+            | +---
+            +---
+            * * * * * * * * *
+
+            ===
+            Order Service
+            ===
+
+            ===
+            Payment Service
+            ===
+            """)
+
+        let system = try #require(await systemNamed("Mixed System", space: space))
+        let group = (await system.groups)[0]
+        #expect(group.containers.count == 1)
+        let c0name = await group.containers[0].givenname
+        #expect(c0name == "Order Service")
+        #expect(group.infraNodes.count == 1)
+        #expect(group.infraNodes[0].givenname == "Redis")
+        #expect(group.subGroups.count == 1)
+        #expect(group.subGroups[0].givenname == "Sub")
+        #expect(group.subGroups[0].containers.count == 1)
+    }
+
+    @Test func virtualGroupAndTopLevelContainerRefCoexist() async throws {
+        let (_, space) = try await parseModel("""
+            * * * * * * * * *
+            Coexist System
+            * * * * * * * * *
+            + Direct Service
+            +--- Grouped
+            | + Grouped Service
+            +---
+            * * * * * * * * *
+
+            ===
+            Direct Service
+            ===
+
+            ===
+            Grouped Service
+            ===
+            """)
+
+        let system = try #require(await systemNamed("Coexist System", space: space))
+        let topLevel = await system.containers.snapshot()
+        #expect(topLevel.count == 1)
+        let directName = await topLevel[0].givenname
+        #expect(directName == "Direct Service")
+
+        let groups = await system.groups
+        #expect(groups.count == 1)
+        #expect(groups[0].containers.count == 1)
+    }
+
+    @Test func virtualGroupWithoutClosingFenceParsesToEOF() async throws {
+        // No closing `+---` — the body is consumed until EOF.
+        let (_, space) = try await parseModel("""
+            * * * * * * * * *
+            Unclosed Group System
+            * * * * * * * * *
+            +--- Unclosed
+            | + Some Service
+            """)
+
+        // System is parsed; group has the ref but no closing container definition.
+        let system = try #require(await systemNamed("Unclosed Group System", space: space))
+        let groups = await system.groups
+        #expect(groups.count == 1)
+        // No container was defined so the ref remains unresolved.
+        #expect(groups[0].unresolvedContainerRefs.count == 1)
+    }
+
+    @Test func closingFenceWithTrailingWhitespaceIsRecognised() {
+        #expect(VirtualGroupParser.isClosingFence("+---   ") == true)
+        #expect(VirtualGroupParser.isClosingFence("   +---   ") == true)
+    }
+
+    @Test func virtualGroupDigitFirstNameFallback() async throws {
+        // Group names starting with a digit bypass containerName_Capturing and hit
+        // the ParserUtil.extractNameAndTagString fallback path.
+        let (_, space) = try await parseModel("""
+            * * * * * * * * *
+            Fallback System
+            * * * * * * * * *
+            +--- 1st Infrastructure #tier=data -- Core layer
+            |
+            +---
+            * * * * * * * * *
+            """)
+
+        let system = try #require(await systemNamed("Fallback System", space: space))
+        let groups = await system.groups
+        #expect(groups.count == 1)
+        let g = groups[0]
+        #expect(g.givenname == "1st Infrastructure")
+        #expect(g.description == "Core layer")
+        #expect(g.tags.count == 1)
+    }
+
+    @Test func extractNameAndTagStringUtil() {
+        // Unit test for the ParserUtil helper directly.
+        let (name1, tags1) = ParserUtil.extractNameAndTagString(from: "1st Layer #tier=data #critical")
+        #expect(name1 == "1st Layer")
+        #expect(tags1 == "#tier=data #critical")
+
+        let (name2, tags2) = ParserUtil.extractNameAndTagString(from: "Plain Name")
+        #expect(name2 == "Plain Name")
+        #expect(tags2 == nil)
+
+        let (name3, tags3) = ParserUtil.extractNameAndTagString(from: "  Trimmed  #tag  ")
+        #expect(name3 == "Trimmed")
+        // Trailing whitespace on the input is removed by the initial trim.
+        #expect(tags3 == "#tag")
+    }
+
+    @Test func virtualGroupContainerRefResolvedByNormalisedName() async throws {
+        // Ref uses the givenname with spaces; container name is normalised — resolution
+        // must match on normalised form just like top-level system refs do.
+        let (_, space) = try await parseModel("""
+            * * * * * * * * *
+            Norm Resolve System
+            * * * * * * * * *
+            +--- Services
+            | + Order Service
+            +---
+            * * * * * * * * *
+
+            ===
+            Order Service
+            ===
+            """)
+
+        let system = try #require(await systemNamed("Norm Resolve System", space: space))
+        let group = (await system.groups)[0]
+        #expect(group.unresolvedContainerRefs.isEmpty)
+        #expect(group.containers.count == 1)
+        let resolvedName = await group.containers[0].givenname
+        #expect(resolvedName == "Order Service")
+    }
+
+    @Test func virtualGroupBodyTruncatesAtMalformedLine() async throws {
+        // When a line that is neither `|`-prefixed nor the closing `+---` appears,
+        // body collection stops there (W621 is emitted as a side-effect).
+        // — Elements BEFORE the malformed line are captured.
+        // — Elements AFTER the malformed line inside the group are NOT captured.
+        let (_, space) = try await parseModel("""
+            * * * * * * * * *
+            Malformed Group System
+            * * * * * * * * *
+            +--- Broken
+            | + Service A
+            oops this line has no pipe prefix
+            | + Service B
+            +---
+            * * * * * * * * *
+            """)
+
+        let system = try #require(await systemNamed("Malformed Group System", space: space))
+        let group = (await system.groups)[0]
+        // Only Service A (before the malformed line) is captured.
+        #expect(group.unresolvedContainerRefs == ["Service A"])
+        // Service B (after the malformed line) is NOT in the group's refs.
+        #expect(!group.unresolvedContainerRefs.contains("Service B"))
+    }
+
+    @Test func commentLineInsideGroupBodyIsSkipped() async throws {
+        let (_, space) = try await parseModel("""
+            * * * * * * * * *
+            Comment Group System
+            * * * * * * * * *
+            +--- Services
+            | // This is a comment
+            | + Inventory Service
+            +---
+            * * * * * * * * *
+
+            ===
+            Inventory Service
+            ===
+            """)
+
+        let system = try #require(await systemNamed("Comment Group System", space: space))
+        let group = (await system.groups)[0]
+        // Comment should not be captured as a container ref or cause any issue.
+        #expect(group.containers.count == 1)
+        let name = await group.containers[0].givenname
+        #expect(name == "Inventory Service")
+    }
+
+    @Test func virtualGroupCoexistsWithTopLevelInfraNode() async throws {
+        let (_, space) = try await parseModel("""
+            * * * * * * * * *
+            Hybrid System
+            * * * * * * * * *
+            Kafka [broker]
+            +++++++++++++++++
+            bootstrap = kafka:9092
+            +--- Services
+            | + Alpha Service
+            +---
+            * * * * * * * * *
+
+            ===
+            Alpha Service
+            ===
+            """)
+
+        let system = try #require(await systemNamed("Hybrid System", space: space))
+        #expect((await system.infraNodes).count == 1)
+        #expect((await system.infraNodes)[0].givenname == "Kafka")
+        let groups = await system.groups
+        #expect(groups.count == 1)
+        #expect(groups[0].containers.count == 1)
+    }
+
+    @Test func barePlusLineInsideGroupBodyIsIgnored() async throws {
+        // A bare `+ ` (no name after the +) should not add an empty ref.
+        let (_, space) = try await parseModel("""
+            * * * * * * * * *
+            Bare Plus System
+            * * * * * * * * *
+            +--- Services
+            | +
+            +---
+            * * * * * * * * *
+            """)
+
+        let system = try #require(await systemNamed("Bare Plus System", space: space))
+        let group = (await system.groups)[0]
+        #expect(group.unresolvedContainerRefs.isEmpty)
+    }
 }
 
 // MARK: - Equatable for test assertions

@@ -52,4 +52,11 @@ public enum ModelConstants {
 
     /// Underline character for infra-node setext headers inside a system body (`++++`).
     public static let InfraNodeUnderlineChar = "+"
+
+    /// Opening/closing fence for a virtual group inside a system body (`+---`).
+    /// Opening: `+--- Group Name #tags -- desc`
+    /// Closing: `+---` alone (no trailing content).
+    public static let VirtualGroupFence = "+---"
+    /// Body-line prefix for lines inside a virtual group (`|`).
+    public static let VirtualGroupBodyPrefix = "|"
 }

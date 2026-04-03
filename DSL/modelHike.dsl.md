@@ -15,6 +15,7 @@ ModelHike DSL lets you capture **architecture, data models, and APIs** in a sing
 | Pattern / Symbol   | Meaning                               | Appears where            |
 | ------------------ | ------------------------------------- | ------------------------ |
 | `* * * … * * *`    | **System fence** – top-level C4 system boundary (3 lines: open, name, close; then body, then closing asterism) | File top level  |
+| `+--- Name … +---` | **Virtual group** – named visual cluster inside a system body; body lines prefixed with `\|` | Inside system body |
 | `Name [type]` + `++++` | **Infra node** – inline infra element inside system | Inside system body |
 | `=== … ===`        | **Container fence** – deployable unit | Inside a system or file top level |
 | `=== Module ===`   | **Module / Component**                | Inside a container       |
@@ -103,6 +104,8 @@ System Name (attributes) #tags
 | Infra node (setext `++++` header)    | Inline infra element with typed properties |
 | `[type]` after infra name            | Classifies the node (database, broker, …)  |
 | `key = value` lines after underline  | Configuration properties for the infra node |
+| Virtual group (`+--- Name … +---`)   | Named visual cluster; body lines prefixed with `\|`  |
+| Groups nest to arbitrary depth       | Outer `\|` prefix is stripped before inner parsing |
 | Fence width is cosmetic              | Match name length or use a fixed width     |
 | Multiple systems in one file allowed | Model a multi-system landscape             |
 
@@ -131,7 +134,65 @@ port    = 6379
 db      = 0
 ```
 
-Infra node properties end at the first blank line, the next infra node header, a `+` container ref, or the closing asterism.
+Infra node properties end at the first blank line, the next infra node header, a `+` container ref, a virtual group fence, or the closing asterism.
+
+### Virtual groups
+
+Group related elements visually using a **virtual group** block. Virtual groups carry no semantic meaning — they exist to communicate spatial or logical clustering in architecture diagrams.
+
+```
++--- Group Name #tags -- optional description
+|
+| + Container Name          ← container reference inside the group
+|
+| Redis [cache]             ← infra node inside the group
+| ++++++++++++++
+| host = redis.internal
+|
+| +--- Nested Group         ← groups nest to arbitrary depth
+| | + Inner Service
+| +---
+|
++---                        ← closing fence (no name after +---)
+```
+
+**Rules:**
+- **Opening fence:** `+--- Name` — `+---` followed by at least one non-whitespace character (the name). Supports `#tags` and `-- inline description` after the name.
+- **Closing fence:** `+---` alone (nothing after the fence token, or only whitespace).
+- **Body lines:** each line inside the group must be prefixed with `|`. A bare `|` is an empty line.
+- **Nesting:** strip the leading `|` from a body line and the content is parsed with the same rules — so `| +--- Inner` is an inner group opener.  For the next depth level the prefix doubles: `| |`.
+- **Content:** the same element types allowed at the system body level work inside groups: `+ Container` references, infra nodes, and nested virtual groups.
+- Container references in groups are resolved against the full container list (same matching rules as top-level refs).
+
+```modelhike
+* * * * * * * * * * * * *
+E-Commerce Platform
+* * * * * * * * * * * * *
+
++--- Data Tier #backend -- Persistent storage layer
+| PostgreSQL [database] #primary
+| +++++++++++++++++++++++++++++++
+| host = db.internal
+| port = 5432
+|
+| Redis [cache]
+| ++++++++++++++
+| host = redis.internal
++---
+
++--- API Layer
+| + Orders Service
+| + Payments Service
+|
+| +--- Async Messaging
+| | Kafka [broker]
+| | ++++++++++++++++
+| | brokers = kafka-1:9092
+| +---
++---
+
+* * * * * * * * * * * * *
+```
 
 ### System name with attributes and tags
 
@@ -147,6 +208,9 @@ E-Commerce Platform (owner="platform-team") #production
 
 ```
 * * * * *          ← System — asterism fence, grandest
+ ├── +--- Group    ← Virtual group — visual cluster inside system body
+ │    ├── + Ref    ← Container reference
+ │    └── +---     ← (nested virtual group)
  └── ===           ← Container — triple = fence
       └── === Module ===     ← Module — inline
            └── Class ====    ← Class — underline
