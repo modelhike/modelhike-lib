@@ -221,6 +221,7 @@ public actor ResourceBlueprint: Blueprint {
                             
                             let stringToRender: String
                             let parseFrontMatter: Bool
+                             //check if parser directives to exclude file
                             if let ctx = pInfo.ctx as? GenerationContext,
                                var frontMatter = try await FrontMatter(in: contents, filename: filename, with: ctx) {
                                 try await frontMatter.processVariables()

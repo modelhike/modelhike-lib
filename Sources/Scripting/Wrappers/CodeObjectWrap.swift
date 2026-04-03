@@ -36,7 +36,7 @@ public actor CodeObject_Wrap: ObjectWrapper {
         get async {
             var out: [API_Wrap] = []
             for api in await apis {
-                if Self.isPushDataKind(await api.item.type) { out.append(api) }
+                if await Self.isPushDataKind(api.item.type) { out.append(api) }
             }
             return out
         }
@@ -44,7 +44,7 @@ public actor CodeObject_Wrap: ObjectWrapper {
 
     private func hasPushDataApi() async -> Bool {
         for api in await apis {
-            if Self.isPushDataKind(await api.item.type) { return true }
+            if await Self.isPushDataKind(api.item.type) { return true }
         }
         return false
     }
