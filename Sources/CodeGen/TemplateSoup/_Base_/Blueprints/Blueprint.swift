@@ -48,8 +48,8 @@ public extension Blueprint {
         let pInfo = await ParsedInfo.dummyForMainFile(with: sandbox.context)
         // Load main.ss to access its front matter without executing the script body.
         let mainScript = try await loadScriptFile(fileName: TemplateConstants.MainScriptFile, with: pInfo)
-        // FrontMatter.parse is a synchronous, context-free scan — safe to call before the sandbox is fully configured.
-        let frontMatter = FrontMatter.parse(contents: mainScript.toString()).values
+        // simpleParse: synchronous, context-free, no validation — safe before the sandbox is configured.
+        let frontMatter = FrontMatter.simpleParse(contents: mainScript.toString()).values
         // An absent key produces an empty set, which is a valid no-op for blueprints that rely solely on _modifiers_/.
         let symbols = try PreDefinedSymbols.parseList(frontMatter["symbols-to-load"] ?? "", pInfo: pInfo)
         try await sandbox.loadSymbols(symbols)

@@ -66,7 +66,7 @@ public struct BlueprintModifierLoader {
         contents: String,
         templateSoup: TemplateSoup
     ) -> Modifier? {
-        let (fm, body)   = FrontMatter.parse(contents: contents)
+        let (fm, body)   = FrontMatter.simpleParse(contents: contents)
         let inputVarName = fm["input"] ?? "value"
         let inputType    = BlueprintModifierInputType(string: fm["type"])
         let paramNames   = (fm["params"] ?? "").splitTrimmed(separator: ",")

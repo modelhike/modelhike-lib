@@ -34,6 +34,11 @@ public struct FrontMatter: Sendable {
         return nil
     }
     
+    /// Text after the closing `---` fence — same line-parser scan as ``init(in:filename:with:)`` (no second ``simpleParse(contents:)`` pass).
+    public func bodyAfterFrontMatter() async -> String {
+        await parser.getRemainingLinesAsString()
+    }
+
     public mutating func processVariables() async throws {
         var index = 1 // front matter starts after the separator (---) line
 
@@ -121,12 +126,12 @@ public struct FrontMatter: Sendable {
     }
     
 
-    /// Single-pass parse of raw file contents. Advances line-by-line (mirroring the
-    /// `LineParser` pattern used throughout the engine) and returns both the front-matter
-    /// key/value pairs and the template body in one scan.
+    /// Best-effort, synchronous split of `---` front matter from the rest of the file.
+    /// Does not validate lines, throw on malformed YAML, or run directives — use
+    /// ``init(in:filename:with:)`` / ``init(lineParser:with:)`` when you need full parsing.
     ///
     /// - If no front matter is present, `values` is empty and `body` is the full contents.
-    public static func parse(contents: String) -> (values: [String: String], body: String) {
+    public static func simpleParse(contents: String) -> (values: [String: String], body: String) {
         let lines = contents.splitIntoLines()
         var values: [String: String] = [:]
         var fenceCount = 0

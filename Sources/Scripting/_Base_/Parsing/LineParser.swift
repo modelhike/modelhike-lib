@@ -21,6 +21,8 @@ public protocol LineParser : AnyObject, Actor {
     var linesRemaining: Bool {get}
     
     func parseLinesTill(lineHasOnly txt: String) async -> [String]
+    /// Remaining lines from the current cursor to end-of-input, joined with ``String.newLine``.
+    func getRemainingLinesAsString() async -> String
     func parse(till endKeyWord: String?, level: Int, lineHandler: ((_ pctx: ParsedInfo, _ stmtWord: String?) async throws -> ())) async throws
     
     func nextLine() -> String

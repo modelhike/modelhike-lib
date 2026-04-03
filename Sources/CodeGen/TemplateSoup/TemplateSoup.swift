@@ -126,18 +126,18 @@ public actor TemplateSoup : TemplateRenderer {
         }
     }
     
-    public func renderTemplate(string templateString: String, identifier: String = "", data: StringDictionary = [:], with pInfo: ParsedInfo) async throws -> String? {
-        
+    /// - Parameter parseFrontMatter: When `false`, leading ``TemplateConstants/frontMatterIndicator`` YAML is not consumed (blueprint already split front matter from the body).
+    public func renderTemplate(string templateString: String, identifier: String = "", data: StringDictionary = [:], with pInfo: ParsedInfo, parseFrontMatter: Bool = true) async throws -> String? {
         let template = StringTemplate(contents: templateString, name: identifier)
 
         await context.pushSnapshot()
         await context.append(variables: data)
-        
+
         let templateEval = TemplateEvaluator()
-        let rendering = try await templateEval.execute(template: template, with: context)
-        
+        let rendering = try await templateEval.execute(template: template, with: context, consumeLeadingFrontMatter: parseFrontMatter)
+
         await context.popSnapshot()
-        
+
         //print(rendering)
         return rendering
     }
@@ -163,9 +163,9 @@ public actor TemplateSoup : TemplateRenderer {
         
         for (index, loopItem) in loopItems.enumerated() {
             await context.variables.set(loopVariableName, value: loopItem)
-            
-            await loopWrap.FIRST_IN_LOOP( index == loopItems.startIndex )
-            await loopWrap.LAST_IN_LOOP( index == loopItems.index(before: loopItems.endIndex))
+
+            loopWrap.FIRST_IN_LOOP(index == loopItems.startIndex)
+            loopWrap.LAST_IN_LOOP(index == loopItems.index(before: loopItems.endIndex))
             
             try await renderClosure()
         }
@@ -200,5 +200,11 @@ public actor TemplateSoup : TemplateRenderer {
 
 public protocol TemplateRenderer: Sendable {
     func renderTemplate(fileName templateFile: String, data: StringDictionary, with pInfo: ParsedInfo) async throws -> String?
-    func renderTemplate(string templateString: String, identifier: String, data: StringDictionary, with pInfo: ParsedInfo) async throws -> String?
+    func renderTemplate(string templateString: String, identifier: String, data: StringDictionary, with pInfo: ParsedInfo, parseFrontMatter: Bool) async throws -> String?
+}
+
+public extension TemplateRenderer {
+    func renderTemplate(string templateString: String, identifier: String = "", data: StringDictionary = [:], with pInfo: ParsedInfo) async throws -> String? {
+        try await renderTemplate(string: templateString, identifier: identifier, data: data, with: pInfo, parseFrontMatter: true)
+    }
 }

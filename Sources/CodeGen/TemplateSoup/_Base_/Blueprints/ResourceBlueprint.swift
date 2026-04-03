@@ -219,15 +219,20 @@ public actor ResourceBlueprint: Blueprint {
                                 return
                             }
                             
-                            //check if parser directives to exclude file
-                            if let ctx = pInfo.ctx as? GenerationContext {
-                                if var frontMatter = try await FrontMatter(in: contents, filename: filename, with: ctx) {
-                                    try await frontMatter.processVariables()
-                                }
+                            let stringToRender: String
+                            let parseFrontMatter: Bool
+                            if let ctx = pInfo.ctx as? GenerationContext,
+                               var frontMatter = try await FrontMatter(in: contents, filename: filename, with: ctx) {
+                                try await frontMatter.processVariables()
+                                stringToRender = await frontMatter.bodyAfterFrontMatter()
+                                parseFrontMatter = false
+                            } else {
+                                stringToRender = contents
+                                parseFrontMatter = true
                             }
-                            
+
                                 if let renderedString = try await templateSoup.renderTemplate(
-                                string: contents, identifier: actualTemplateFilename, with: pInfo)
+                                string: stringToRender, identifier: actualTemplateFilename, with: pInfo, parseFrontMatter: parseFrontMatter)
                             {
 
                                     await templateSoup.context.debugLog.generatingFileInFolder(

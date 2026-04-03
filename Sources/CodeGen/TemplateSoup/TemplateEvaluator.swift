@@ -9,6 +9,11 @@ import Foundation
 public struct TemplateEvaluator: TemplateSoupEvaluator {
 
     public func execute(template: Template, with context: GenerationContext) async throws -> String? {
+        try await execute(template: template, with: context, consumeLeadingFrontMatter: true)
+    }
+
+    /// - Parameter consumeLeadingFrontMatter: When `false`, the template string is treated as body-only (e.g. blueprint already ran ``FrontMatter``). For internal use from ``TemplateSoup/renderTemplate(string:identifier:data:with:parseFrontMatter:)`` only.
+    internal func execute(template: Template, with context: GenerationContext, consumeLeadingFrontMatter: Bool) async throws -> String? {
         let contents = template.toString()
         if let recorder = await context.debugRecorder {
             let file = SourceFile(identifier: template.name, fullPath: nil, content: contents, fileType: .template)
@@ -18,12 +23,14 @@ public struct TemplateEvaluator: TemplateSoupEvaluator {
             string: contents, identifier: template.name, isStatementsPrefixedWithKeyword: true,
             with: context)
 
-        return try await execute(lineParser: lineparser, with: context)
+        return try await execute(lineParser: lineparser, with: context, consumeLeadingFrontMatter: consumeLeadingFrontMatter)
     }
 
-    public func execute(lineParser: LineParserDuringGeneration, with ctx: GenerationContext) async throws
-        -> String?
-    {
+    public func execute(lineParser: LineParserDuringGeneration, with ctx: GenerationContext) async throws -> String? {
+        try await execute(lineParser: lineParser, with: ctx, consumeLeadingFrontMatter: true)
+    }
+
+    internal func execute(lineParser: LineParserDuringGeneration, with ctx: GenerationContext, consumeLeadingFrontMatter: Bool) async throws -> String? {
 
         let parser = TemplateSoupParser(lineParser: lineParser, context: ctx)
 
@@ -33,7 +40,7 @@ public struct TemplateEvaluator: TemplateSoupEvaluator {
 
             let curLine = await lineParser.currentLine()
 
-            if curLine.hasOnly(TemplateConstants.frontMatterIndicator) {
+            if consumeLeadingFrontMatter, curLine.hasOnly(TemplateConstants.frontMatterIndicator) {
                 var frontMatter = try await FrontMatter(lineParser: lineParser, with: ctx)
                 try await frontMatter.processVariables()
             }
