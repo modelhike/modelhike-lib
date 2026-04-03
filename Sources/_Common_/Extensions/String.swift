@@ -22,10 +22,15 @@ public extension String {
     
     func hasOnly(_ txt: String) -> Bool {
         let trimmed = self.trim()
-        if (trimmed.isEmpty) { return false }
-            
-        let selfCount = trimmed.count
-        let comparedString = String(repeating: String(txt), count: selfCount)
+        if trimmed.isEmpty || txt.isEmpty { return false }
+
+        if txt.count == 1, let char = txt.first {
+            return trimmed.allSatisfy { $0 == char }
+        }
+
+        if trimmed.count % txt.count != 0 { return false }
+        let repeatCount = trimmed.count / txt.count
+        let comparedString = String(repeating: txt, count: repeatCount)
         return trimmed == comparedString
     }
     
@@ -49,41 +54,41 @@ public extension String {
     }
     
     func firstWord() -> String? {
-        let arr = self.components(separatedBy: .whitespaces)
-                
-        for item in arr {
-            if item.trim().isNotEmpty {
-                return item //first non empty item
-            }
-        }
-        
-        return nil
+        firstAndsecondWord().0
     }
     
     func secondWord() -> String? {
-        let arr = self.components(separatedBy: .whitespaces)
-        
-        let nonEmptyArray = arr.filter({ $0.trim().isNotEmpty })
-                
-        if nonEmptyArray.count > 1 {
-            return nonEmptyArray[1] //second item
-        } else {
-            return nil
-        }
+        firstAndsecondWord().1
     }
     
     func firstAndsecondWord() -> (String?, String?) {
-        let arr = self.components(separatedBy: .whitespaces)
-        
-        let nonEmptyArray = arr.filter({ $0.trim().isNotEmpty })
-                
-        if nonEmptyArray.count > 1 {
-            return (nonEmptyArray[0], nonEmptyArray[1])
-        } else if nonEmptyArray.count > 0 {
-            return (nonEmptyArray[0], nil)
-        }else {
-            return (nil, nil)
+        var index = startIndex
+
+        while index < endIndex, self[index].isWhitespace {
+            formIndex(after: &index)
         }
+
+        guard index < endIndex else { return (nil, nil) }
+
+        let firstStart = index
+        while index < endIndex, !self[index].isWhitespace {
+            formIndex(after: &index)
+        }
+        let first = String(self[firstStart..<index])
+
+        while index < endIndex, self[index].isWhitespace {
+            formIndex(after: &index)
+        }
+
+        guard index < endIndex else { return (first, nil) }
+
+        let secondStart = index
+        while index < endIndex, !self[index].isWhitespace {
+            formIndex(after: &index)
+        }
+        let second = String(self[secondStart..<index])
+
+        return (first, second)
     }
     
     func lastWord() -> String? {
@@ -117,9 +122,7 @@ public extension String {
     }
     
     func trimTrailing() -> String {
-        let characterSet: CharacterSet = .whitespacesAndNewlines
-        
-        guard let index = lastIndex(where: { !CharacterSet(charactersIn: String($0)).isSubset(of: characterSet) }) else {
+        guard let index = lastIndex(where: { !$0.isWhitespace && !$0.isNewline }) else {
             return self
         }
 

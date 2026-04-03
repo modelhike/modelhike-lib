@@ -45,6 +45,8 @@ public actor GenericLineParser<T> : LineParser where T: Context {
     private var _curLineNo: Int = 0
     private var _curLevel: Int = 0
     private var _breakParsing: Bool = false
+    private var _cachedTrimmedLine: String?
+    private var _cachedLineNo: Int = -1
     private var file: LocalFile?
     internal let context: T
     public var ctx: Context { context }
@@ -121,13 +123,13 @@ public actor GenericLineParser<T> : LineParser where T: Context {
     
     public func skipLine() async {
         await ctx.debugLog.skipLine(lineNo: curLineNoForDisplay)
-        
+        invalidateTrimmedLineCache()
         _curLineNo += 1;
     }
     
     public func skipEmptyLine() async {
         await ctx.debugLog.skipEmptyLine(lineNo: curLineNoForDisplay)
-        
+        invalidateTrimmedLineCache()
         _curLineNo += 1;
     }
     
@@ -135,22 +137,22 @@ public actor GenericLineParser<T> : LineParser where T: Context {
         //here debug flag is used directly, as only is that comment flag is set
         //extra processing to print comments will be carried out
         if await ctx.debugLog.flags.onCommentedLines {
-            let line = (self.lines[self._curLineNo]).trim()
+            let line = currentLine()
             await ctx.debugLog.comment(line: line, lineNo: curLineNoForDisplay)
         }
-        
+        invalidateTrimmedLineCache()
         _curLineNo += 1;
     }
     
     public func skipLine(by times : Int) async {
         await ctx.debugLog.skipLine(lineNo: curLineNoForDisplay)
-
+        invalidateTrimmedLineCache()
         _curLineNo += times;
     }
     
     public func incrementLineNo() async {
         await ctx.debugLog.incrementLineNo(lineNo: curLineNoForDisplay)
-        
+        invalidateTrimmedLineCache()
         _curLineNo += 1;
     }
     
@@ -205,13 +207,11 @@ public actor GenericLineParser<T> : LineParser where T: Context {
     }
     
     public func isCurrentLineEmpty() -> Bool {
-        let line = (self.lines[self._curLineNo]).trim()
-        return line.isEmpty
+        currentLine().isEmpty
     }
     
     public func isCurrentLineCommented() -> Bool {
-        let line = (self.lines[self._curLineNo]).trim()
-        return line.hasPrefix(TemplateConstants.comments)
+        currentLine().hasPrefix(TemplateConstants.comments)
     }
         
     public func currentParsedInfo(level: Int) async -> ParsedInfo? {
@@ -238,11 +238,15 @@ public actor GenericLineParser<T> : LineParser where T: Context {
     }
     
     public func currentLine() -> String {
-        if _curLineNo < self.lines.count {
-            return (self.lines[self._curLineNo]).trim()
-        } else {
-            return ""
-        }
+        guard _curLineNo < self.lines.count else { return "" }
+        // Most parser callers ask for the same trimmed line multiple times before `_curLineNo`
+        // advances, so cache the trimmed value per line number and invalidate on line movement.
+        if _cachedLineNo == _curLineNo, let cached = _cachedTrimmedLine { return cached }
+
+        let trimmed = self.lines[self._curLineNo].trim()
+        _cachedTrimmedLine = trimmed
+        _cachedLineNo = _curLineNo
+        return trimmed
     }
     
     public func currentLine_TrimTrailing() -> String {
@@ -267,6 +271,11 @@ public actor GenericLineParser<T> : LineParser where T: Context {
         } else {
             return ""
         }
+    }
+
+    private func invalidateTrimmedLineCache() {
+        _cachedTrimmedLine = nil
+        _cachedLineNo = -1
     }
     
     internal init(identifier: String, isStatementsPrefixedWithKeyword: Bool, with context: T) {
