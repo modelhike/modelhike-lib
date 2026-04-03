@@ -182,7 +182,7 @@ public actor ExpressionEvaluator {
     static func parseStringArrayLiteral(_ raw: String) -> [String]? {
         let value = raw.trim()
         guard value.hasPrefix("["), value.hasSuffix("]") else { return nil }
-        let inner = String(value.dropFirst().dropLast()).trimmingCharacters(in: .whitespacesAndNewlines)
+        let inner = value.dropFirst().dropLast().trim()
         if inner.isEmpty { return [] }
         
         var result: [String] = []

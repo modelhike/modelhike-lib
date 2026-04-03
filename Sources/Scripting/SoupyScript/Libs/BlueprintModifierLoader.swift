@@ -69,8 +69,7 @@ public struct BlueprintModifierLoader {
         let (fm, body)   = FrontMatter.parse(contents: contents)
         let inputVarName = fm["input"] ?? "value"
         let inputType    = BlueprintModifierInputType(string: fm["type"])
-        let paramNames   = (fm["params"] ?? "").split(separator: ",")
-                                                         .compactMap { $0.trim().nonEmpty }
+        let paramNames   = (fm["params"] ?? "").splitTrimmed(separator: ",")
 
         if paramNames.isEmpty {
             return BlueprintModifierWithoutParams(

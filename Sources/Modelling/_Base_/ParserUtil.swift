@@ -73,9 +73,9 @@ public class ParserUtil {
     ///
     /// Returns `(name, nil)` when no `#` is present.
     public static func extractNameAndTagString(from line: String) -> (name: String, tagString: String?) {
-        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        let trimmed = line.trim()
         if let hashRange = trimmed.range(of: "#") {
-            let name = String(trimmed[..<hashRange.lowerBound]).trimmingCharacters(in: .whitespaces)
+            let name = String(trimmed[..<hashRange.lowerBound].trim())
             let tagStr = String(trimmed[hashRange.lowerBound...])
             return (name, tagStr.isEmpty ? nil : tagStr)
         }
@@ -84,10 +84,10 @@ public class ParserUtil {
 
     /// Strips inline ` -- description` from the end of a DSL line (mutates `line`). Returns the description or `nil`.
     public static func extractInlineDescription(from line: inout String) -> String? {
-        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        let trimmed = line.trim()
         guard let range = trimmed.range(of: " -- ") else { return nil }
-        let desc = String(trimmed[range.upperBound...]).trimmingCharacters(in: .whitespaces)
-        line = String(trimmed[..<range.lowerBound]).trimmingCharacters(in: .whitespaces)
+        let desc = String(trimmed[range.upperBound...].trim())
+        line = String(trimmed[..<range.lowerBound].trim())
         return desc.isEmpty ? nil : desc
     }
 
@@ -96,10 +96,10 @@ public class ParserUtil {
         var parts: [String] = []
         while await parser.linesRemaining {
             let raw = await parser.currentLine()
-            let trimmed = raw.trimmingCharacters(in: .whitespaces)
+            let trimmed = raw.trim()
             guard trimmed.hasPrefix(ModelConstants.Member_Description) else { break }
             if trimmed.hasOnly("-") { break }
-            let text = String(trimmed.dropFirst(ModelConstants.Member_Description.count)).trimmingCharacters(in: .whitespaces)
+            let text = String(trimmed.dropFirst(ModelConstants.Member_Description.count).trim())
             parts.append(text)
             await parser.skipLine()
         }
@@ -115,8 +115,8 @@ public class ParserUtil {
         while await parser.linesRemaining {
             let line = await parser.currentLine()
             guard line.hasPrefix(ModelConstants.Member_ParameterMetadata) else { break }
-            let remainder = String(line.dropFirst(ModelConstants.Member_ParameterMetadata.count)).trimmingCharacters(in: .whitespaces)
-            let firstToken = remainder.split(whereSeparator: { $0.isWhitespace }).first.map(String.init) ?? ""
+            let remainder = String(line.dropFirst(ModelConstants.Member_ParameterMetadata.count).trim())
+            let firstToken = String(remainder.prefix(while: { !$0.isWhitespace }))
             if Self.isParameterMetadataMarkerToken(firstToken) {
                 block.parameterMetadataLines.append(line)
             } else {
@@ -167,9 +167,9 @@ public class ParserUtil {
     /// `= name : ...` line where the value after `:` begins with `{` (named constraint, not a computed property).
     public static func isNamedConstraintEqualsLine(line: String, firstWord: String) -> Bool {
         guard firstWord == ModelConstants.Member_Calculated else { return false }
-        let rest = line.remainingLine(after: firstWord).trimmingCharacters(in: .whitespaces)
+        let rest = line.remainingLine(after: firstWord).trim()
         guard let colon = rest.firstIndex(of: ":") else { return false }
-        let after = String(rest[rest.index(after: colon)...]).trimmingCharacters(in: .whitespaces)
+        let after = String(rest[rest.index(after: colon)...].trim())
         return after.hasPrefix("{")
     }
 
@@ -209,7 +209,7 @@ public class ParserUtil {
     private static func extractBraceWrappedInnerText(from combined: String) -> String? {
         guard let open = combined.firstIndex(of: "{"),
               let close = combined[open...].lastIndex(of: "}") else { return nil }
-        let inner = String(combined[combined.index(after: open)..<close]).trimmingCharacters(in: .whitespacesAndNewlines)
+        let inner = String(combined[combined.index(after: open)..<close].trim())
         return inner.isEmpty ? nil : inner
     }
 

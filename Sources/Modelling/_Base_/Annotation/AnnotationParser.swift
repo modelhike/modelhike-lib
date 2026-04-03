@@ -19,7 +19,7 @@ public enum AnnotationParser {
             omittingEmptySubsequences: true)
 
         if split.count == 2 {
-            let annotationName = split[0].trim()
+            let annotationName = String(split[0].trim())
             let remainingLine = split[1]
 
             switch annotationName {

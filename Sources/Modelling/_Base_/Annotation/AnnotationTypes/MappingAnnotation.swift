@@ -39,7 +39,7 @@ public struct MappingAnnotation: Annotation {
             if split.count == 2 {
                 let key = split[0].trim()
                 let value = split[1].trim()
-                self.mappings[key] = value
+                self.mappings[String(key)] = String(value)
 
             } else {
                 throw Model_ParsingError.invalidMapping(String(component), pInfo)

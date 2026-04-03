@@ -58,7 +58,7 @@ public actor Property : CodeMember {
             let t = defaultValue.trim()
             // Expression default: `@ExpressionName`. Not `@word::…` (that is annotation syntax, `Annotation_Split`).
             if t.hasPrefix(ModelConstants.Annotation_Start), !t.contains(ModelConstants.Annotation_Split) {
-                await prop.setAppliedDefaultExpression(String(t.dropFirst(ModelConstants.Annotation_Start.count)).trim())
+                await prop.setAppliedDefaultExpression(String(t.dropFirst(ModelConstants.Annotation_Start.count).trim()))
             } else {
                 await prop.setDefaultValue(defaultValue)
             }

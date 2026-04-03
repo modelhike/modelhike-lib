@@ -15,7 +15,7 @@ public actor SoupyScriptParser : ScriptParser {
     
     public func parseLines(startingFrom startKeyword : String?, till endKeyWord: String?, to container: any SoupyScriptStmtContainer, level: Int, with ctx: Context) async throws {
         
-        await ctx.debugLog.parseLines(startingFrom: startKeyword, till: endKeyWord, line: lineParser.currentLine(), lineNo: lineParser.curLineNoForDisplay)
+        await ctx.debugLog.parseLines(startingFrom: startKeyword, till: endKeyWord, line: await lineParser.currentLine(), lineNo: lineParser.curLineNoForDisplay)
         
         if startKeyword != nil { //parsing a block and not the full file
             await lineParser.incrementLineNo()

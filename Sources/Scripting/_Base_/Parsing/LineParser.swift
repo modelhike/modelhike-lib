@@ -41,7 +41,7 @@ public protocol LineParser : AnyObject, Actor {
 }
 
 public actor GenericLineParser<T> : LineParser where T: Context {
-    private var lines: [String] = []
+    private var lines: [Substring] = []
     private var _curLineNo: Int = 0
     private var _curLevel: Int = 0
     private var _breakParsing: Bool = false
@@ -66,8 +66,8 @@ public actor GenericLineParser<T> : LineParser where T: Context {
             if isCurrentLineEmpty() { await skipEmptyLine() ; continue }
             if isCurrentLineCommented() { await skipCommentedLine(); continue }
             
-            //the currentLine() returns a trimmed string, which removes prefixed space for content;
-            //so, another method, that does not trim prefix, is used for content
+            // `currentLine()` is fully trimmed, which removes leading space for content;
+            // `currentLine_TrimTrailing()` is used for `ParsedInfo` so prefix whitespace is preserved.
             guard var pInfo = await self.currentParsedInfo(level: level) else { await self.skipLine(); continue }
 
             let curLine = pInfo.line
@@ -227,14 +227,13 @@ public actor GenericLineParser<T> : LineParser where T: Context {
         
     public func currentLineWithoutStmtKeyword() -> String {
         if isStatementsPrefixedWithKeyword {
-            return String(currentLine().remainingLine(after: TemplateConstants.stmtKeyWord))
-        } else {
-            return String(currentLine())
+            return currentLine().remainingLine(after: TemplateConstants.stmtKeyWord)
         }
+        return currentLine()
     }
-    
+
     public func currentLine(after firstWord: String) -> String {
-        return String(currentLine().remainingLine(after: firstWord))
+        currentLine().remainingLine(after: firstWord)
     }
     
     public func currentLine() -> String {
@@ -243,7 +242,7 @@ public actor GenericLineParser<T> : LineParser where T: Context {
         // advances, so cache the trimmed value per line number and invalidate on line movement.
         if _cachedLineNo == _curLineNo, let cached = _cachedTrimmedLine { return cached }
 
-        let trimmed = self.lines[self._curLineNo].trim()
+        let trimmed = String(self.lines[self._curLineNo].trim())
         _cachedTrimmedLine = trimmed
         _cachedLineNo = _curLineNo
         return trimmed
@@ -251,15 +250,14 @@ public actor GenericLineParser<T> : LineParser where T: Context {
     
     public func currentLine_TrimTrailing() -> String {
         if _curLineNo < self.lines.count {
-            return (self.lines[self._curLineNo]).trimTrailing()
-        } else {
-            return ""
+            return String((self.lines[self._curLineNo]).trimTrailing())
         }
+        return ""
     }
     
     public func nextLine() -> String {
         if _curLineNo < self.lines.count - 1 {
-            return (self.lines[self._curLineNo + 1]).trim()
+            return String((self.lines[self._curLineNo + 1]).trim())
         } else {
             return ""
         }
@@ -267,7 +265,7 @@ public actor GenericLineParser<T> : LineParser where T: Context {
     
     public func lookAheadLine(by lineCount: Int) -> String {
         if _curLineNo < self.lines.count - lineCount {
-            return (self.lines[self._curLineNo + lineCount]).trim()
+            return String((self.lines[self._curLineNo + lineCount]).trim())
         } else {
             return ""
         }
@@ -293,7 +291,7 @@ public actor GenericLineParser<T> : LineParser where T: Context {
         self.identifier = identifier
         
         self._curLineNo = 0
-        self.lines = string.splitIntoLines()
+        self.lines = string.splitIntoLineSubstrings()
         self.autoIncrementLineNoForEveryLoop = true
         
         self.isStatementsPrefixedWithKeyword = isStatementsPrefixedWithKeyword
@@ -304,7 +302,7 @@ public actor GenericLineParser<T> : LineParser where T: Context {
         self.identifier = identifier
         
         self._curLineNo = 0
-        self.lines = lines
+        self.lines = lines.map { $0[...] }
         self.autoIncrementLineNoForEveryLoop = autoIncrementLineNoForEveryLoop
         
         self.isStatementsPrefixedWithKeyword = isStatementsPrefixedWithKeyword
@@ -321,7 +319,7 @@ public actor GenericLineParser<T> : LineParser where T: Context {
             self.isStatementsPrefixedWithKeyword = isStatementsPrefixedWithKeyword
             
             self.file = file
-            self.lines = try file.readTextLines(ignoreEmptyLines: true)
+            self.lines = try file.readTextLines(ignoreEmptyLines: true).map { $0[...] }
         } catch {
             return nil
         }
@@ -353,7 +351,7 @@ public extension LineParser {
 
     func isCurrentLineHumaneComment(_ pctx: ParsedInfo) async -> Bool {
         if pctx.firstWord.isStartingWithAlphabet {
-            let nextLine = await pctx.parser.nextLine().trim()
+            let nextLine = await pctx.parser.nextLine()
             if nextLine.isEmpty {
                 return true
             }

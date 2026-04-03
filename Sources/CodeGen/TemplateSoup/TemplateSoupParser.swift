@@ -20,7 +20,7 @@ public actor TemplateSoupParser: ScriptParser {
     ) async throws {
 
         await ctx.debugLog.parseLines(
-            startingFrom: startKeyword, till: endKeyWord, line: lineParser.currentLine(),
+            startingFrom: startKeyword, till: endKeyWord, line: await lineParser.currentLine(),
             lineNo: lineParser.curLineNoForDisplay)
 
         if startKeyword != nil {  //parsing a block and not the full file

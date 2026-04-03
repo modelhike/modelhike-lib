@@ -134,8 +134,7 @@ public struct ParsedInfo : Sendable, Equatable {
     }
     
     public init?(parser: LineParser) async {
-        //the currentLine() returns a trummed string, which removes prefixed space for content;
-        //so, another method, that does not trim prefix, is used
+        // `currentLine()` is fully trimmed; `currentLine_TrimTrailing()` keeps leading space for content.
         self.line = await parser.currentLine_TrimTrailing()
         self.lineNo = await parser.curLineNoForDisplay
         

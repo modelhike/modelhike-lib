@@ -104,7 +104,7 @@ public actor MethodObject: CodeMember {
         var line = signatureSource
         let inlineSigDesc = ParserUtil.extractInlineDescription(from: &line)
         let tilde = isTildePrefixed(line)
-        let signatureLine = tilde ? String(line.dropFirst()).trim() : line
+        let signatureLine = tilde ? String(line.dropFirst().trim()) : line
 
         guard let signature = parseSignature(signatureLine) else { return nil }
 
@@ -235,11 +235,11 @@ public actor MethodObject: CodeMember {
 
     private static func consumeDirectionPrefix(from segment: inout String, metadata: inout ParameterMetadata) {
         if segment.hasPrefix(ModelConstants.Member_InOut) {
-            segment = String(segment.dropFirst(ModelConstants.Member_InOut.count)).trim()
+            segment = String(segment.dropFirst(ModelConstants.Member_InOut.count).trim())
             metadata.required = .yes
             metadata.isOutput = true
         } else if segment.hasPrefix(ModelConstants.Member_Output) {
-            segment = String(segment.dropFirst(ModelConstants.Member_Output.count)).trim()
+            segment = String(segment.dropFirst(ModelConstants.Member_Output.count).trim())
             metadata.required = .no
             metadata.isOutput = true
         }
@@ -399,8 +399,8 @@ public struct ParameterMetadata: Sendable {
         while await parser.linesRemaining {
             let currentLine = await parser.currentLine()
             guard currentLine.hasPrefix(prefix) else { break }
-            let remainder = String(currentLine.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces)
-            let firstToken = remainder.split(whereSeparator: { $0.isWhitespace }).first.map(String.init) ?? ""
+            let remainder = currentLine.dropFirst(prefix.count).trimmingCharacters(in: .whitespaces)
+            let firstToken = String(remainder.prefix(while: { !$0.isWhitespace }))
             if ParserUtil.isParameterMetadataMarkerToken(firstToken) {
                 if let (name, meta) = parse(from: currentLine) {
                     collected[name] = meta
@@ -433,11 +433,12 @@ public struct ParameterMetadata: Sendable {
         let prefix = ModelConstants.Member_ParameterMetadata
         guard line.hasPrefix(prefix) else { return nil }
 
-        let afterPrefix = String(line.dropFirst(prefix.count)).trim()
+        let afterPrefix = line.dropFirst(prefix.count).trim()
         // afterPrefix: "* paramName: Type ..." or "--> name: Type ..."
 
-        guard let marker = afterPrefix.split(whereSeparator: { $0.isWhitespace }).first.map(String.init), !marker.isEmpty else { return nil }
-        var propertyLine = String(afterPrefix.dropFirst(marker.count)).trimmingCharacters(in: .whitespaces)
+        let marker = String(afterPrefix.prefix(while: { !$0.isWhitespace }))
+        guard !marker.isEmpty else { return nil }
+        var propertyLine = afterPrefix.dropFirst(marker.count).trimmingCharacters(in: .whitespaces)
         let paramDesc = ParserUtil.extractInlineDescription(from: &propertyLine)
         // propertyLine: "paramName: Type [= default] [{ constraints }] [(attributes)] [#tags]"
 

@@ -812,6 +812,8 @@ Two debug modes are available:
 - **`--debug-stepping`** — live streaming mode: server starts first, WebSocket clients can connect before the pipeline runs, and every debug event is broadcast over WebSocket in real time via `StreamingDebugRecorder`.
 - **`--perf`** — enables the pipeline performance recorder and prints total, phase, and pass timings to stdout after the run.
 
+For substring handling, template-cache, and similar optimizations, compare `--perf` output on the **same** model folder and blueprint before and after each change to see the timing delta.
+
 **Flags:** `--debug`, `--debug-stepping`, `--perf`, `--debug-port=<port>`, `--debug-dev` (serve HTML from Assets), `--no-open`
 
 **Full reference:** [`Docs/debug/VISUALDEBUG.md`](Docs/debug/VISUALDEBUG.md) — runtime flow, architecture, integration inventory, event emission matrix, and troubleshooting.

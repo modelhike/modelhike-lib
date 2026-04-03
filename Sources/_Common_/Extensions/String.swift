@@ -62,40 +62,35 @@ public extension String {
     }
     
     func firstAndsecondWord() -> (String?, String?) {
-        var index = startIndex
-
-        while index < endIndex, self[index].isWhitespace {
-            formIndex(after: &index)
-        }
-
-        guard index < endIndex else { return (nil, nil) }
-
-        let firstStart = index
-        while index < endIndex, !self[index].isWhitespace {
-            formIndex(after: &index)
-        }
-        let first = String(self[firstStart..<index])
-
-        while index < endIndex, self[index].isWhitespace {
-            formIndex(after: &index)
-        }
-
-        guard index < endIndex else { return (first, nil) }
-
-        let secondStart = index
-        while index < endIndex, !self[index].isWhitespace {
-            formIndex(after: &index)
-        }
-        let second = String(self[secondStart..<index])
-
+        let words = split(maxSplits: 2, omittingEmptySubsequences: true, whereSeparator: \.isWhitespace)
+        let first = words.first.map(String.init)
+        let second = words.dropFirst().first.map(String.init)
         return (first, second)
     }
     
     func lastWord() -> String? {
-        let arr = self.components(separatedBy: .whitespaces)
-        
-        let nonEmptyArray = arr.filter({ $0.trim().isNotEmpty })
-        return nonEmptyArray.last
+        var end = endIndex
+
+        while end > startIndex {
+            let previous = index(before: end)
+            if !self[previous].isWhitespace {
+                break
+            }
+            end = previous
+        }
+
+        guard end > startIndex else { return nil }
+
+        var start = end
+        while start > startIndex {
+            let previous = index(before: start)
+            if self[previous].isWhitespace {
+                break
+            }
+            start = previous
+        }
+
+        return String(self[start..<end])
     }
     
     func dropFirstWord() -> String {
@@ -107,9 +102,51 @@ public extension String {
     }
     
     func dropLastWord() -> String {
-        let strWithoutLastWord = self.components(separatedBy: .whitespaces).dropLast()
-                                     .joined(separator: " ")
-        return strWithoutLastWord
+        var end = endIndex
+
+        while end > startIndex {
+            let previous = index(before: end)
+            if !self[previous].isWhitespace {
+                break
+            }
+            end = previous
+        }
+
+        guard end > startIndex else { return "" }
+
+        var lastWordStart = end
+        while lastWordStart > startIndex {
+            let previous = index(before: lastWordStart)
+            if self[previous].isWhitespace {
+                break
+            }
+            lastWordStart = previous
+        }
+
+        let prefix = self[..<lastWordStart]
+        var result = ""
+        var index = prefix.startIndex
+        var needsSpace = false
+
+        while index < prefix.endIndex {
+            while index < prefix.endIndex, prefix[index].isWhitespace {
+                prefix.formIndex(after: &index)
+            }
+            guard index < prefix.endIndex else { break }
+
+            let wordStart = index
+            while index < prefix.endIndex, !prefix[index].isWhitespace {
+                prefix.formIndex(after: &index)
+            }
+
+            if needsSpace {
+                result += " "
+            }
+            result += String(prefix[wordStart..<index])
+            needsSpace = true
+        }
+
+        return result
     }
     
     func dropFirstAndLastWords() -> String {
@@ -262,9 +299,7 @@ public extension String {
     //removes all spaces in the string
     //for selective spaces, replace 🔥 symbol with a single space
     func spaceless() -> String {
-        let withoutSpace = self.components(separatedBy: .whitespacesAndNewlines)
-            .filter { !$0.isEmpty }
-            .joined()
+        let withoutSpace = String(self.filter { !$0.isWhitespace && !$0.isNewline })
         return withoutSpace.replacingOccurrences(of: "🔥", with: " ")
     }
     
@@ -273,8 +308,19 @@ public extension String {
     static let newLine2 = "\r\n"
 
     func splitIntoLines() -> [String] {
-        //return self.components(separatedBy: .newlines)
-        return split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).map(String.init)
+        splitIntoLineSubstrings().map(String.init)
+    }
+
+    func splitIntoLineSubstrings() -> [Substring] {
+        split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
+    }
+
+    /// Splits on `separator`, trims each token, and drops empty results.
+    func splitTrimmed(separator: Character) -> [String] {
+        split(separator: separator).compactMap {
+            let t = $0.trim()
+            return t.isEmpty ? nil : String(t)
+        }
     }
 }
 
@@ -292,20 +338,53 @@ public extension Substring {
     var isNotEmpty: Bool { !isEmpty }
     var nonEmpty: Substring? { isEmpty ? nil : self }
 
-    func firstWord() -> String? {
-        return self.components(separatedBy: .whitespaces).first
+    /// First whitespace-delimited token; slice of `self` (no allocation beyond the view).
+    func firstWord() -> Substring? {
+        var i = startIndex
+        while i < endIndex, self[i].isWhitespace {
+            formIndex(after: &i)
+        }
+        guard i < endIndex else { return nil }
+        let wordStart = i
+        while i < endIndex, !self[i].isWhitespace {
+            formIndex(after: &i)
+        }
+        return self[wordStart..<i]
     }
-    
-    func trim() -> String {
-        return self.trimmingCharacters(in: .whitespacesAndNewlines)
+
+    func trimTrailing() -> Substring {
+        guard let index = lastIndex(where: { !$0.isWhitespace && !$0.isNewline }) else {
+            return self[startIndex..<startIndex]
+        }
+        return self[...index]
     }
+
+    /// Leading/trailing trim without allocating a new `String` (slice of `self`).
+    func trim() -> Substring {
+        guard let start = firstIndex(where: { !$0.isWhitespace && !$0.isNewline }) else {
+            return self[startIndex..<startIndex]
+        }
+        let end = lastIndex(where: { !$0.isWhitespace && !$0.isNewline })!
+        return self[start...end]
+    }
+    // MARK: - Delegation to `String` helpers (trimmed lines from `LineParser` are often `Substring`)
+    func hasOnly(_ txt: String) -> Bool { String(self).hasOnly(txt) }
+    func hasOnly(_ times: Int, of txt: String) -> Bool { String(self).hasOnly(times, of: txt) }
+    func has(prefix: String, filler txt: String, suffix: String) -> Bool {
+        String(self).has(prefix: prefix, filler: txt, suffix: suffix)
+    }
+    /// Last whitespace-delimited token (see `String.lastWord()`).
+    func lastWord() -> String? { String(self).lastWord() }
+    func dropFirstAndLastWords() -> String { String(self).dropFirstAndLastWords() }
+    var isStartingWithAlphabet: Bool { String(self).isStartingWithAlphabet }
+
 }
 
 public extension Array where Element == Substring {
     func trim() -> [String] {
-        var arr : [String] = []
+        var arr: [String] = []
         for str in self {
-            arr.append(str.trim())
+            arr.append(String(str.trim()))
         }
         return arr
     }
