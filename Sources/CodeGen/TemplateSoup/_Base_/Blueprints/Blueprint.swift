@@ -31,13 +31,26 @@ public protocol InputFileRepository: Actor {
 public typealias RenderClosure = (@Sendable (String, ParsedInfo) async throws -> Void)
 
 public extension Blueprint {
-    /// Registers modifier libraries on `sandbox` from this blueprint's `main.ss` front matter.
-    /// Reads the `symbols-to-load:` key (comma-separated); an empty or missing value loads the sandbox default set.
+    /// Reads the `symbols-to-load` key from `main.ss` front matter and registers the
+    /// declared language symbol libraries with the sandbox before script execution begins.
+    ///
+    /// Front matter example:
+    /// ```
+    /// -----
+    /// symbols-to-load : typescript, mongodb_typescript
+    /// -----
+    /// ```
+    ///
+    /// Supported values: `typescript`, `mongodb_typescript`, `java`, `noMocking`.
+    /// An empty or absent key is valid — no language-specific symbols are loaded.
+    /// An unrecognised token throws `EvaluationError.invalidInput` with a "did you mean?" hint.
     func loadSymbols(to sandbox: any Sandbox) async throws {
         let pInfo = await ParsedInfo.dummyForMainFile(with: sandbox.context)
+        // Load main.ss to access its front matter without executing the script body.
         let mainScript = try await loadScriptFile(fileName: TemplateConstants.MainScriptFile, with: pInfo)
-        // Same delimiter-based front matter as other `.ss` files; keys become the `values` map.
+        // FrontMatter.parse is a synchronous, context-free scan — safe to call before the sandbox is fully configured.
         let frontMatter = FrontMatter.parse(contents: mainScript.toString()).values
+        // An absent key produces an empty set, which is a valid no-op for blueprints that rely solely on _modifiers_/.
         let symbols = try PreDefinedSymbols.parseList(frontMatter["symbols-to-load"] ?? "", pInfo: pInfo)
         try await sandbox.loadSymbols(symbols)
     }
