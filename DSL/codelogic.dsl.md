@@ -25,6 +25,8 @@ expression | The payload / condition / argument on the same line as the keyword 
 - **Line statement** (no leading `>`): tree depth = N + 1.
 - Block keywords are written in **UPPERCASE** by convention; matching is case-insensitive.
 
+**Key/value lines inside blocks** (`path>`, `body>`, `metadata>`, `payload>`, NOTIFY `data>`, …): a non-block line that looks like `name = value` is always parsed as an **assignment**, even when `name` matches a statement keyword (e.g. `priority = "high"` inside `metadata>`).
+
 ---
 
 ## 1. Attaching Logic to a Method
@@ -687,6 +689,32 @@ legacyCall() : any
 ---
 ````
 
+### 9.5 Notifications (`NOTIFY`) and domain events (`PUBLISH`)
+
+**`NOTIFY`** — `|> NOTIFY <type> <recipient>` opens a block. Same-depth siblings include `TO`, `SUBJECT`, `TITLE`, `MESSAGE`, `BODY`, `PRIORITY`, `SEVERITY`, `CHANNEL`, `TEMPLATE`, `DATA` (block; body fields are `key = value` rows), and `LET`.
+
+````modelhike
+notifyOps() : Void
+------------------
+|> NOTIFY EMAIL ops@example.com
+| |> TO oncall@example.com
+| |> SUBJECT Deployment failed
+| |> BODY
+| |  details = log.summary
+---
+````
+
+**`PUBLISH`** — `|> PUBLISH EventName` or `|> PUBLISH EventName TO channel-name`. Siblings: `PAYLOAD`, `METADATA`, `LET`.
+
+````modelhike
+emitChange() : Void
+-------------------
+|> PUBLISH OrderCompleted TO order-events
+| |> PAYLOAD
+| |  orderId = order.id
+---
+````
+
 ### HTTP Statement Reference
 
 Statement | Syntax |
@@ -705,6 +733,8 @@ Statement | Syntax |
 `payload` | `\|> PAYLOAD` (block; children are `key = value` pairs) |
 `metadata` | `\|> METADATA` (block; children are `key = value` pairs) |
 `http-raw` | `\|> HTTP-RAW connectionName` |
+`notify` | `\|> NOTIFY type recipient` — see §9.5 |
+`publish` | `\|> PUBLISH event [TO channel]` — see §9.5 |
 
 ---
 

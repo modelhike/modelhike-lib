@@ -108,6 +108,19 @@ public enum CodeLogicStmtKind: String, Sendable, Equatable {
     case httpRaw    = "http-raw"
     case note       = "note"
 
+    // MARK: Notifications / domain events
+    case notify     = "notify"
+    case to         = "to"
+    case subject    = "subject"
+    case title      = "title"
+    case message    = "message"
+    case priority   = "priority"
+    case severity   = "severity"
+    case channel    = "channel"
+    case data       = "data"
+    case template   = "template"
+    case publish    = "publish"
+
     // MARK: Fallback
     case unknown = "unknown"
 
@@ -136,6 +149,8 @@ public enum CodeLogicStmtKind: String, Sendable, Equatable {
         case .httpGraphQL: return CodeLogicStmt.HttpGraphQLNode.siblingChildKinds
         case .httpRaw:     return CodeLogicStmt.HttpRawNode.siblingChildKinds
         case .grpc:        return CodeLogicStmt.GrpcNode.siblingChildKinds
+        case .notify:      return CodeLogicStmt.NotifyNode.siblingChildKinds
+        case .publish:     return CodeLogicStmt.PublishNode.siblingChildKinds
         default:           return []
         }
     }
@@ -153,6 +168,8 @@ public enum CodeLogicStmtKind: String, Sendable, Equatable {
             .union(CodeLogicStmt.HttpGraphQLNode.siblingChildKinds)
             .union(CodeLogicStmt.HttpRawNode.siblingChildKinds)
             .union(CodeLogicStmt.GrpcNode.siblingChildKinds)
+            .union(CodeLogicStmt.NotifyNode.siblingChildKinds)
+            .union(CodeLogicStmt.PublishNode.siblingChildKinds)
         // `let` and `set` are also used as standalone statements — exclude them.
         let standaloneAlso: Set<CodeLogicStmtKind> = [.let, .set]
         return allClaimable.contains(self) && !standaloneAlso.contains(self)
@@ -176,7 +193,8 @@ public enum CodeLogicStmtKind: String, Sendable, Equatable {
              .httpRaw,
              .grpc, .payload, .metadata,
              .params, .sql,
-             .raw, .note:
+             .raw, .note,
+             .notify, .data, .publish:
             return true
         default:
             return false

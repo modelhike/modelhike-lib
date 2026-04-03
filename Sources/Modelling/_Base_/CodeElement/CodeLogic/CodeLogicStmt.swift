@@ -170,6 +170,11 @@ extension CodeLogicStmt {
         /// Owns: parsed `lines: [String]` from children
         case note(HttpRawNode.NoteNode)
 
+        // MARK: Notifications / domain events
+        case notify(NotifyNode)
+        case publish(PublishNode)
+        case notifyField(NotifyFieldNode)
+
         // MARK: Fallback
         case unknown(UnknownNode)
     }
@@ -691,6 +696,42 @@ extension CodeLogicStmt {
             )
         }
     }
+
+    /// `notify> TYPE recipient` — claims `to`, `subject`, `body`, `message`, `title`, `priority`, `severity`, `channel`, `data`, `template`, `let` siblings.
+    public struct NotifyNode: Sendable {
+        public let notificationType: String
+        public let recipient: String?
+
+        static let siblingChildKinds: Set<CodeLogicStmtKind> = [
+            .to, .subject, .body, .message, .title, .priority, .severity, .channel, .data, .template, .let
+        ]
+
+        static func parse(expression: String, from children: [CodeLogicStmt]) -> NotifyNode {
+            let parsed = CodeLogicStmt.Node.splitHeadAndTail(from: expression)
+            return NotifyNode(notificationType: parsed.head, recipient: parsed.tail)
+        }
+    }
+
+    /// Inline or block field inside `notify>` (e.g. `to>`, `subject>`).
+    public struct NotifyFieldNode: Sendable {
+        public let field: CodeLogicStmtKind
+        public let expression: String
+    }
+
+    /// `publish> EventName [TO channel]` — claims `payload`, `metadata`, `let` siblings.
+    public struct PublishNode: Sendable {
+        public let eventName: String
+        public let channel: String?
+
+        static let siblingChildKinds: Set<CodeLogicStmtKind> = [.payload, .metadata, .let]
+
+        static func parse(expression: String, from children: [CodeLogicStmt]) -> PublishNode {
+            if let parsed = CodeLogicStmt.Node.splitAroundKeyword("TO", in: expression) {
+                return PublishNode(eventName: parsed.left, channel: parsed.right)
+            }
+            return PublishNode(eventName: expression.trim(), channel: nil)
+        }
+    }
 }
 
 // MARK: - HttpGraphQLNode
@@ -1074,6 +1115,20 @@ extension CodeLogicStmt.Node {
             return .grpc(CodeLogicStmt.GrpcNode.parse(service: svc, rpcMethod: method, from: children))
         case .payload:  return .grpcPayload(CodeLogicStmt.GrpcNode.PayloadNode.parse(from: children))
         case .metadata: return .grpcMetadata(CodeLogicStmt.GrpcNode.MetadataNode.parse(from: children))
+
+        // MARK: Notifications / domain events
+        case .notify:   return .notify(CodeLogicStmt.NotifyNode.parse(expression: expression, from: children))
+        case .publish:  return .publish(CodeLogicStmt.PublishNode.parse(expression: expression, from: children))
+        case .to:       return .notifyField(.init(field: .to, expression: expression))
+        case .subject:  return .notifyField(.init(field: .subject, expression: expression))
+        case .title:    return .notifyField(.init(field: .title, expression: expression))
+        case .message:  return .notifyField(.init(field: .message, expression: expression))
+        case .priority: return .notifyField(.init(field: .priority, expression: expression))
+        case .severity: return .notifyField(.init(field: .severity, expression: expression))
+        case .channel:  return .notifyField(.init(field: .channel, expression: expression))
+        case .template: return .notifyField(.init(field: .template, expression: expression))
+        case .data:
+            return .httpBody(CodeLogicStmt.HttpNode.BodyNode.parse(from: children))
 
         // MARK: Transaction control
         case .transaction: return .transaction(.init(name: expression.blankToNil))

@@ -177,6 +177,13 @@ public enum CodeLogicParser {
         let firstWord = parts.first.lowercased()
         let depth     = isBlock ? N : N + 1
 
+        // Bare `key = value` lines inside parameter blocks (path>, body>, metadata>, NOTIFY DATA, …)
+        // must stay as `assign` even when `key` matches a pipe-gutter keyword (e.g. `priority`,
+        // `channel`, `data`) so gRPC/HTTP metadata fields and similar KV lines keep working.
+        if !isBlock && parts.second.hasPrefix("=") {
+            return ParsedLogicLine(depth: depth, keyword: "assign", expression: content)
+        }
+
         if CodeLogicStmtKind(rawValue: firstWord) == nil {
             if isBlock {
                 // Unknown block opener (e.g. |> CUSTOM expr): keep as .unknown, expression only.

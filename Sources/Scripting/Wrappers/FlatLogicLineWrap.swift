@@ -197,6 +197,16 @@ public struct FlatLogicLineData: Sendable {
             letName = n.letBinding?.name ?? ""
         case .dbProcCall(let n):
             letName = n.letBinding?.name ?? ""
+        case .notify(let n):
+            if let r = n.recipient {
+                expr = "\(n.notificationType) \(r)".trimmingCharacters(in: .whitespaces)
+            } else {
+                expr = n.notificationType
+            }
+        case .publish(let n):
+            expr = n.channel.map { "\(n.eventName) TO \($0)" } ?? n.eventName
+        case .notifyField(let n):
+            expr = n.expression
         default:
             break
         }
