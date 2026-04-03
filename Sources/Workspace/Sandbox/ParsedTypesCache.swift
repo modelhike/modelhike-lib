@@ -8,7 +8,9 @@ import Foundation
 
 public actor ParsedTypesCache : SendableDebugStringConvertible {
     public private(set) var items: [CodeObject] = []
-    
+    private var nameIndex: [String: CodeObject] = [:]
+    private var givennameIndex: [String: CodeObject] = [:]
+
     public func getLastPropInRecursive(_ propName: String, inObj objectName: String) async -> Property? {
         if let obj = await self.get(for: objectName) {
             if let prop = await obj.getLastPropInRecursive(propName, appModel: self) {
@@ -21,21 +23,12 @@ public actor ParsedTypesCache : SendableDebugStringConvertible {
         
     public func get(for name: String) async -> CodeObject? {
         let normalizedName = name.lowercased()
-        let fallbackNames = normalizedFallbackNames(for: name)
+        if let found = nameIndex[normalizedName] { return found }
+        if let found = givennameIndex[normalizedName] { return found }
 
-        for item in items {
-            let itemNames = [
-                await item.givenname.lowercased(),
-                await item.name.lowercased(),
-            ]
-
-            if itemNames.contains(normalizedName) {
-                return item
-            }
-
-            for itemName in itemNames where fallbackNames.contains(itemName) {
-                return item
-            }
+        for fallback in normalizedFallbackNames(for: name) {
+            if let found = nameIndex[fallback] { return found }
+            if let found = givennameIndex[fallback] { return found }
         }
         return nil
     }
@@ -58,12 +51,16 @@ public actor ParsedTypesCache : SendableDebugStringConvertible {
     }
 
      
-    public func append(_ item: CodeObject) {
+    public func append(_ item: CodeObject) async {
         items.append(item)
+        nameIndex[await item.name.lowercased()] = item
+        givennameIndex[await item.givenname.lowercased()] = item
     }
-    
-    public func append(_ newItems : [CodeObject]) {
-        items.append(contentsOf: newItems)
+
+    public func append(_ newItems: [CodeObject]) async {
+        for item in newItems {
+            await append(item)
+        }
     }
     
     public var debugDescription: String { get async {
