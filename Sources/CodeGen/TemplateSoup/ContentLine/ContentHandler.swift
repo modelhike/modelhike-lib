@@ -112,17 +112,17 @@ public enum ContentHandler {
     }
     
     public static func execute(line: String, identifier: String, with ctx: Context) async throws -> String? {
-        var str = ""
-        
         let pInfo = await ParsedInfo.dummy(line: line, identifier: identifier, with: ctx);
         let items = try await parseLine(line, pInfo: pInfo, level: 0)
-        
+
+        var parts: [String] = []
         for item in items {
             if let result = try await item.execute(with: ctx) {
-                str += result
+                parts.append(result)
             }
         }
-        
+
+        let str = parts.joined()
         return str.trim().isNotEmpty ? str : nil
     }
     

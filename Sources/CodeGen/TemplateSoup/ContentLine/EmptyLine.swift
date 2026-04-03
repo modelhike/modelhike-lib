@@ -19,13 +19,7 @@ public struct EmptyLine: TemplateItem, StringConvertible, CustomDebugStringConve
     }
     
     public func toString() -> String {
-        var str = ""
-        
-        for _ in 1...linesCount {
-            str += Self.characters
-        }
-        
-        return str
+        String(repeating: Self.characters, count: linesCount)
     }
     
     public init(_ lines: Int) {

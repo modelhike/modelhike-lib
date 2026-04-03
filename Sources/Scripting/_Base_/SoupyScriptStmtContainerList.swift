@@ -37,16 +37,17 @@ public actor SoupyScriptStmtContainerList : _CollectionAsyncSequence, SendableDe
     public var count: Int { items.count }
     
     public func execute(with ctx: Context) async throws -> String? {
-        var str: String = ""
-        
+        var parts: [String] = []
+
         for item in items {
             if let genericContainer = item as? GenericStmtsContainer {
                 if let result = try await genericContainer.execute(with: ctx) {
-                    str += result
+                    parts.append(result)
                 }
             }
         }
-        
+
+        let str = parts.joined()
         return str.isNotEmpty ? str : nil
     }
     

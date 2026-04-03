@@ -96,14 +96,7 @@ public enum Modifiers  {
 
 public extension Array where Element == ModifierInstance {
     func nameString() -> String {
-        var modifiersStr = "none"
-
-        if self.count > 0 {
-            modifiersStr = self.reduce("") { (res, item) in
-                return res + item.name
-            }
-        }
-        
-        return modifiersStr
+        guard isEmpty == false else { return "none" }
+        return map(\.name).joined()
     }
 }

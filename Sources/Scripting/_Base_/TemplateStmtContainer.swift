@@ -29,17 +29,18 @@ public actor GenericStmtsContainer : SoupyScriptStmtContainer {
     }
     
     public func execute(with ctx: Context) async throws -> String? {
-        var str: String = ""
-        
+        var parts: [String] = []
+
         for item in items {
             if let stepper = await ctx.debugStepper {
                 await stepper.willExecute(item: item, ctx: ctx)
             }
             if let result = try await item.execute(with: ctx) {
-                str += result
+                parts.append(result)
             }
         }
-        
+
+        let str = parts.joined()
         return str.isNotEmpty ? str : nil
     }
     

@@ -16,7 +16,7 @@ public actor TemplateFunction: SoupyScriptStmtContainer {
     public func execute(args: [ArgumentDeclaration], pInfo: ParsedInfo, with ctx: Context) async throws
         -> String?
     {
-        var rendering = ""
+        var rendering: String? = nil
 
         //IMPORTANT : ctx push/pop should not be used here as
         //any variable modification
@@ -54,9 +54,7 @@ public actor TemplateFunction: SoupyScriptStmtContainer {
             }
         }
             
-        if let body = try await container.execute(with: ctx) {
-            rendering += body
-        }
+        rendering = try await container.execute(with: ctx)
 
         //remove the arvs from affecting rest of the context
         for arg in args {
@@ -70,7 +68,7 @@ public actor TemplateFunction: SoupyScriptStmtContainer {
 
         //ctx.popSnapshot()
 
-        return rendering.isNotEmpty ? rendering : nil
+        return rendering
     }
 
     public func snapshot() async -> [TemplateItem] {

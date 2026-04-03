@@ -195,14 +195,16 @@ public class ParserUtil {
 
     /// Continues reading lines until the accumulated `{ ... }` block is balanced.
     private static func collectBalancedBraceBlock(startingWith initial: String, from parser: any LineParser) async -> String {
-        var combined = initial
-        while braceBalance(combined) != 0 {
+        var parts: [String] = [initial]
+        var balance = braceBalance(initial)
+        while balance != 0 {
             guard await parser.linesRemaining else { break }
             await parser.skipLine()
             let nextLine = await parser.currentLine()
-            combined += String.newLine + nextLine
+            balance += braceBalance(nextLine)
+            parts.append(nextLine)
         }
-        return combined
+        return parts.joined(separator: String.newLine)
     }
 
     /// Extracts the inner text of the first balanced `{ ... }` block, trimming surrounding whitespace/newlines.

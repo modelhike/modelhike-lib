@@ -17,13 +17,15 @@ public struct ContentLine: TemplateItem, CustomDebugStringConvertible {
     }
 
     public func execute(with ctx: Context) async throws -> String? {
-        var str = ""
+        var parts: [String] = []
 
         for item in items {
             if let result = try await item.execute(with: ctx) {
-                str += result
+                parts.append(result)
             }
         }
+
+        var str = parts.joined()
 
         if let ws = items.first as? WhitespaceContent, str.contains(String.newLine) {
             let indent = ws.content

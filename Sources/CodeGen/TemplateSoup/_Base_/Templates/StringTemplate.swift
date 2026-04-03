@@ -19,7 +19,7 @@ public struct StringTemplate : Template, Script, ExpressibleByStringLiteral, Exp
     }
     
     public func toString() -> String {
-        return items.reduce("") { $0 + $1.toString() }
+        items.map { $0.toString() }.joined()
     }
     
     public var string: String { toString() }
@@ -68,13 +68,7 @@ public struct TabChar : StringConvertible {
     static public let characters = "\t"
     
     public func toString() -> String {
-        var str = ""
-        
-        for _ in 1...linesCount {
-            str += Self.characters
-        }
-        
-        return str
+        String(repeating: Self.characters, count: linesCount)
     }
     
     public init(_ lines: Int) {

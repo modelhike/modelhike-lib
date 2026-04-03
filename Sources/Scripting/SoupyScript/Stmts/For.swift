@@ -57,7 +57,7 @@ public struct ForStmt: BlockTemplateStmt {
         }
         
         let loopVariableName = ForVar
-        var rendering = ""
+        var parts: [String] = []
 
         await ctx.pushSnapshot()
         let loopWrap = ForLoop_Wrap(self)
@@ -69,14 +69,13 @@ public struct ForStmt: BlockTemplateStmt {
             await loopWrap.LAST_IN_LOOP( index == loopItems.index(before: loopItems.endIndex))
             
             if let body = try await children.execute(with: ctx) {
-                rendering += body
+                parts.append(body)
             }
-                
         }
         
         await ctx.popSnapshot()
         
-        return rendering.isNotEmpty ? rendering : nil
+        return parts.isEmpty ? nil : parts.joined()
     }
     
     public var debugDescription: String {

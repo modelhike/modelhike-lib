@@ -98,41 +98,28 @@ public struct IfStmt: MultiBlockTemplateStmt {
     public func execute(with ctx: Context) async throws -> String? {
         guard IFCondition.isNotEmpty else { return nil }
         
-        var rendering = ""
-        
         if try await ctx.evaluateCondition(expression: IFCondition, with: pInfo) {
             await ctx.debugLog.ifConditionSatisfied(condition: IFCondition, pInfo: self.pInfo)
-            
-            if let body = try await children.execute(with: ctx) {
-                rendering += body
-            }
+            return try await children.execute(with: ctx)
         } else {
             var conditionEvalIsTrue = false
-            
+
             for elseIfBlock in elseIfBlocks {
                 if try await ctx.evaluateCondition(expression: elseIfBlock.condition, with: elseIfBlock.pInfo) {
                     await ctx.debugLog.elseIfConditionSatisfied(condition: elseIfBlock.condition, pInfo: elseIfBlock.pInfo)
-                    
                     conditionEvalIsTrue = true
-
-                    if let body = try await elseIfBlock.execute(with: ctx) {
-                        rendering += body
-                    }
-                    break
+                    return try await elseIfBlock.execute(with: ctx)
                 }
             }
 
             //if no condition is evaluating to true
             if let elseBlock = self.elseBlock, !conditionEvalIsTrue {
                 await ctx.debugLog.elseBlockExecuting(elseBlock.pInfo)
-                
-                if let body = try await elseBlock.execute(with: ctx) {
-                    rendering += body
-                }
+                return try await elseBlock.execute(with: ctx)
             }
         }
-        
-        return rendering.isNotEmpty ? rendering : nil
+
+        return nil
     }
     
     public var debugDescription: String {

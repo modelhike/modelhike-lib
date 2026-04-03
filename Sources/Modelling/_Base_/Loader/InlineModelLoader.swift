@@ -12,13 +12,13 @@ public struct InlineModelLoader : ModelRepository, Sendable {
     
     public func loadModel(to model: AppModel) async throws {
         //first parse the common types
-        var commonsString = ""
-        
+        var commonParts: [String] = []
         for item in items {
             if let commonsItem = item as? InlineCommonTypes {
-                commonsString += commonsItem.string
+                commonParts.append(commonsItem.string)
             }
         }
+        let commonsString = commonParts.joined()
         
         //common models
         let commons = try await ModelFileParser( with: ctx)
@@ -116,7 +116,7 @@ public protocol InlineModelProtocol: Sendable {
 
 public extension InlineModelProtocol {
     var string: String {
-        return items.reduce("") { $0 + $1.toString() }
+        items.map { $0.toString() }.joined()
     }
 }
 
