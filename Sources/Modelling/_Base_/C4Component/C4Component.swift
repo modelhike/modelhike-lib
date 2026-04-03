@@ -14,8 +14,27 @@ public actor C4Component : ArtifactHolder {
     public var name: String = ""
     public var givenname: String = ""
     public let dataType: ArtifactKind = .container
+    public private(set) var description: String?
+    /// Module-level `=` expressions (computed constants).
+    public private(set) var expressions: [Property] = []
+    /// Module-level `~` methods / setext functions.
+    public private(set) var functions: [MethodObject] = []
+    /// Module-level named constraints (`= name : { ... }`).
+    public let namedConstraints = Constraints()
 
     public internal(set) var items : [Artifact] = []
+
+    public func setDescription(_ value: String?) {
+        self.description = value
+    }
+
+    public func append(expression item: Property) {
+        expressions.append(item)
+    }
+
+    public func append(function item: MethodObject) {
+        functions.append(item)
+    }
     
     public func forEachEntity(by process: (CodeObject) throws -> Void) async throws {
         for item in await types {

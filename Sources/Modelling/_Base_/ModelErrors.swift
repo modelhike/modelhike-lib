@@ -12,6 +12,8 @@ public enum Model_ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeProvidin
     case invalidPropertyUsedInApi(String, ParsedInfo)
     case invalidMapping(String, ParsedInfo)
     case invalidPropertyLine(ParsedInfo)
+    /// `@constraintName` appears outside `{ }`; must be moved into the constraint block.
+    case propertyConstraintReferenceOutsideBlock(refs: [String], ParsedInfo)
     case invalidMethodLine(ParsedInfo)
     case invalidDerivedProperty(String, ParsedInfo)
     case invalidContainerMemberLine(ParsedInfo)
@@ -33,6 +35,9 @@ public enum Model_ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeProvidin
         case .invalidPropertyInType(let message, _): return message
         case .invalidPropertyUsedInApi(let message, _): return message
         case .invalidPropertyLine(let pInfo): return "invalid property: \(pInfo.line)"
+        case .propertyConstraintReferenceOutsideBlock(let refs, _):
+            let list = refs.map { "@\($0)" }.joined(separator: ", ")
+            return "Named constraint reference(s) \(list) must appear inside the { } constraint block, not outside. Move \(list) into { ... }."
         case .invalidDerivedProperty(let msg, _): return "invalid derived property: \(msg)"
         case .invalidMethodLine(let pInfo): return "invalid method: \(pInfo.line)"
 
@@ -64,6 +69,7 @@ public enum Model_ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeProvidin
         case .invalidPropertyUsedInApi: return "E603"
         case .invalidMapping: return "E604"
         case .invalidPropertyLine: return "E605"
+        case .propertyConstraintReferenceOutsideBlock: return "E620"
         case .invalidMethodLine: return "E606"
         case .invalidDerivedProperty: return "E607"
         case .invalidContainerMemberLine: return "E608"
@@ -87,6 +93,7 @@ public enum Model_ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeProvidin
         case .invalidPropertyInType(_, let pInfo): pInfo
         case .invalidPropertyUsedInApi(_, let pInfo): pInfo
         case .invalidPropertyLine(let pInfo): pInfo
+        case .propertyConstraintReferenceOutsideBlock(_, let pInfo): pInfo
         case .invalidDerivedProperty(_, let pInfo): pInfo
         case .invalidMethodLine(let pInfo): pInfo
 

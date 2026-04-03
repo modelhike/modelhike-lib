@@ -23,6 +23,7 @@ public struct ValidateModelsPass: LoadingPass {
         totalWarnings += await validateDuplicateTypeNames(model: model, ctx: ctx)
         totalWarnings += await validateDuplicateMemberNames(model: model, ctx: ctx)
         totalWarnings += await validateUnresolvedTypeReferences(model: model, ctx: ctx)
+        totalWarnings += await validateUnresolvedAtReferences(model: model, ctx: ctx)
 
         if totalWarnings > 0 {
             print("⚠️  Validation complete: \(totalWarnings) warning(s). Generation will continue.")
@@ -161,6 +162,119 @@ public struct ValidateModelsPass: LoadingPass {
                         source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: propName, level: 0)
                     )
                 }
+            }
+        }
+        return count
+    }
+
+    // MARK: - Unresolved `@name` constraint / expression references
+
+    /// Validates all parsed `@Name` references used as property defaults or applied constraints.
+    /// Builds a shared module/common lookup set first, then augments it with per-class named constraints.
+    private func validateUnresolvedAtReferences(model: AppModel, ctx: LoadContext) async -> Int {
+        var count = 0
+        var names = Set<String>()
+        // Build a global lookup set of all module/common expressions + named constraints first.
+        // We validate references against this shared pool, then widen per-type scope with class-level
+        // named constraints before checking that type's properties.
+        for comp in await model.commonModel.snapshot() {
+            await collectExpressionAndConstraintNames(from: comp, into: &names)
+        }
+        for c in await model.containers.snapshot() {
+            for comp in await c.components.snapshot() {
+                await collectExpressionAndConstraintNames(from: comp, into: &names)
+            }
+        }
+
+        let allNames = Array(names).sorted()
+        let knownLower = Set(names.map { $0.lowercased() })
+
+        // Module-level expressions are represented as `Property` values in `component.expressions`,
+        // so they can themselves contain `@...` references that need W302 validation.
+        for c in await model.containers.snapshot() {
+            for comp in await c.components.snapshot() {
+                count += await validateAtRefsForComponent(comp, knownLower: knownLower, allNames: allNames, ctx: ctx)
+            }
+        }
+
+        let allTypes = await model.types.items
+        for type_ in allTypes {
+            let ownerName = await type_.name
+            var scopeNames = knownLower
+            // DomainObject adds a local scope layer: class-level named constraints are valid only
+            // for properties declared on that class, so merge them here before property validation.
+            if let dom = type_ as? DomainObject {
+                for c in await dom.namedConstraints.snapshot() {
+                    if let n = c.name {
+                        scopeNames.insert(n.lowercased())
+                    }
+                }
+            }
+            for prop in await type_.properties {
+                count += await validatePropertyAtRefs(prop, ownerName: ownerName, knownLower: scopeNames, allNames: allNames, ctx: ctx)
+            }
+        }
+
+        return count
+    }
+
+    /// Adds a component's module-level expression names and named constraint names into one lookup pool.
+    private func collectExpressionAndConstraintNames(from component: C4Component, into names: inout Set<String>) async {
+        // Expressions and named constraints share the same `@Name` surface syntax, so the validator
+        // keeps one combined candidate list for lookup suggestions and case-insensitive resolution.
+        for ex in await component.expressions {
+            names.insert(await ex.name)
+        }
+        for c in await component.namedConstraints.snapshot() {
+            if let n = c.name {
+                names.insert(n)
+            }
+        }
+    }
+
+    /// Reuses property-level `@Name` validation for module-level expressions, which are modelled as `Property`.
+    private func validateAtRefsForComponent(_ component: C4Component, knownLower: Set<String>, allNames: [String], ctx: LoadContext) async -> Int {
+        var count = 0
+        // A module-level expression is parsed as a `Property`, so reuse the property validator.
+        for ex in await component.expressions {
+            count += await validatePropertyAtRefs(ex, ownerName: await component.name, knownLower: knownLower, allNames: allNames, ctx: ctx)
+        }
+        return count
+    }
+
+    /// Emits W302 diagnostics for unresolved `@Name` references on one property:
+    /// both `= @ExpressionName` defaults and `{ @constraintName }` applied constraints.
+    private func validatePropertyAtRefs(_ prop: Property, ownerName: String, knownLower: Set<String>, allNames: [String], ctx: LoadContext) async -> Int {
+        var count = 0
+        // `= @ExpressionName` is stored separately from constraint refs, because it is semantically
+        // a default-value expression reference rather than a predicate applied from `{ ... }`.
+        if let ref = await prop.appliedDefaultExpression {
+            if !knownLower.contains(ref.lowercased()) {
+                count += 1
+                ctx.debugLog.recordLookupDiagnostic(
+                    .warning,
+                    code: "W302",
+                    "Unresolved `@\(ref)` default expression reference on property '\(await prop.name)' in '\(ownerName)'.",
+                    lookup: ref,
+                    in: allNames,
+                    availableOptionsLabel: "known expressions/constraints",
+                    source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: await prop.name, level: 0)
+                )
+            }
+        }
+        // Constraint refs come from `@Name` entries inside the property's `{ ... }` block.
+        for ac in await prop.appliedConstraints {
+            if !knownLower.contains(ac.lowercased()) {
+                count += 1
+                ctx.debugLog.recordLookupDiagnostic(
+                    .warning,
+                    code: "W302",
+                    "Unresolved `@\(ac)` constraint reference on property '\(await prop.name)' in '\(ownerName)'.",
+                    lookup: ac,
+                    in: allNames,
+                    availableOptionsLabel: "known expressions/constraints",
+                    source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: await prop.name, level: 0)
+                )
             }
         }
         return count

@@ -23,13 +23,19 @@ public actor Property : CodeMember {
     public private(set) var defaultValue: String?
     public private(set) var validValueSet: [String] = []
     public var comment: String?
+    /// Documentation from `--` inline/after lines or composed descriptions.
+    public private(set) var description: String?
+    /// Named constraints applied via `@constraintName` inside `{ ... }` on the property line.
+    public private(set) var appliedConstraints: [String] = []
+    /// When default is `@ExpressionName`, the referenced module expression name (no `@` prefix).
+    public private(set) var appliedDefaultExpression: String?
     
     public static func parse(pInfo: ParsedInfo) async throws -> Property? {
         let originalLine = pInfo.line
         let firstWord = pInfo.firstWord
         
-        let line = originalLine.remainingLine(after: firstWord) //remove first word
-        
+        var line = originalLine.remainingLine(after: firstWord) //remove first word
+        let inlineDesc = ParserUtil.extractInlineDescription(from: &line)
         guard let match = line.wholeMatch(of: ModelRegEx.property_Capturing)                                                    else { return nil }
         
         let (
@@ -49,7 +55,13 @@ public actor Property : CodeMember {
         let prop = Property(givenName, pInfo: pInfo)
         
         if let defaultValue = defaultValue {
-            await prop.setDefaultValue(defaultValue)
+            let t = defaultValue.trim()
+            // Expression default: `@ExpressionName`. Not `@word::…` (that is annotation syntax, `Annotation_Split`).
+            if t.hasPrefix(ModelConstants.Annotation_Start), !t.contains(ModelConstants.Annotation_Split) {
+                await prop.setAppliedDefaultExpression(String(t.dropFirst(ModelConstants.Annotation_Start.count)).trim())
+            } else {
+                await prop.setDefaultValue(defaultValue)
+            }
         }
 
         if let validValueSet = validValueSet {
@@ -89,13 +101,29 @@ public actor Property : CodeMember {
         if let tagString = tagString {
             await ParserUtil.populateTags(for: prop, from: tagString)
         }
+
+        // Named constraint refs (`@Name`) must live inside `{ … }`. Strip that block so we can scan the
+        // rest of the signature for stray `@` (parse error E620); `= @ExpressionName` default is allowed there.
+        let outsideConstraintBlock = ParserUtil.lineByRemovingFirstBalancedBraceBlock(String(line))
+        // Collect `@` identifiers from `constraintInner` into `appliedConstraints`; validate outside segment.
+        let constraintRefNames = try ParserUtil.appliedConstraintNamesFromPropertySignature(
+            outsideConstraintBlock: outsideConstraintBlock,
+            constraintInner: constraintString,
+            appliedDefaultExpression: await prop.appliedDefaultExpression,
+            pInfo: pInfo
+        )
+        for n in constraintRefNames {
+            await prop.appendAppliedConstraint(n)
+        }
         
         switch firstWord {
         case ModelConstants.Member_PrimaryKey:
             await prop.required(.yes)
             await prop.primaryKey(true)
         case ModelConstants.Member_Mandatory : await prop.required(.yes)
-            case ModelConstants.Member_Optional, ModelConstants.Member_Optional2 :
+        case ModelConstants.Member_Calculated:
+            await prop.required(.no)
+        case ModelConstants.Member_Optional, ModelConstants.Member_Optional2 :
             await prop.required(.no)
            default :
             if firstWord.starts(with: ModelConstants.Member_Conditional) {
@@ -104,6 +132,8 @@ public actor Property : CodeMember {
                 await prop.required(.no)
             }
         }
+
+        await ParserUtil.appendDescription(inlineDesc, to: prop)
         
         await pInfo.parser.skipLine()
 
@@ -139,6 +169,7 @@ public actor Property : CodeMember {
         switch firstWord {
             case ModelConstants.Member_PrimaryKey : return true
             case ModelConstants.Member_Mandatory : return true
+            case ModelConstants.Member_Calculated : return true
             case ModelConstants.Member_Optional, ModelConstants.Member_Optional2 : return true
             default :
                 if firstWord.starts(with: ModelConstants.Member_Conditional) {
@@ -167,6 +198,18 @@ public actor Property : CodeMember {
 
     public func setValidValueSet(_ value: String?) {
         self.validValueSet = ParserUtil.parseValidValueSet(from: value)
+    }
+
+    public func setDescription(_ value: String?) {
+        self.description = value
+    }
+
+    public func appendAppliedConstraint(_ name: String) {
+        appliedConstraints.append(name)
+    }
+
+    public func setAppliedDefaultExpression(_ name: String?) {
+        self.appliedDefaultExpression = name
     }
     
     public init(_ givenName: String, pInfo: ParsedInfo) {
