@@ -65,8 +65,8 @@ public struct ForStmt: BlockTemplateStmt {
         
         for (index, loopItem) in loopItems.enumerated() {
             await ctx.variables.set(loopVariableName, value: loopItem)
-            await loopWrap.FIRST_IN_LOOP( index == loopItems.startIndex )
-            await loopWrap.LAST_IN_LOOP( index == loopItems.index(before: loopItems.endIndex))
+            loopWrap.FIRST_IN_LOOP(index == loopItems.startIndex)
+            loopWrap.LAST_IN_LOOP(index == loopItems.index(before: loopItems.endIndex))
             
             if let body = try await children.execute(with: ctx) {
                 parts.append(body)

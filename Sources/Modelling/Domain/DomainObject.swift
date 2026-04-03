@@ -26,13 +26,24 @@ public actor DomainObject : CodeObject {
         self.description = value
     }
 
-    public var properties : [Property]  { get async { await members.compactMap({
-        if let prop = $0 as? Property { return prop } else {return nil}
-    }) }}
-    
-    public var methods : [MethodObject] { members.compactMap({
-        if let method = $0 as? MethodObject { return method } else {return nil}
-    }) }
+    private var _cachedProperties: [Property]?
+    private var _cachedMethods: [MethodObject]?
+
+    public var properties: [Property] {
+        get async {
+            if let cached = _cachedProperties { return cached }
+            let computed: [Property] = ParserUtil.filterCodeMembers(members)
+            _cachedProperties = computed
+            return computed
+        }
+    }
+
+    public var methods: [MethodObject] {
+        if let cached = _cachedMethods { return cached }
+        let computed: [MethodObject] = ParserUtil.filterCodeMembers(members)
+        _cachedMethods = computed
+        return computed
+    }
     
     public private(set) var dataType: ArtifactKind = .unKnown
 
@@ -43,6 +54,8 @@ public actor DomainObject : CodeObject {
     @discardableResult
     func append(_ item: CodeMember) -> Self {
         members.append(item)
+        _cachedProperties = nil
+        _cachedMethods = nil
         return self
     }
     

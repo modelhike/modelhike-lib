@@ -140,14 +140,18 @@ public final class ContextDebugLog: Sendable {
     }
     
     public func parseLines(ended endKeyWord: String, pInfo: ParsedInfo) {
-        recordEvent(.parseBlockEnded(keyword: endKeyWord, source: SourceLocation(from: pInfo)))
+        if recorder != nil {
+            recordEvent(.parseBlockEnded(keyword: endKeyWord, source: SourceLocation(from: pInfo)))
+        }
         if flags.lineByLineParsing || flags.blockByBlockParsing {
             print("[\(pInfo.lineNo)] PARSE LINES ENDED>> \(endKeyWord)")
         }
     }
-    
+
     public func stmtDetected(keyWord: String, pInfo: ParsedInfo) {
-        recordEvent(.statementDetected(keyword: keyWord, source: SourceLocation(from: pInfo)))
+        if recorder != nil {
+            recordEvent(.statementDetected(keyword: keyWord, source: SourceLocation(from: pInfo)))
+        }
         if flags.lineByLineParsing {
             print("[\(pInfo.lineNo)] STMT DETECT>> \(keyWord)")
         }
@@ -172,20 +176,26 @@ public final class ContextDebugLog: Sendable {
     }
     
     public func content(_ line: String, pInfo: ParsedInfo) {
-        recordEvent(.textContent(text: line, source: SourceLocation(from: pInfo)))
+        guard recorder != nil || flags.lineByLineParsing else { return }
+        if recorder != nil {
+            recordEvent(.textContent(text: line, source: SourceLocation(from: pInfo)))
+        }
         if flags.lineByLineParsing {
             print("[\(pInfo.lineNo)] --txt-- \(line)")
         }
     }
-    
+
     public func inlineExpression(_ line: String, pInfo: ParsedInfo) {
+        guard recorder != nil || flags.lineByLineParsing else { return }
         if flags.lineByLineParsing {
             print("[\(pInfo.lineNo)] -------{{ \(line) }}")
         }
     }
-    
+
     public func inlineFunctionCall(_ line: String, pInfo: ParsedInfo) {
-        recordEvent(.functionCallEvaluated(expression: line, source: SourceLocation(from: pInfo)))
+        if recorder != nil {
+            recordEvent(.functionCallEvaluated(expression: line, source: SourceLocation(from: pInfo)))
+        }
         if flags.lineByLineParsing {
             print("[\(pInfo.lineNo)] -------={{ \(line) }}=")
         }

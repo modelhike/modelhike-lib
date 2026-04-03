@@ -58,54 +58,37 @@ public extension ScriptParser {
     }
     
     func parseStmts(_ stmtWord: String, pInfo: ParsedInfo, to container: any SoupyScriptStmtContainer, with ctx: Context) async throws {
-        
-        var isStmtIdentified = false
-        
-        for config in await ctx.symbols.template.statements {
-            if stmtWord == config.keyword {
-                isStmtIdentified = true
-                
-                if config.kind == .block {
-                    await ctx.debugLog.stmtDetected(keyWord: config.keyword, pInfo: pInfo)
-                    
-                    var stmt = config.getNewObject(pInfo) as! BlockTemplateStmt
-                    try await stmt.parseStmtLineAndChildren(scriptParser: self)
-                    await container.append(stmt)
-                    break
-                    
-                } else if config.kind == .line {
-                    await ctx.debugLog.stmtDetected(keyWord: config.keyword, pInfo: pInfo)
-                    
-                    var stmt = config.getNewObject(pInfo) as! LineTemplateStmt
-                    try await stmt.parseStmtLine()
-                    await container.append(stmt)
-                    break
-                    
-                } else if config.kind == .blockOrLine {
-                    await ctx.debugLog.stmtDetected(keyWord: config.keyword, pInfo: pInfo)
-                    
-                    var stmt = config.getNewObject(pInfo) as! BlockOrLineTemplateStmt
-                    try await stmt.parseAsPerVariant(scriptParser: self)
-                    await container.append(stmt)
-                    break
-                    
-                } else if config.kind == .multiBlock {
-                    await ctx.debugLog.stmtDetected(keyWord: config.keyword, pInfo: pInfo)
-                    
-                    var stmt = config.getNewObject(pInfo) as! MultiBlockTemplateStmt
-                    try await stmt.parseStmtLineAndBlocks(scriptParser: self)
-                    await container.append(stmt)
-                    break
-                }
+        let template = await ctx.symbols.template
+        if let config = template.statementsByKeyword[stmtWord] {
+            switch config.kind {
+            case .block:
+                await ctx.debugLog.stmtDetected(keyWord: config.keyword, pInfo: pInfo)
+                var stmt = config.getNewObject(pInfo) as! BlockTemplateStmt
+                try await stmt.parseStmtLineAndChildren(scriptParser: self)
+                await container.append(stmt)
+            case .line:
+                await ctx.debugLog.stmtDetected(keyWord: config.keyword, pInfo: pInfo)
+                var stmt = config.getNewObject(pInfo) as! LineTemplateStmt
+                try await stmt.parseStmtLine()
+                await container.append(stmt)
+            case .blockOrLine:
+                await ctx.debugLog.stmtDetected(keyWord: config.keyword, pInfo: pInfo)
+                var stmt = config.getNewObject(pInfo) as! BlockOrLineTemplateStmt
+                try await stmt.parseAsPerVariant(scriptParser: self)
+                await container.append(stmt)
+            case .multiBlock:
+                await ctx.debugLog.stmtDetected(keyWord: config.keyword, pInfo: pInfo)
+                var stmt = config.getNewObject(pInfo) as! MultiBlockTemplateStmt
+                try await stmt.parseStmtLineAndBlocks(scriptParser: self)
+                await container.append(stmt)
             }
+            return
         }
-        
-        if !isStmtIdentified {
-            //most likely, this stmt maybe part of a multi block stmt
-            //if so, this will be processed and identified by the multiblock stmt
-            let stmt = UnIdentifiedStmt(pInfo: pInfo)
-            await container.append(stmt)
-        }
+
+        //most likely, this stmt maybe part of a multi block stmt
+        //if so, this will be processed and identified by the multiblock stmt
+        let stmt = UnIdentifiedStmt(pInfo: pInfo)
+        await container.append(stmt)
     }
     
     func parseStartTemplateFunction(stmtWord: String, pInfo: ParsedInfo) async throws -> Bool {

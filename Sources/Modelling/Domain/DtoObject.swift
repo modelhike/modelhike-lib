@@ -23,17 +23,35 @@ public actor DtoObject : CodeObject {
         self.description = value
     }
 
-    public var derivedProperties : [DerivedProperty] { get async { await members.compactMap({
-        if let dprop = $0 as? DerivedProperty { return dprop } else {return nil}
-    }) }}
-    
-    public var properties : [Property] { get async { await members.compactMap({
-        if let dprop = $0 as? DerivedProperty { return await dprop.prop } else {return nil}
-    }) }}
-    
-    public var methods : [MethodObject] { members.compactMap({
-        if let method = $0 as? MethodObject { return method } else {return nil}
-    }) }
+    private var _cachedDerivedProperties: [DerivedProperty]?
+    private var _cachedProperties: [Property]?
+    private var _cachedMethods: [MethodObject]?
+
+    public var derivedProperties: [DerivedProperty] {
+        get async {
+            if let cached = _cachedDerivedProperties { return cached }
+            let computed: [DerivedProperty] = ParserUtil.filterCodeMembers(members)
+            _cachedDerivedProperties = computed
+            return computed
+        }
+    }
+
+    public var properties: [Property] {
+        get async {
+            if let cached = _cachedProperties { return cached }
+            let derivedList = await derivedProperties
+            let computed = await derivedList.compactMap { await $0.prop }
+            _cachedProperties = computed
+            return computed
+        }
+    }
+
+    public var methods: [MethodObject] {
+        if let cached = _cachedMethods { return cached }
+        let computed: [MethodObject] = ParserUtil.filterCodeMembers(members)
+        _cachedMethods = computed
+        return computed
+    }
     
     public private(set) var dataType: ArtifactKind = .unKnown
 
@@ -42,10 +60,11 @@ public actor DtoObject : CodeObject {
     }
     
     public func populateDerivedProperties() async throws {
+        let derivedList = await derivedProperties
         var i = 0
-        
-        while await i < derivedProperties.count {
-            let derivedProperty = await derivedProperties[i]
+
+        while i < derivedList.count {
+            let derivedProperty = derivedList[i]
             for mixin in mixins {
                 let nameToCompare = await derivedProperty.name.lowercased()
                 
@@ -69,6 +88,9 @@ public actor DtoObject : CodeObject {
     @discardableResult
     public func append(_ item: CodeMember) -> Self {
         members.append(item)
+        _cachedDerivedProperties = nil
+        _cachedProperties = nil
+        _cachedMethods = nil
         return self
     }
     

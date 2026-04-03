@@ -41,29 +41,42 @@ public actor C4Component : ArtifactHolder {
             if await item.dataType == .entity { try process(item) }
         }
      }
-    
-    public var types : [CodeObject] { get async {
-        var list: [CodeObject] = []
-        for item in items {
-            if let component = item as? C4Component {
-                await list.append(contentsOf: component.types)
-            } else if let obj = item as? CodeObject {
-                list.append(obj)
+
+    private var _cachedTypes: [CodeObject]?
+
+    public var types: [CodeObject] {
+        get async {
+            if let cached = _cachedTypes { return cached }
+            var list: [CodeObject] = []
+            for item in items {
+                if let component = item as? C4Component {
+                    await list.append(contentsOf: component.types)
+                } else if let obj = item as? CodeObject {
+                    list.append(obj)
+                }
             }
+            _cachedTypes = list
+            return list
         }
-        return list
-    }}
-    
+    }
+
+    private func invalidateTypesCache() {
+        _cachedTypes = nil
+    }
+
     public func append(_ item: CodeObject) {
         items.append(item)
+        invalidateTypesCache()
     }
-    
+
     public func append(_ item: UIObject) {
         items.append(item)
+        invalidateTypesCache()
     }
-    
+
     public func append(submodule item: C4Component) {
         items.append(item)
+        invalidateTypesCache()
     }
     
     public var isEmpty: Bool { items.count == 0 }

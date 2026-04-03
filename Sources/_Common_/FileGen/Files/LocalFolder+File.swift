@@ -250,7 +250,10 @@ public struct LocalFile : File, LocalFileSystemItem {
 
         do {
             let contents = try readTextContents()
-            let lines = contents.splitIntoLines()
+            var lines = contents.splitIntoLines()
+            if ignoreEmptyLines {
+                lines = lines.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            }
             return lines
         }
         catch {

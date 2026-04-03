@@ -39,22 +39,21 @@ public struct ValidateModelsPass: LoadingPass {
     private func validateUnresolvedModules(model: AppModel, ctx: LoadContext) async -> Int {
         var count = 0
         let containers = await model.containers.snapshot()
+        let allNames: [String] = await {
+            var names: [String] = []
+            for c in await model.containers.snapshot() {
+                for comp in await c.components.snapshot() {
+                    names.append(await comp.name)
+                    names.append(await comp.givenname)
+                }
+            }
+            return names
+        }()
         for container in containers {
             let unresolved = await container.unresolvedMembers
             let containerName = await container.name
             for member in unresolved {
                 count += 1
-                // Build suggestions from known module names
-                let allNames: [String] = await {
-                    var names: [String] = []
-                    for c in await model.containers.snapshot() {
-                        for comp in await c.components.snapshot() {
-                            names.append(await comp.name)
-                            names.append(await comp.givenname)
-                        }
-                    }
-                    return names
-                }()
                 ctx.debugLog.recordLookupDiagnostic(
                     .warning,
                     code: "W303",
@@ -139,10 +138,11 @@ public struct ValidateModelsPass: LoadingPass {
 
     private func validateUnresolvedTypeReferences(model: AppModel, ctx: LoadContext) async -> Int {
         var count = 0
-        let knownTypeNames: [String] = await model.types.items.asyncThrowingMap { await $0.name }
+        let typeItems = await model.types.items
+        let knownTypeNamesSet = Set(await typeItems.asyncThrowingMap { await $0.name })
+        let knownTypeNamesSorted = knownTypeNamesSet.sorted()
 
-        let allTypes = await model.types.items
-        for type_ in allTypes {
+        for type_ in typeItems {
             let ownerName = await type_.name
             for prop in await type_.properties {
                 let propName = await prop.name
@@ -150,14 +150,14 @@ public struct ValidateModelsPass: LoadingPass {
                 let typeName = typeInfo.objectString()
 
                 // Only check custom types that couldn't be resolved
-                if typeInfo.isCustomType, !knownTypeNames.contains(typeName) {
+                if typeInfo.isCustomType, !knownTypeNamesSet.contains(typeName) {
                     count += 1
                     ctx.debugLog.recordLookupDiagnostic(
                         .warning,
                         code: "W301",
                         "Type '\(typeName)' referenced by property '\(propName)' in '\(ownerName)' not found.",
                         lookup: typeName,
-                        in: knownTypeNames,
+                        in: knownTypeNamesSorted,
                         availableOptionsLabel: "known types",
                         source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: propName, level: 0)
                     )

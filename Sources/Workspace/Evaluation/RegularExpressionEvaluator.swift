@@ -7,7 +7,7 @@
 import Foundation
 import RegexBuilder
 
-public actor RegularExpressionEvaluator {
+public struct RegularExpressionEvaluator: Sendable {
     /// Tokens produced by [`tokenize(_:)`] for template boolean/arithmetic expressions.
     public enum ExpressionToken: Equatable, Sendable {
         case openParen

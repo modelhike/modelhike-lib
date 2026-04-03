@@ -12,6 +12,9 @@ import Foundation
 /// ``DefaultOperatorsLibrary`` (e.g. `==`, `in` for string or numeric arrays, `not-in`, `and`, `or`, …) and applied via
 /// overload resolution in ``RegularExpressionEvaluator``.
 public actor ExpressionEvaluator {
+    /// Stateless `struct` — one instance per ``ExpressionEvaluator`` avoids allocating a new parser for every compound expression.
+    private let compoundExpressionEvaluator = RegularExpressionEvaluator()
+
     public func evaluate(value valueStr: String, pInfo: ParsedInfo) async throws -> Sendable? {
         let value = valueStr.trim()
         let ctx = pInfo.ctx
@@ -68,8 +71,7 @@ public actor ExpressionEvaluator {
         //LHS and RHS can be nested and can have paranthesis
         //nested paranthesis is not supported;
         //but single-level of paranthesis is allowed
-        let parser: RegularExpressionEvaluator = RegularExpressionEvaluator()
-        return try await parser.evaluate(expression: expn, pInfo: pInfo)
+        return try await compoundExpressionEvaluator.evaluate(expression: expn, pInfo: pInfo)
     }
 
     public func evaluateCondition(expression: String, pInfo: ParsedInfo) async throws -> Bool {

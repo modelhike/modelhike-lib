@@ -9,79 +9,129 @@ import Foundation
 public actor C4Component_Wrap : ObjectWrapper {
     public let item: C4Component
     let model : AppModel
-    
+
+    private var _cachedTypes: [CodeObject_Wrap]?
+    private var _cachedApis: [API_Wrap]?
+    private var _cachedEmbeddedTypes: [CodeObject_Wrap]?
+    private var _cachedEntities: [CodeObject_Wrap]?
+    private var _cachedDtos: [CodeObject_Wrap]?
+
     public var attribs: Attributes { item.attribs }
 
-    public var types: [CodeObject_Wrap] { get async {
-        await item.types.compactMap({ CodeObject_Wrap($0)})
-    }}
-    
-    public var embeddedTypes: [CodeObject_Wrap] { get async {
-        await item.types.compactMap({
-            if await $0.dataType == .embeddedType {CodeObject_Wrap($0)} else {nil}})
-    }}
-    
-    public var entities: [CodeObject_Wrap] { get async {
-        await item.types.compactMap({
-            if await $0.dataType == .entity {CodeObject_Wrap($0)} else {nil}})
-    }}
-    
-    public var dtos: [CodeObject_Wrap] { get async {
-        await item.types.compactMap({
-            if await $0.dataType == .dto, let dto = $0 as? DtoObject {CodeObject_Wrap(dto)} else {nil}})
-    }}
-    
-    public var entitiesAndDtos : [CodeObject_Wrap] { get async {
-        var list = await entities
-        await list.append(contentsOf: dtos)
-        return list
-    }}
-    
+    public var types: [CodeObject_Wrap] {
+        get async {
+            if let cached = _cachedTypes { return cached }
+            let computed = await item.types.map { CodeObject_Wrap($0) }
+            _cachedTypes = computed
+            return computed
+        }
+    }
+
+    public var embeddedTypes: [CodeObject_Wrap] {
+        get async {
+            if let cached = _cachedEmbeddedTypes { return cached }
+            let out = await typesFiltered { await $0.dataType == .embeddedType }
+            _cachedEmbeddedTypes = out
+            return out
+        }
+    }
+
+    public var entities: [CodeObject_Wrap] {
+        get async {
+            if let cached = _cachedEntities { return cached }
+            let out = await typesFiltered { await $0.dataType == .entity }
+            _cachedEntities = out
+            return out
+        }
+    }
+
+    public var dtos: [CodeObject_Wrap] {
+        get async {
+            if let cached = _cachedDtos { return cached }
+            let out = await typesFiltered { o in
+                await o.dataType == .dto && o is DtoObject
+            }
+            _cachedDtos = out
+            return out
+        }
+    }
+
+    public var entitiesAndDtos: [CodeObject_Wrap] {
+        get async {
+            var list = await entities
+            await list.append(contentsOf: dtos)
+            return list
+        }
+    }
+
     public var apis: [API_Wrap] {
         get async {
+            if let cached = _cachedApis { return cached }
             var result: [API_Wrap] = []
-            
-            for type in await item.types {
-                let apis = await type.getAPIs().snapshot()
-                let converted = await apis.compactMap { API_Wrap($0) }
-                result.append(contentsOf: converted)
+            for wrapped in await types {
+                let apis = await wrapped.item.getAPIs().snapshot()
+                for a in apis {
+                    result.append(API_Wrap(a))
+                }
             }
-            
+            _cachedApis = result
             return result
         }
     }
-    
-    public var pushDataApis : [API_Wrap] { get async {
-        await self.apis.compactMap({
-            let itemtype = await $0.item.type
-            
-            if (itemtype == .pushData ||
-                itemtype == .pushDataList
-            ) { return $0 } else {return nil}    })
-    }}
-    
-    public var mutationApis : [API_Wrap] { get async {
-        await self.apis.compactMap({
-            let itemtype = await $0.item.type
-            
-            if (itemtype == .create ||
-                itemtype == .update ||
-                itemtype == .delete ||
-                itemtype == .mutationUsingCustomLogic
-            ) { return $0 } else {return nil}
-        })
-    }}
-    
-    public var queryApis : [API_Wrap] { get async {
-        await self.apis.compactMap({
-            let itemtype = await $0.item.type
 
-            if (itemtype == .getById ||
-                itemtype == .getByCustomProperties ||
-                itemtype == .list ||
-                itemtype == .listByCustomProperties
-            ) { return $0 } else {return nil}    })
-    }}
+    public var pushDataApis: [API_Wrap] {
+        get async { await apisFiltered(by: Self.isPushApiType) }
+    }
+
+    public var mutationApis: [API_Wrap] {
+        get async { await apisFiltered(by: Self.isMutationApiType) }
+    }
+
+    public var queryApis: [API_Wrap] {
+        get async { await apisFiltered(by: Self.isQueryApiType) }
+    }
+
+    /// `compactMap` / `filter` cannot `await` per element; this is the same O(n) single pass.
+    private func apisFiltered(by predicate: (APIType) -> Bool) async -> [API_Wrap] {
+        var out: [API_Wrap] = []
+        for w in await apis {
+            if predicate(await w.item.type) { out.append(w) }
+        }
+        return out
+    }
+
+    private static func isPushApiType(_ t: APIType) -> Bool {
+        t == .pushData || t == .pushDataList
+    }
+
+    private static func isMutationApiType(_ t: APIType) -> Bool {
+        t == .create || t == .update || t == .delete || t == .mutationUsingCustomLogic
+    }
+
+    private static func isQueryApiType(_ t: APIType) -> Bool {
+        t == .getById || t == .getByCustomProperties || t == .list || t == .listByCustomProperties
+    }
+
+    private func hasPushDataApi() async -> Bool {
+        for w in await apis {
+            if Self.isPushApiType(await w.item.type) { return true }
+        }
+        return false
+    }
+
+    private func hasMutationApi() async -> Bool {
+        for w in await apis {
+            if Self.isMutationApiType(await w.item.type) { return true }
+        }
+        return false
+    }
+
+    private func hasQueryApi() async -> Bool {
+        for w in await apis {
+            if Self.isQueryApiType(await w.item.type) { return true }
+        }
+        return false
+    }
     
     public func getValueOf(property propname: String, with pInfo: ParsedInfo) async throws -> Sendable? {
         guard let key = C4ComponentProperty(rawValue: propname) else {
@@ -92,19 +142,19 @@ public actor C4Component_Wrap : ObjectWrapper {
         case .name: await item.name
         case .types: await types
         case .embeddedTypes: await embeddedTypes
-        case .hasEmbeddedTypes: await embeddedTypes.count != 0
+        case .hasEmbeddedTypes: !(await embeddedTypes).isEmpty
         case .entities: await entities
-        case .hasEntities: await entities.count != 0
+        case .hasEntities: !(await entities).isEmpty
         case .dtos: await dtos
-        case .hasDtos: await dtos.count != 0
+        case .hasDtos: !(await dtos).isEmpty
         case .entitiesAndDtos: await entitiesAndDtos
         case .pushApis: await pushDataApis
-        case .hasPushApis: await pushDataApis.count != 0
+        case .hasPushApis: await hasPushDataApi()
         case .queryApis: await queryApis
-        case .hasQueryApis: await queryApis.count != 0
+        case .hasQueryApis: await hasQueryApi()
         case .mutationApis: await mutationApis
-        case .hasMutationApis: await mutationApis.count != 0
-        case .hasAnyApis: await apis.count != 0
+        case .hasMutationApis: await hasMutationApi()
+        case .hasAnyApis: !(await apis).isEmpty
         case .description: await item.description ?? ""
         case .hasDescription:
             (await item.description).map { !$0.isEmpty } ?? false
@@ -119,6 +169,15 @@ public actor C4Component_Wrap : ObjectWrapper {
         case .hasNamedConstraints: await !item.namedConstraints.snapshot().isEmpty
         }
         return value
+    }
+
+    /// Filters `item.types` and wraps each match as ``CodeObject_Wrap`` (same end result as filtering ``types``).
+    private func typesFiltered(by predicate: (CodeObject) async -> Bool) async -> [CodeObject_Wrap] {
+        var out: [CodeObject_Wrap] = []
+        for o in await item.types {
+            if await predicate(o) { out.append(CodeObject_Wrap(o)) }
+        }
+        return out
     }
 
     private func propertyCandidates() async -> [String] {

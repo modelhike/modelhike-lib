@@ -98,19 +98,19 @@ import Testing
     }
 }
 
-// MARK: - FrontMatter.parse unit tests
+// MARK: - FrontMatter.simpleParse unit tests
 
-@Suite("FrontMatter.parse") struct FrontMatter_Parse_Tests {
+@Suite("FrontMatter.simpleParse") struct FrontMatter_SimpleParse_Tests {
 
     @Test func noFrontMatter_returnsEmptyValuesAndOriginalBody() {
         let input = "just a template body"
-        let (values, body) = FrontMatter.parse(contents: input)
+        let (values, body) = FrontMatter.simpleParse(contents: input)
         #expect(values.isEmpty)
         #expect(body == input)
     }
 
     @Test func emptyContent() {
-        let (values, body) = FrontMatter.parse(contents: "")
+        let (values, body) = FrontMatter.simpleParse(contents: "")
         #expect(values.isEmpty)
         #expect(body == "")
     }
@@ -123,7 +123,7 @@ import Testing
             ---
             template body
             """
-        let (values, body) = FrontMatter.parse(contents: input)
+        let (values, body) = FrontMatter.simpleParse(contents: input)
         #expect(values["input"] == "value")
         #expect(values["type"]  == "String")
         #expect(body.contains("template body"))
@@ -136,7 +136,7 @@ import Testing
             ---
             body
             """
-        let (values, _) = FrontMatter.parse(contents: input)
+        let (values, _) = FrontMatter.simpleParse(contents: input)
         #expect(values["params"] == "prefix, suffix")
     }
 
@@ -146,7 +146,7 @@ import Testing
             input: val
             ---
             """
-        let (values, body) = FrontMatter.parse(contents: input)
+        let (values, body) = FrontMatter.simpleParse(contents: input)
         #expect(values["input"] == "val")
         #expect(body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
@@ -159,7 +159,7 @@ import Testing
             line1
             line2
             """
-        let (_, body) = FrontMatter.parse(contents: input)
+        let (_, body) = FrontMatter.simpleParse(contents: input)
         #expect(body.contains("line1"))
         #expect(body.contains("line2"))
     }

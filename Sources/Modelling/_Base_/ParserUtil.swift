@@ -425,6 +425,20 @@ public class ParserUtil {
             }
         }
     }
+
+    // MARK: - CodeMember collections
+
+    /// `members` filtered to those whose dynamic type is `T`, in declaration order (e.g. `let ms: [MethodObject] = …`).
+    public static func filterCodeMembers<T: CodeMember>(_ codeMembers: [CodeMember]) -> [T] {
+        var out: [T] = []
+        out.reserveCapacity(codeMembers.count)
+        for m in codeMembers {
+            if let t = m as? T {
+                out.append(t)
+            }
+        }
+        return out
+    }
 }
 
 extension MethodObject: HasDescription_Actor {}

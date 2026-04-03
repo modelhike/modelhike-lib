@@ -9,27 +9,49 @@ import Foundation
 public actor CodeObject_Wrap: ObjectWrapper {
     public let item: CodeObject
 
+    private var _cachedProperties: [TypeProperty_Wrap]?
+    private var _cachedApis: [API_Wrap]?
+
     public var attribs: Attributes { get async { await item.attribs }}
 
-    public var properties: [TypeProperty_Wrap] { get async {
-        await item.properties.compactMap({ TypeProperty_Wrap($0) })
-    }}
+    public var properties: [TypeProperty_Wrap] {
+        get async {
+            if let cached = _cachedProperties { return cached }
+            let computed = await item.properties.map { TypeProperty_Wrap($0) }
+            _cachedProperties = computed
+            return computed
+        }
+    }
 
-    public var apis: [API_Wrap] { get async {
-        await self.item.getAPIs().snapshot().compactMap({ return API_Wrap($0) })
-    }}
+    public var apis: [API_Wrap] {
+        get async {
+            if let cached = _cachedApis { return cached }
+            let computed = await item.getAPIs().snapshot().map { API_Wrap($0) }
+            _cachedApis = computed
+            return computed
+        }
+    }
 
-    public var pushDataApis: [API_Wrap] { get async {
-        await self.item.getAPIs().snapshot().compactMap({
-            let type = await $0.type
-            
-            if type == .pushData || type == .pushDataList {
-                return API_Wrap($0)
-            } else {
-                return nil
+    public var pushDataApis: [API_Wrap] {
+        get async {
+            var out: [API_Wrap] = []
+            for api in await apis {
+                if Self.isPushDataKind(await api.item.type) { out.append(api) }
             }
-        })
-    }}
+            return out
+        }
+    }
+
+    private func hasPushDataApi() async -> Bool {
+        for api in await apis {
+            if Self.isPushDataKind(await api.item.type) { return true }
+        }
+        return false
+    }
+
+    private static func isPushDataKind(_ type: APIType) -> Bool {
+        type == .pushData || type == .pushDataList
+    }
 
     public func getValueOf(property propname: String, with pInfo: ParsedInfo) async throws -> Sendable? {
         if propname.hasPrefix("has-prop-") {
@@ -53,8 +75,8 @@ public actor CodeObject_Wrap: ObjectWrapper {
         case .common: await item.dataType == .valueType
         case .cache: await item.dataType == .cache
         case .workflow: await item.dataType == .workflow
-        case .hasPushApis: await pushDataApis.count != 0
-        case .hasAnyApis: await apis.count != 0
+        case .hasPushApis: await hasPushDataApi()
+        case .hasAnyApis: !(await apis).isEmpty
         case .methods: await item.methods.map { MethodObject_Wrap($0) }
         case .hasMethods: !(await item.methods.isEmpty)
         case .hasDbLogic: await hasAnyMethodWithDataAccessLogic()

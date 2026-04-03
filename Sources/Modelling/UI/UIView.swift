@@ -23,10 +23,12 @@ public actor UIView : UIObject {
         self.description = value
     }
 
-    public var methods : [MethodObject] { get async {
-        await members.compactMap({
-        if let method = $0 as? MethodObject { return method } else {return nil}
-    }) }}
+    public var methods: [MethodObject] {
+        get async {
+            let result: [MethodObject] = ParserUtil.filterCodeMembers(members)
+            return result
+        }
+    }
     
     public var dataType: ArtifactKind = .ui
     
