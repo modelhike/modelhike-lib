@@ -88,6 +88,41 @@ import Testing
         #expect(await prop.type.kind == .reference(.init(targetName: "Department Lookup", fieldName: "departmentId")))
     }
 
+    @Test func inlineDoubleDashDescriptionOnPropertyLine() async throws {
+        let prop = try await parseProperty("* amount : Float -- Total amount", firstWord: "*")
+        #expect(await prop.description == "Total amount")
+    }
+
+    @Test func propertyFollowedByDescriptionLines() async throws {
+        let dsl = """
+            ===
+            Svc
+            ===
+            + Mod
+
+            === Mod ===
+
+            Order
+            =====
+            * lineOne : String
+            -- First continuation
+            -- Second continuation
+            """
+        let ctx = LoadContext(config: PipelineConfig())
+        let modelSpace = try await ModelFileParser(with: ctx).parse(string: dsl, identifier: "PropertyParser_Tests")
+        await ctx.model.append(contentsOf: modelSpace)
+        try await ctx.model.resolveAndLinkItems(with: ctx)
+
+        let order = try #require(await ctx.model.types.get(for: "Order") as? DomainObject)
+        let prop = try #require(await order.getProp("lineOne"))
+        #expect(await prop.description == "First continuation Second continuation")
+    }
+
+    @Test func propertyWithoutDoubleDashHasNilDescription() async throws {
+        let prop = try await parseProperty("* amount : Float", firstWord: "*")
+        #expect(await prop.description == nil)
+    }
+
     @Test func refTypeResolvesReferencedFieldTypeFromLoadedModel() async throws {
         let dsl = """
             ===

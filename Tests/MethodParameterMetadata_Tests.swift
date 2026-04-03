@@ -144,6 +144,64 @@ import Testing
         #expect(params[1].metadata.defaultValue == "nil")
     }
 
+    @Test func outputArrowMarkerOnMetadataLine() async throws {
+        let method = try await parseMethod("""
+            >>> -> amount: Float
+            ~ transfer(amount: Float) : Void
+            """)
+
+        let params = await method.parameters
+        #expect(params.count == 1)
+        #expect(params[0].metadata.isOutput == true)
+        #expect(params[0].metadata.required == .no)
+    }
+
+    @Test func inOutArrowMarkerOnMetadataLine() async throws {
+        let method = try await parseMethod("""
+            >>> <-> buffer: String
+            ~ fill(buffer: String) : Void
+            """)
+
+        let params = await method.parameters
+        #expect(params.count == 1)
+        #expect(params[0].metadata.isOutput == true)
+        #expect(params[0].metadata.required == .yes)
+    }
+
+    @Test func outputArrowInMethodSignature() async throws {
+        let method = try await parseMethod("""
+            ~ foo(a: Id, -> b: Float) : Bool
+            """)
+
+        let params = await method.parameters
+        #expect(params.count == 2)
+        #expect(params[1].name == "b")
+        #expect(params[1].metadata.isOutput == true)
+        #expect(params[1].metadata.required == .no)
+    }
+
+    @Test func inOutArrowInMethodSignature() async throws {
+        let method = try await parseMethod("""
+            ~ foo(a: Id, <-> b: String) : Bool
+            """)
+
+        let params = await method.parameters
+        #expect(params.count == 2)
+        #expect(params[1].metadata.isOutput == true)
+        #expect(params[1].metadata.required == .yes)
+    }
+
+    @Test func outputParamWithDefaultInSignature() async throws {
+        let method = try await parseMethod("""
+            ~ foo(a: Id, -> b: Float = 0) : Bool
+            """)
+
+        let params = await method.parameters
+        #expect(params.count == 2)
+        #expect(params[1].metadata.defaultValue == "0")
+        #expect(params[1].metadata.isOutput == true)
+    }
+
     @Test func setextMethodPreservesMetadata() async throws {
         let dsl = """
             ===

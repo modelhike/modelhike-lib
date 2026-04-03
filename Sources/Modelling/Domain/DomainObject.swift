@@ -17,7 +17,15 @@ public actor DomainObject : CodeObject {
     public var attribs = Attributes()
     public var tags = Tags()
     public var annotations = Annotations()
-    
+    /// Documentation from `--` or bare `>>>` blocks before the class.
+    public private(set) var description: String?
+    /// Reusable named constraints at class scope (`= name : { ... }`).
+    public let namedConstraints = Constraints()
+
+    public func setDescription(_ value: String?) {
+        self.description = value
+    }
+
     public var properties : [Property]  { get async { await members.compactMap({
         if let prop = $0 as? Property { return prop } else {return nil}
     }) }}

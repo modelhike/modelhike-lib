@@ -181,6 +181,8 @@ All statements below work in both file types; only the prefix changes.
 | Variable               | Type              | Description                                      |
 | ---------------------- | ----------------- | ------------------------------------------------ |
 | `@container`           | `C4Container_Wrap` | The container being generated                   |
+| `@container.description` | String (docs)   | From `--` / `>>>`                                 |
+| `@container.has-description` | Bool      |                                                   |
 | `@container.modules`   | list              | All modules (C4Components) in the container      |
 | `@container.commons`   | list              | Common model modules (from `common.modelhike`)   |
 | `@mock`                | `Mocking_Wrap`    | Mock data helpers                                |
@@ -206,6 +208,14 @@ All statements below work in both file types; only the prefix changes.
 | `module.mutation-apis`     | List of mutation APIs across the module                   |
 | `module.query-apis`        | List of query APIs across the module                      |
 | `module.push-apis`         | List of push APIs across the module                       |
+| `module.description`       | Documentation string from `--` / `>>>` (empty if none)     |
+| `module.has-description`   | Bool                                                       |
+| `module.expressions`       | Module-level `=` expression properties                       |
+| `module.has-expressions`   | Bool                                                       |
+| `module.functions`         | Module-level `~` methods                                   |
+| `module.has-functions`     | Bool                                                       |
+| `module.named-constraints` | Named `= name : { … }` constraints on the module            |
+| `module.has-named-constraints` | Bool                                                   |
 
 ### 5.3 Entity/Type-level (`for entity in module.entities`)
 
@@ -225,6 +235,10 @@ All statements below work in both file types; only the prefix changes.
 | `entity.has-http-logic` | Bool — any method uses `http>` blocks (REST client calls)     |
 | `entity.has-ws-logic` | Bool — any method uses `websocket>` blocks (WebSocket client calls) |
 | `entity.has-grpc-logic` | Bool — any method uses `grpc>` blocks                         |
+| `entity.description`  | Documentation from `--` / `>>>` / inline                      |
+| `entity.has-description` | Bool                                                        |
+| `entity.named-constraints` | Class-level `= name : { … }` constraints                   |
+| `entity.has-named-constraints` | Bool                                                  |
 | `type.name`           | Same as `entity.name` (when iterating `module.types`)           |
 | `type.properties`     | Same as `entity.properties`                                     |
 
@@ -254,6 +268,12 @@ All statements below work in both file types; only the prefix changes.
 | `property \| typename`        | TypeScript/Java type string (via `TypescriptLib`/`JavaLib`) |
 | `property \| graphql-typename` | GraphQL type string                                 |
 | `property \| default-value`   | Default value string                                 |
+| `property.description`       | Prose from `--` lines                                 |
+| `property.has-description`    | Bool                                                  |
+| `property.applied-constraints` | Names from `@constraintRef` inside `{ ... }` on the line |
+| `property.has-applied-constraints` | Bool                                           |
+| `property.applied-default-expression` | Name when default is `@ExpressionName` (no `@`) |
+| `property.has-applied-default-expression` | Bool                                     |
 
 ### 5.5 Method-level (`for method in entity.methods`)
 
@@ -272,6 +292,8 @@ All statements below work in both file types; only the prefix changes.
 | `method.has-http-logic`     | Bool — method uses `http>` blocks                        |
 | `method.has-ws-logic`       | Bool — method uses `websocket>` blocks                   |
 | `method.has-grpc-logic`     | Bool — method uses `grpc>` blocks                        |
+| `method.description`        | From `>>>` / `--` / inline                               |
+| `method.has-description`    | Bool                                                     |
 
 #### Method parameter-level (`for param in method.parameters`)
 
@@ -283,6 +305,10 @@ All statements below work in both file types; only the prefix changes.
 | `param.is-required`         | Bool — parameter is required                             |
 | `param.has-default-value`   | Bool — parameter has a default value                     |
 | `param.default-value`       | Default value string                                     |
+| `param.is-output`           | Bool — `->`, `<->`, or `#output`                         |
+| `param.is-inout`            | Bool — `<->` (output + required)                         |
+| `param.description`         | Per-parameter prose from `>>>` line                      |
+| `param.has-description`     | Bool                                                     |
 
 ### 5.6 API-level (`set apis = entity | apis` then `for api in apis`)
 

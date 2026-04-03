@@ -71,12 +71,8 @@ public enum SystemParser {
         let (_, systemName, attributeString, tagString) = match.output
         let item = await C4System(name: systemName)
 
-        if let desc = pending?.description {
-            await item.setDescription(desc)
-        }
-        if let inlineDesc {
-            await item.setDescription(ParserUtil.joinedDescription(await item.description, inlineDesc))
-        }
+        await ParserUtil.appendDescription(pending?.description, to: item)
+        await ParserUtil.appendDescription(inlineDesc, to: item)
         if let attributeString {
             await ParserUtil.populateAttributes(for: item, from: attributeString)
         }

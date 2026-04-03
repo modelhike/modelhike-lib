@@ -19,8 +19,23 @@ public actor UIObject_Wrap: ObjectWrapper {
         let value: Sendable = switch key {
         case .name: await item.name
         case .givenName: await item.givenname
+        case .description: await uiDescription()
+        case .hasDescription: await uiHasDescription()
         }
         return value
+    }
+
+    private func uiDescription() async -> String {
+        if let v = item as? UIView { return await v.description ?? "" }
+        return ""
+    }
+
+    private func uiHasDescription() async -> Bool {
+        if let v = item as? UIView {
+            let d = await v.description
+            return d.map { !$0.isEmpty } ?? false
+        }
+        return false
     }
 
     private func propertyCandidates() async -> [String] {
@@ -54,4 +69,6 @@ public actor UIObject_Wrap: ObjectWrapper {
 private enum UIObjectProperty: String, CaseIterable {
     case name
     case givenName = "given-name"
+    case description
+    case hasDescription = "has-description"
 }

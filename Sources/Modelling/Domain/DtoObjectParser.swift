@@ -20,8 +20,9 @@ public enum DtoObjectParser {
         return false
     }
     
-    public static func parse(parser: LineParser, with pInfo: ParsedInfo) async throws -> DtoObject? {
-        let line = await parser.currentLine()
+    public static func parse(parser: LineParser, with pInfo: ParsedInfo, pending: ParserUtil.PendingMetadata? = nil) async throws -> DtoObject? {
+        var line = await parser.currentLine()
+        let inlineDesc = ParserUtil.extractInlineDescription(from: &line)
         
         guard let match = line.wholeMatch(of: ModelRegEx.className_Capturing)                                                                                  else { return nil }
         
@@ -30,6 +31,8 @@ public enum DtoObjectParser {
         try await pInfo.ctx.events.onParse(objectName: className, with: pInfo)
 
         let item = DtoObject(name: className.trim())
+        await ParserUtil.appendDescription(pending?.description, to: item)
+        await ParserUtil.appendDescription(inlineDesc, to: item)
 
         //check if has attributes
         if let attributeString = attributeString {
@@ -43,15 +46,24 @@ public enum DtoObjectParser {
         
         await parser.skipLine(by: 2)//skip class name and underline
         
+        var pendingMetadataBlock = ParserUtil.PendingMetadataBlock()
+
         while await parser.linesRemaining {
             if await parser.isCurrentLineEmptyOrCommented() { await parser.skipLine(); continue }
+
+            if await ParserUtil.consumePendingMetadataBlockLines(from: parser, into: &pendingMetadataBlock) {
+                continue
+            }
 
             // Method check before humane-comment: signatures look like plain identifiers
             if await MethodObject.canParse(parser: parser) {
                 guard let methodPInfo = await parser.currentParsedInfo(level: 0) else {
                     await parser.skipLine(); continue
                 }
-                if let method = try await MethodObject.parse(pInfo: methodPInfo) {
+                let passPending = pendingMetadataBlock.isEmpty ? nil : pendingMetadataBlock
+                pendingMetadataBlock.clear()
+                if let method = try await MethodObject.parse(pInfo: methodPInfo, pendingMetadataBlock: passPending) {
+                    await ParserUtil.appendConsumedDescriptionLines(from: parser, to: method)
                     await item.append(method)
                     continue
                 } else {
@@ -61,6 +73,12 @@ public enum DtoObjectParser {
 
             guard let pInfo = await parser.currentParsedInfo(level: 0) else { await parser.skipLine(); continue }
             if await parser.isCurrentLineHumaneComment(pInfo) { await parser.skipLine(); continue }
+
+            let trimmed = await parser.currentLine()
+            if trimmed.hasPrefix(ModelConstants.Member_Description), !trimmed.hasOnly("-") {
+                await ParserUtil.appendConsumedDescriptionLines(from: parser, toLastRecognizedMember: await item.members.last, orOwner: item)
+                continue
+            }
 
             if DerivedProperty.canParse(firstWord: pInfo.firstWord) {
                 if let prop = try await DerivedProperty.parse(pInfo: pInfo) {

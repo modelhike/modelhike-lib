@@ -44,6 +44,8 @@ public actor CodeObject_Wrap: ObjectWrapper {
         let value: Sendable = switch key {
         case .name: await item.name
         case .givenName: await item.givenname
+        case .description: await codeObjectDescription()
+        case .hasDescription: await codeObjectHasDescription()
         case .properties: await properties
 
         case .entity: await item.dataType == .entity
@@ -62,6 +64,24 @@ public actor CodeObject_Wrap: ObjectWrapper {
         case .hasGrpcLogic: await hasAnyMethodWithGrpcClientLogic()
         }
         return value
+    }
+
+    private func codeObjectDescription() async -> String {
+        if let d = item as? DomainObject { return await d.description ?? "" }
+        if let d = item as? DtoObject { return await d.description ?? "" }
+        return ""
+    }
+
+    private func codeObjectHasDescription() async -> Bool {
+        if let d = item as? DomainObject {
+            let desc = await d.description
+            return desc.map { !$0.isEmpty } ?? false
+        }
+        if let d = item as? DtoObject {
+            let desc = await d.description
+            return desc.map { !$0.isEmpty } ?? false
+        }
+        return false
     }
 
     /// True if any method uses data-access statement kinds (SQL, queries, DML, etc.) — language-agnostic; blueprints map to e.g. R2DBC `DatabaseClient`.
@@ -211,6 +231,13 @@ public actor TypeProperty_Wrap: ObjectWrapper {
         case .hasValidValueSet: await item.validValueSet.isEmpty == false
         case .constraints: await constraintsList
         case .hasConstraints: await constraintsList.isEmpty == false
+        case .description: await item.description ?? ""
+        case .hasDescription:
+            (await item.description).map { !$0.isEmpty } ?? false
+        case .appliedConstraints: await item.appliedConstraints.joined(separator: ", ")
+        case .hasAppliedConstraints: await !item.appliedConstraints.isEmpty
+        case .appliedDefaultExpression: await item.appliedDefaultExpression ?? ""
+        case .hasAppliedDefaultExpression: await item.appliedDefaultExpression != nil
         }
         return value
     }
@@ -270,6 +297,8 @@ public actor Constraint_Wrap: ObjectWrapper {
         case .expression, .rendered: ConstraintRenderer.render(item)
         case .value: ConstraintRenderer.renderValue(of: item)
         case .expr: ConstraintExpr_Wrap(item.expr)
+        case .description: item.description ?? ""
+        case .hasDescription: item.description.map { !$0.isEmpty } ?? false
         }
     }
 
@@ -413,6 +442,8 @@ private enum WrapperDynamicPropertyKey {
     enum ForCodeObject: String, CaseIterable {
         case name
         case givenName = "given-name"
+        case description
+        case hasDescription = "has-description"
         case properties
         case entity
         case dto
@@ -459,6 +490,12 @@ private enum WrapperDynamicPropertyKey {
         case hasValidValueSet = "has-valid-value-set"
         case constraints
         case hasConstraints = "has-constraints"
+        case description
+        case hasDescription = "has-description"
+        case appliedConstraints = "applied-constraints"
+        case hasAppliedConstraints = "has-applied-constraints"
+        case appliedDefaultExpression = "applied-default-expression"
+        case hasAppliedDefaultExpression = "has-applied-default-expression"
     }
 
     enum ForConstraint: String, CaseIterable {
@@ -469,6 +506,8 @@ private enum WrapperDynamicPropertyKey {
         case rendered
         case value
         case expr
+        case description
+        case hasDescription = "has-description"
     }
 
     enum ForConstraintExpr: String, CaseIterable {

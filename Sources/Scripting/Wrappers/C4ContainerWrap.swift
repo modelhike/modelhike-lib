@@ -35,6 +35,9 @@ public actor C4Container_Wrap : ObjectWrapper {
         
         case .types: await types
         case .hasAnyApis: await apis.count != 0
+        case .description: await item.description ?? ""
+        case .hasDescription:
+            (await item.description).map { !$0.isEmpty } ?? false
         }
         return value
     }
@@ -75,5 +78,7 @@ private enum C4ContainerProperty: String, CaseIterable {
     case defaultModule = "default-module"
     case types
     case hasAnyApis = "has-any-apis"
+    case description
+    case hasDescription = "has-description"
 }
 

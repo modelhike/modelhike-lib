@@ -21,13 +21,16 @@ public enum UIViewParser {
         return false
     }
 
-    public static func parse(parser: LineParser, with ctx: LoadContext) async throws -> UIView? {
-        let line = await parser.currentLine()
+    public static func parse(parser: LineParser, with ctx: LoadContext, pending: ParserUtil.PendingMetadata? = nil) async throws -> UIView? {
+        var line = await parser.currentLine()
+        let inlineDesc = ParserUtil.extractInlineDescription(from: &line)
 
         guard let match = line.wholeMatch(of: ModelRegEx.uiviewName_Capturing)                                                                                  else { return nil }
 
         let (_, className, attributeString, tagString) = match.output
         let item = UIView(name: className.trim())
+        await ParserUtil.appendDescription(pending?.description, to: item)
+        await ParserUtil.appendDescription(inlineDesc, to: item)
 
         //check if has attributes
         if let attributeString = attributeString {
@@ -43,6 +46,12 @@ public enum UIViewParser {
 
         while await parser.linesRemaining {
             if await parser.isCurrentLineEmptyOrCommented() { await parser.skipLine(); continue }
+
+            let trimmed = await parser.currentLine()
+            if trimmed.hasPrefix(ModelConstants.Member_Description), !trimmed.hasOnly("-") {
+                await ParserUtil.appendConsumedDescriptionLines(from: parser, to: item)
+                continue
+            }
 
             guard let pctx = await parser.currentParsedInfo(level : 0) else { await parser.skipLine(); continue }
 

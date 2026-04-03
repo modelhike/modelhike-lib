@@ -20,6 +20,12 @@ public actor MethodObject: CodeMember {
     public var logic: CodeLogic?
 
     public var comment: String?
+    /// Documentation from `--` or bare `>>>` blocks before the method.
+    public private(set) var description: String?
+
+    public func setDescription(_ value: String?) {
+        self.description = value
+    }
 
     /// Returns `true` when the current line is a method signature in either supported style:
     ///   - **Parameter metadata**: one or more `>>>` prefix lines whose first non-`>>>` successor
@@ -73,25 +79,30 @@ public actor MethodObject: CodeMember {
     /// ~ methodName
     /// ```
     /// In both cases, any immediately following logic block is also parsed when `skipLine` is `true`.
-    public static func parse(pInfo: ParsedInfo, skipLine: Bool = true) async throws -> MethodObject? {
-        // Phase 1: consume all >>> parameter metadata lines preceding the signature.
-        // Only enter this path when the current pInfo.line is itself a >>> line; otherwise
-        // pInfo.line may have been pre-processed by the caller (e.g. APISectionParser strips
-        // the ## prefix before calling us), so we must honour it as-is.
+    public static func parse(pInfo: ParsedInfo, pendingMetadataBlock: ParserUtil.PendingMetadataBlock? = nil, skipLine: Bool = true) async throws -> MethodObject? {
+        // Phase 1: `>>>` block — either pre-collected (`pendingMetadataBlock`) or consumed here.
         let collectedMetadata: [String: ParameterMetadata]
+        let blockDescription: String?
         let signatureSource: String
 
-        if pInfo.line.hasPrefix(ModelConstants.Member_ParameterMetadata) {
-            collectedMetadata = await ParameterMetadata.parseMetadataBlockIfAny(from: pInfo.parser)
+        if let pending = pendingMetadataBlock {
+            collectedMetadata = ParameterMetadata.metadataDict(from: pending.parameterMetadataLines)
+            blockDescription = pending.combinedDescription
+            signatureSource = pInfo.line
+        } else if pInfo.line.hasPrefix(ModelConstants.Member_ParameterMetadata) {
+            let parsed = await ParameterMetadata.parseMetadataBlockIfAny(from: pInfo.parser)
+            collectedMetadata = parsed.metadata
+            blockDescription = parsed.blockDescription
             signatureSource = await pInfo.parser.currentLine()
         } else {
-            // No >>> lines; use pInfo.line directly (caller may have stripped a prefix already).
             collectedMetadata = [:]
+            blockDescription = nil
             signatureSource = pInfo.line
         }
 
         // Phase 2: parse the actual method signature.
-        let line = signatureSource
+        var line = signatureSource
+        let inlineSigDesc = ParserUtil.extractInlineDescription(from: &line)
         let tilde = isTildePrefixed(line)
         let signatureLine = tilde ? String(line.dropFirst()).trim() : line
 
@@ -101,16 +112,16 @@ public actor MethodObject: CodeMember {
 
         let method = MethodObject(givenName, pInfo: pInfo)
 
-        let matches = signature.arguments.matches(of: CommonRegEx.namedParameters_Capturing)
+        if let mergedDesc = ParserUtil.joinedDescription(blockDescription, inlineSigDesc) {
+            await method.setDescription(mergedDesc)
+        }
 
-        for match in matches {
-            let (_, name, typeName) = match.output
-            let type = TypeInfo.parse(typeName)
-            let param = MethodParameter(
-                name: name,
-                type: type,
-                metadata: collectedMetadata[name] ?? ParameterMetadata()
-            )
+        let argSegments = Self.splitTopLevelCommas(signature.arguments)
+        for segment in argSegments {
+            guard let parsed = Self.parseMethodArgumentSegment(segment) else { continue }
+            let nameKey = parsed.name.normalizeForVariableName()
+            let meta = collectedMetadata[nameKey] ?? parsed.metadata
+            let param = MethodParameter(name: parsed.name, type: parsed.type, metadata: meta)
             await method.append(parameter: param)
         }
 
@@ -146,6 +157,109 @@ public actor MethodObject: CodeMember {
         let returnType: String?
         let attributeString: String?
         let tagString: String?
+    }
+
+    private struct NestedDelimiterDepth {
+        var paren = 0
+        var angle = 0
+        var bracket = 0
+
+        var isTopLevel: Bool {
+            paren == 0 && angle == 0 && bracket == 0
+        }
+
+        mutating func update(for ch: Character) {
+            switch ch {
+            case "(":
+                paren += 1
+            case ")":
+                paren = max(0, paren - 1)
+            case "<":
+                angle += 1
+            case ">":
+                angle = max(0, angle - 1)
+            case "[":
+                bracket += 1
+            case "]":
+                bracket = max(0, bracket - 1)
+            default:
+                break
+            }
+        }
+    }
+
+    /// Splits a method parameter list on commas not inside `()`, `<>`, or `[]`.
+    private static func splitTopLevelCommas(_ raw: String) -> [String] {
+        let s = raw.trim()
+        guard !s.isEmpty else { return [] }
+        var parts: [String] = []
+        var depth = NestedDelimiterDepth()
+        var current = ""
+
+        func appendCurrentIfNonEmpty() {
+            let piece = current.trim()
+            if !piece.isEmpty {
+                parts.append(piece)
+            }
+            current = ""
+        }
+
+        for ch in s {
+            if ch == ",", depth.isTopLevel {
+                appendCurrentIfNonEmpty()
+                continue
+            }
+            depth.update(for: ch)
+            current.append(ch)
+        }
+        appendCurrentIfNonEmpty()
+        return parts
+    }
+
+    /// Parses one method argument: optional `->` / `<->`, `name : Type`, optional `= default`.
+    private static func parseMethodArgumentSegment(_ segment: String) -> (name: String, type: TypeInfo, metadata: ParameterMetadata)? {
+        var s = segment.trim()
+        guard !s.isEmpty else { return nil }
+        var meta = ParameterMetadata()
+        consumeDirectionPrefix(from: &s, metadata: &meta)
+
+        guard let (name, remainder) = splitNameAndRemainder(from: s) else { return nil }
+        guard !name.isEmpty else { return nil }
+
+        let (typeString, defaultValue) = splitTypeAndDefault(from: remainder)
+        meta.defaultValue = defaultValue
+
+        let type = TypeInfo.parse(typeString)
+        return (name: name, type: type, metadata: meta)
+    }
+
+    private static func consumeDirectionPrefix(from segment: inout String, metadata: inout ParameterMetadata) {
+        if segment.hasPrefix(ModelConstants.Member_InOut) {
+            segment = String(segment.dropFirst(ModelConstants.Member_InOut.count)).trim()
+            metadata.required = .yes
+            metadata.isOutput = true
+        } else if segment.hasPrefix(ModelConstants.Member_Output) {
+            segment = String(segment.dropFirst(ModelConstants.Member_Output.count)).trim()
+            metadata.required = .no
+            metadata.isOutput = true
+        }
+    }
+
+    private static func splitNameAndRemainder(from segment: String) -> (name: String, remainder: String)? {
+        guard let colon = segment.firstIndex(of: ":") else { return nil }
+        let name = String(segment[..<colon]).trim()
+        let remainder = String(segment[segment.index(after: colon)...]).trim()
+        return (name, remainder)
+    }
+
+    private static func splitTypeAndDefault(from remainder: String) -> (typeString: String, defaultValue: String?) {
+        let defaultDelimiter = " = "
+        guard let eqRange = remainder.range(of: defaultDelimiter) else {
+            return (remainder, nil)
+        }
+        let typeString = String(remainder[..<eqRange.lowerBound]).trim()
+        let defaultValue = String(remainder[eqRange.upperBound...]).trim()
+        return (typeString, defaultValue)
     }
 
     private static func parseSignature(_ line: String) -> ParsedMethodSignature? {
@@ -253,6 +367,8 @@ public struct ParameterMetadata: Sendable {
     public var constraints: [Constraint]
     public var attribs: [Attribute]
     public var tags: [Tag]
+    /// Documentation from `--` on the same `>>>` line as parameter metadata.
+    public var description: String?
 
     public init(
         required: RequiredKind = .no,
@@ -261,7 +377,8 @@ public struct ParameterMetadata: Sendable {
         validValueSet: [String] = [],
         constraints: [Constraint] = [],
         attribs: [Attribute] = [],
-        tags: [Tag] = []
+        tags: [Tag] = [],
+        description: String? = nil
     ) {
         self.required = required
         self.isOutput = isOutput
@@ -270,21 +387,42 @@ public struct ParameterMetadata: Sendable {
         self.constraints = constraints
         self.attribs = attribs
         self.tags = tags
+        self.description = description
     }
 
-    /// Consumes all consecutive `>>>` lines at the current parser position and returns a
-    /// dictionary keyed by normalised parameter name. Advances the parser past every `>>>` line
-    /// it consumes. Returns an empty dictionary (and leaves the parser position unchanged) when
-    /// the current line is not a `>>>` line.
-    public static func parseMetadataBlockIfAny(from parser: any LineParser) async -> [String: ParameterMetadata] {
+    /// Consumes all consecutive `>>>` lines at the current parser position. Bare description lines
+    /// (no parameter marker) are concatenated into `blockDescription`.
+    public static func parseMetadataBlockIfAny(from parser: any LineParser) async -> (metadata: [String: ParameterMetadata], blockDescription: String?) {
         var collected: [String: ParameterMetadata] = [:]
+        var descLines: [String] = []
+        let prefix = ModelConstants.Member_ParameterMetadata
         while await parser.linesRemaining {
             let currentLine = await parser.currentLine()
-            guard currentLine.hasPrefix(ModelConstants.Member_ParameterMetadata) else { break }
-            if let (name, meta) = parse(from: currentLine) {
-                collected[name] = meta
+            guard currentLine.hasPrefix(prefix) else { break }
+            let remainder = String(currentLine.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces)
+            let firstToken = remainder.split(whereSeparator: { $0.isWhitespace }).first.map(String.init) ?? ""
+            if ParserUtil.isParameterMetadataMarkerToken(firstToken) {
+                if let (name, meta) = parse(from: currentLine) {
+                    collected[name] = meta
+                }
+            } else {
+                descLines.append(remainder)
             }
             await parser.skipLine()
+        }
+        let blockDescription = descLines.isEmpty ? nil : descLines.joined(separator: " ")
+        return (collected, blockDescription)
+    }
+
+    /// Parses `>>>` lines that were collected without consuming the parser (e.g. from `PendingMetadataBlock`).
+    public static func metadataDict(from lines: [String]) -> [String: ParameterMetadata] {
+        var collected: [String: ParameterMetadata] = [:]
+        // `PendingMetadataBlock.parameterMetadataLines` is already filtered to metadata-bearing `>>>` lines,
+        // so this pass only needs to parse each line and keep the latest entry per normalized name.
+        for line in lines {
+            if let (name, meta) = parse(from: line) {
+                collected[name] = meta
+            }
         }
         return collected
     }
@@ -296,21 +434,31 @@ public struct ParameterMetadata: Sendable {
         guard line.hasPrefix(prefix) else { return nil }
 
         let afterPrefix = String(line.dropFirst(prefix.count)).trim()
-        // afterPrefix: "* paramName: Type [= default] [{ constraints }] [(attributes)] [#tags]"
+        // afterPrefix: "* paramName: Type ..." or "-> name: Type ..."
 
-        guard let marker = afterPrefix.components(separatedBy: .whitespaces).first, !marker.isEmpty else { return nil }
-        let propertyLine = String(afterPrefix.dropFirst(marker.count)).trim()
+        guard let marker = afterPrefix.split(whereSeparator: { $0.isWhitespace }).first.map(String.init), !marker.isEmpty else { return nil }
+        var propertyLine = String(afterPrefix.dropFirst(marker.count)).trimmingCharacters(in: .whitespaces)
+        let paramDesc = ParserUtil.extractInlineDescription(from: &propertyLine)
         // propertyLine: "paramName: Type [= default] [{ constraints }] [(attributes)] [#tags]"
 
         guard let match = propertyLine.wholeMatch(of: ModelRegEx.property_Capturing) else { return nil }
         let (_, propName, _, _, defaultValue, capturedValidValueSet, constraintString, attributeString, tagString) = match.output
 
         let required: RequiredKind
+        let isOutputMarker: Bool
         switch marker {
         case ModelConstants.Member_PrimaryKey, ModelConstants.Member_Mandatory:
             required = .yes
+            isOutputMarker = false
+        case ModelConstants.Member_Output:
+            required = .no
+            isOutputMarker = true
+        case ModelConstants.Member_InOut:
+            required = .yes
+            isOutputMarker = true
         default:
             required = .no
+            isOutputMarker = false
         }
 
         let validValueSet = ParserUtil.parseValidValueSet(from: capturedValidValueSet)
@@ -319,7 +467,7 @@ public struct ParameterMetadata: Sendable {
 
         let attribs = ParserUtil.parseAttributes(from: attributeString ?? "")
         let tags = ParserUtil.parseTags(from: tagString ?? "")
-        let isOutput = tags.contains(where: { $0.name == "output" })
+        let isOutput = isOutputMarker || tags.contains(where: { $0.name == "output" })
 
         let name = propName.trim().normalizeForVariableName()
         let metadata = ParameterMetadata(
@@ -329,7 +477,8 @@ public struct ParameterMetadata: Sendable {
             validValueSet: validValueSet,
             constraints: constraints,
             attribs: attribs,
-            tags: tags
+            tags: tags,
+            description: paramDesc
         )
         return (name: name, metadata: metadata)
     }

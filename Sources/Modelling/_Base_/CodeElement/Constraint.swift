@@ -49,14 +49,17 @@ public indirect enum ConstraintExpr: Equatable, Sendable {
 public struct Constraint: Equatable, Sendable {
     public let name: String?
     public let expr: ConstraintExpr
+    /// Human-readable description from `--` lines after the constraint line.
+    public var description: String?
 
     public var isNamed: Bool {
         name != nil
     }
 
-    public init(name: String? = nil, expr: ConstraintExpr) {
+    public init(name: String? = nil, expr: ConstraintExpr, description: String? = nil) {
         self.name = name?.trim()
         self.expr = expr
+        self.description = description
     }
 }
 

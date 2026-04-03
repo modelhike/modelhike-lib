@@ -51,6 +51,9 @@ public actor MethodObject_Wrap: ObjectWrapper {
         case .hasGrpcLogic:
             guard let logic = await item.logic, !logic.isEmpty else { return false }
             return await logic.containsGrpcClientStatement()
+        case .description: return await item.description ?? ""
+        case .hasDescription:
+            return (await item.description).map { !$0.isEmpty } ?? false
         }
     }
 
@@ -87,6 +90,10 @@ public actor MethodParameter_Wrap: DynamicMemberLookup, SendableDebugStringConve
         case .isRequired: item.metadata.required == .yes
         case .hasDefaultValue: item.metadata.defaultValue != nil
         case .defaultValue: item.metadata.defaultValue ?? ""
+        case .isOutput: item.metadata.isOutput
+        case .isInout: item.metadata.isOutput && item.metadata.required == .yes
+        case .description: item.metadata.description ?? ""
+        case .hasDescription: item.metadata.description.map { !$0.isEmpty } ?? false
         }
     }
 
@@ -115,6 +122,8 @@ private enum MethodObjectProperty: String, CaseIterable {
     case hasHttpLogic = "has-http-logic"
     case hasWsLogic = "has-ws-logic"
     case hasGrpcLogic = "has-grpc-logic"
+    case description
+    case hasDescription = "has-description"
 }
 
 private enum MethodParameterProperty: String, CaseIterable {
@@ -124,4 +133,8 @@ private enum MethodParameterProperty: String, CaseIterable {
     case isRequired = "is-required"
     case hasDefaultValue = "has-default-value"
     case defaultValue = "default-value"
+    case isOutput = "is-output"
+    case isInout = "is-inout"
+    case description
+    case hasDescription = "has-description"
 }

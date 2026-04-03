@@ -30,12 +30,17 @@ public enum ModuleParser {
         return false
     }
     
-    public static func parse(parser: LineParser, with ctx: LoadContext) async throws -> C4Component? {
-        let line = await parser.currentLine().dropFirstAndLastWords()
+    public static func parse(parser: LineParser, with ctx: LoadContext, pending: ParserUtil.PendingMetadata? = nil) async throws -> C4Component? {
+        let fenceLine = await parser.currentLine()
+        var innerLine = fenceLine.dropFirstAndLastWords()
+        let inlineDesc = ParserUtil.extractInlineDescription(from: &innerLine)
+        let line = innerLine
         guard let match = line.wholeMatch(of: ModelRegEx.moduleName_Capturing)                                                                                  else { return nil }
         
         let (_, moduleName, attributeString, tagString) = match.output
         let item = C4Component(name: moduleName)
+        await ParserUtil.appendDescription(pending?.description, to: item)
+        await ParserUtil.appendDescription(inlineDesc, to: item)
         
         //check if has attributes
         if let attributeString = attributeString {

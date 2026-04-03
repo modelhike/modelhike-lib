@@ -17,7 +17,12 @@ public actor UIView : UIObject {
     public let attribs = Attributes()
     public let tags = Tags()
     public let annotations = Annotations()
-    
+    public private(set) var description: String?
+
+    public func setDescription(_ value: String?) {
+        self.description = value
+    }
+
     public var methods : [MethodObject] { get async {
         await members.compactMap({
         if let method = $0 as? MethodObject { return method } else {return nil}

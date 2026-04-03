@@ -105,6 +105,18 @@ public actor C4Component_Wrap : ObjectWrapper {
         case .mutationApis: await mutationApis
         case .hasMutationApis: await mutationApis.count != 0
         case .hasAnyApis: await apis.count != 0
+        case .description: await item.description ?? ""
+        case .hasDescription:
+            (await item.description).map { !$0.isEmpty } ?? false
+        case .expressions:
+            await item.expressions.map { TypeProperty_Wrap($0) }
+        case .hasExpressions: await !item.expressions.isEmpty
+        case .functions:
+            await item.functions.map { MethodObject_Wrap($0) }
+        case .hasFunctions: await !item.functions.isEmpty
+        case .namedConstraints:
+            await item.namedConstraints.snapshot().map { Constraint_Wrap($0) }
+        case .hasNamedConstraints: await !item.namedConstraints.snapshot().isEmpty
         }
         return value
     }
@@ -157,6 +169,14 @@ private enum C4ComponentProperty: String, CaseIterable {
     case mutationApis = "mutation-apis"
     case hasMutationApis = "has-mutation-apis"
     case hasAnyApis = "has-any-apis"
+    case description
+    case hasDescription = "has-description"
+    case expressions
+    case hasExpressions = "has-expressions"
+    case functions
+    case hasFunctions = "has-functions"
+    case namedConstraints = "named-constraints"
+    case hasNamedConstraints = "has-named-constraints"
 }
 
 

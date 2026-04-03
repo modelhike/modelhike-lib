@@ -14,7 +14,9 @@ ModelHike DSL lets you capture **architecture, data models, and APIs** in a sing
 
 | Pattern / Symbol   | Meaning                               | Appears where            |
 | ------------------ | ------------------------------------- | ------------------------ |
-| `=== … ===`        | **Container fence** – deployable unit | File top level           |
+| `* * * … * * *`    | **System fence** – top-level C4 system boundary (3 lines: open, name, close; then body, then closing asterism) | File top level  |
+| `Name [type]` + `++++` | **Infra node** – inline infra element inside system | Inside system body |
+| `=== … ===`        | **Container fence** – deployable unit | Inside a system or file top level |
 | `=== Module ===`   | **Module / Component**                | Inside a container       |
 | extra `=` (`====`) | **Sub‑module**                        | Nested under a module    |
 | `Class` + `====`   | **Class / Type**                      | Inside a module          |
@@ -23,6 +25,14 @@ ModelHike DSL lets you capture **architecture, data models, and APIs** in a sing
 | `methodName(…)` + `------` | **Method** — setext header + dash underline | After properties in a class |
 | `~ methodName(…)` | **Method** — tilde-prefix style (no underline) | After properties in a class |
 | `>>> * param: Type …` | **Parameter metadata** — one line per parameter, immediately before method header | Before method header |
+| `>>>` (prose) | **Description line** — bare `>>>` text (no `*`, `->`, `<->`, …) merges into the next element’s `description` | Before container, module, class, or method |
+| `--` (inline) | **Inline description** — ` -- text` at end of a line | After headers / properties / signatures |
+| `--` (next lines) | **Continuation description** — lines starting with `--` (not an all-dash underline) | After a parsed element |
+| `->` / `<->` | **Output / in-out parameter** — in `>>>` lines or in the method signature before `paramName` | Method parameters |
+| `@Name` | **Constraint or expression reference** — `@Name` inside `{ … }` applies a named constraint (`appliedConstraints`); `= @Name` default references a module `=` expression | Property lines |
+| `= name : { … }` | **Named constraint** — boolean expression in `{ … }` (may span lines); module- or class-level | Module or class body |
+| `=` (module) | **Module-level expression** — same shape as a calculated property at module scope | Inside `=== Module ===` |
+| `~` (module) | **Module-level function** — method at module scope | Inside `=== Module ===` |
 | `---` / ` ``` ` / `'''` / `"""` | **Method logic fence** – wraps the logic body; tilde-style accepts 3+ repetitions of the fence character, opening and closing must match | After method header |
 
 | `**`               | **Primary key field**              | Property list            |
@@ -231,6 +241,16 @@ Modules map to **C4 Components**; sub‑modules let you nest deeper.
 | `@ apis:: …` on module header        | CRUD for **every** class inside      |
 | Mix classes, DTOs, API blocks inside | Keeps related pieces together        |
 
+### Module‑level expressions, functions, and named constraints
+
+Inside a module fence (after `=== Module Name ===`), you may declare items **before** any class/DTO/UIView:
+
+* **Expression constants** — same syntax as a calculated property: `= MAX_RETRIES : Int = 5`. These are stored on the `C4Component` as `expressions: [Property]`.
+* **Functions** — tilde or setext methods at module scope: `~ helper(x: Int) : Int`. Stored as `functions: [MethodObject]`.
+* **Named constraints** — `= positiveAmount : { amount > 0 }` with an optional multi-line `{ … }` body. Stored in `namedConstraints`. Class bodies support the same `= name : { … }` form on `DomainObject`.
+
+Validation (**W302**) warns when a property references `@Something` that cannot be resolved against module/class expressions, named constraints, or `common.modelhike` shared types.
+
 ### Anatomy of a module header
 
 ```
@@ -369,7 +389,20 @@ Everything inside classes/DTOs boils down to **properties**.
 | `Seat[1..*]`         | list, min 1       | `<SeatA>`          |
 | `[string => Person]` | dictionary        | `<admin: "Bob">`   |
 
-### 5.4 Defaults & validation
+### 5.4 Descriptions
+
+* **Inline:** append ` -- prose` to the end of a property or header line (space–dash–dash–space). The remainder is stripped from the line and stored as `description`.
+* **Following lines:** lines starting with `--` (not a setext/rule underline) attach to the **previous** member or header as extra description text.
+* **Prose `>>>` blocks:** consecutive lines beginning with `>>>` whose remainder does **not** start with a parameter marker (`*`, `->`, `<->`, …) attach as description to the **next** container, module, class, or method.
+
+### 5.5 `@` references on property lines
+
+* `* field : Type = @ExpressionName` — default value references a module-level `=` expression (`ExpressionName` matches the expression property name).
+* `* field : Type { @constraintName }` — applies a named constraint from the module, class, or common model (`appliedConstraints`). The `@name` must appear **inside** the `{ … }` constraint block (you can combine with predicates, e.g. `{ @positiveAmount, min = 0 }`).
+* Putting `@constraintName` **outside** `{ … }` (except `= @ExpressionName` above) is a parse error (**E620**): move the reference into `{ … }`.
+* Annotation syntax `@word::` is unchanged and is not treated as a reference.
+
+### 5.6 Defaults & validation
 
 ```modelhike
 - retries : Int = 3                          { min = 0, max = 10 }
@@ -698,8 +731,12 @@ To attach rich metadata to individual parameters, write one `>>>` line per param
 | ------ | ------- |
 | `*` or `**` | Required parameter (`RequiredKind.yes`) |
 | `-` or any other | Optional parameter (`RequiredKind.no`) |
+| `->` | Output parameter — optional (`required = .no`), `isOutput = true` |
+| `<->` | In-out parameter — required (`required = .yes`), `isOutput = true` |
 
-The special tag `#output` marks a parameter as output/return-by-reference (`isOutput = true`).
+The special tag `#output` marks a parameter as output/return-by-reference (`isOutput = true`) — same as `->` on the `>>>` line.
+
+You may also prefix parameters in the **signature** with `->` or `<->` (e.g. `~ swap(-> out: Int) : Void`). Signature defaults are supported: `~ f(-> x: Int = 0) : Bool`. When both `>>>` metadata and a signature marker exist for the same parameter, the **`>>>` line wins**.
 
 ```modelhike
 >>> * customerId: Id

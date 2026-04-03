@@ -20,7 +20,12 @@ public actor AttachedSection : ArtifactHolder {
 
     public var name: String = ""
     public var givenname: String = ""
+    public private(set) var description: String?
     public let dataType: ArtifactKind = .attachedSection
+
+    public func setDescription(_ value: String?) {
+        self.description = value
+    }
     internal var containingObject: ArtifactHolderWithAttachedSections
     
     public internal(set) var items : [Artifact]

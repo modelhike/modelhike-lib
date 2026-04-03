@@ -17,7 +17,12 @@ public actor DtoObject : CodeObject {
     public var attribs = Attributes()
     public var tags = Tags()
     public var annotations = Annotations()
-    
+    public private(set) var description: String?
+
+    public func setDescription(_ value: String?) {
+        self.description = value
+    }
+
     public var derivedProperties : [DerivedProperty] { get async { await members.compactMap({
         if let dprop = $0 as? DerivedProperty { return dprop } else {return nil}
     }) }}

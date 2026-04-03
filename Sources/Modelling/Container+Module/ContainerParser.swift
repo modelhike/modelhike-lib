@@ -27,14 +27,17 @@ public enum ContainerParser {
         return true
     }
     
-    public static func parse(parser: LineParser, with ctx: LoadContext) async throws -> C4Container? {
+    public static func parse(parser: LineParser, with ctx: LoadContext, pending: ParserUtil.PendingMetadata? = nil) async throws -> C4Container? {
         await parser.skipLine() //skip the overline
-        let line = await parser.currentLine()
+        var line = await parser.currentLine()
+        let inlineDesc = ParserUtil.extractInlineDescription(from: &line)
         
         guard let match = line.wholeMatch(of: ModelRegEx.containerName_Capturing)                                                                                  else { return nil }
         
         let (_, containerName, attributeString, tagString) = match.output
         let item = await C4Container(name: containerName)
+        await ParserUtil.appendDescription(pending?.description, to: item)
+        await ParserUtil.appendDescription(inlineDesc, to: item)
         
         //check if has attributes
         if let attributeString = attributeString {

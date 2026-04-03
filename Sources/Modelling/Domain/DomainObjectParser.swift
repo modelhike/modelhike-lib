@@ -21,16 +21,18 @@ public enum DomainObjectParser {
         return false
     }
 
-    public static func parse(parser: LineParser, with pInfo: ParsedInfo) async throws -> DomainObject? {
-        let line = await parser.currentLine()
-
-        guard let match = line.wholeMatch(of: ModelRegEx.className_Capturing) else { return nil }
+    public static func parse(parser: LineParser, with pInfo: ParsedInfo, pending: ParserUtil.PendingMetadata? = nil) async throws -> DomainObject? {
+        var headerLine = await parser.currentLine()
+        let inlineClassDesc = ParserUtil.extractInlineDescription(from: &headerLine)
+        guard let match = headerLine.wholeMatch(of: ModelRegEx.className_Capturing) else { return nil }
 
         let (_, className, attributeString, tagString) = match.output
 
         try await pInfo.ctx.events.onParse(objectName: className, with: pInfo)
 
         let item = DomainObject(name: className.trim())
+        await ParserUtil.appendDescription(pending?.description, to: item)
+        await ParserUtil.appendDescription(inlineClassDesc, to: item)
 
         //check if has attributes
         if let attributeString = attributeString {
@@ -44,9 +46,21 @@ public enum DomainObjectParser {
 
         await parser.skipLine(by: 2)  //skip class name and underline
 
+        var pendingMetadataBlock = ParserUtil.PendingMetadataBlock()
+
         while await parser.linesRemaining {
             if await parser.isCurrentLineEmptyOrCommented() {
                 await parser.skipLine()
+                continue
+            }
+
+            if await ParserUtil.consumePendingMetadataBlockLines(from: parser, into: &pendingMetadataBlock) {
+                continue
+            }
+
+            let trimmed = await parser.currentLine()
+            if trimmed.hasPrefix(ModelConstants.Member_Description), !trimmed.hasOnly("-") {
+                await ParserUtil.appendConsumedDescriptionLines(from: parser, toLastRecognizedMember: await item.members.last, orOwner: item)
                 continue
             }
 
@@ -56,7 +70,10 @@ public enum DomainObjectParser {
                     await parser.skipLine()
                     continue
                 }
-                if let method = try await MethodObject.parse(pInfo: methodPInfo) {
+                let passPending = pendingMetadataBlock.isEmpty ? nil : pendingMetadataBlock
+                pendingMetadataBlock.clear()
+                if let method = try await MethodObject.parse(pInfo: methodPInfo, pendingMetadataBlock: passPending) {
+                    await ParserUtil.appendConsumedDescriptionLines(from: parser, to: method)
                     await item.append(method)
                     continue
                 } else {
@@ -64,29 +81,37 @@ public enum DomainObjectParser {
                 }
             }
 
-            guard let pInfo = await parser.currentParsedInfo(level: 0) else {
+            guard let bodyInfo = await parser.currentParsedInfo(level: 0) else {
                 await parser.skipLine()
                 continue
             }
-            if await parser.isCurrentLineHumaneComment(pInfo) {
+            if await parser.isCurrentLineHumaneComment(bodyInfo) {
                 await parser.skipLine()
                 continue
             }  //humane comment
 
-            if Property.canParse(firstWord: pInfo.firstWord) {
-                if let prop = try await Property.parse(pInfo: pInfo) {
-                    await item.append(prop)
+            if bodyInfo.firstWord == ModelConstants.Member_Calculated, ParserUtil.isNamedConstraintEqualsLine(line: bodyInfo.line, firstWord: bodyInfo.firstWord) {
+                if let constraint = try await ParserUtil.parseNamedConstraint(from: bodyInfo, parser: parser) {
+                    await item.namedConstraints.add(constraint)
                     continue
-                } else {
-                    throw Model_ParsingError.invalidPropertyLine(pInfo)
                 }
             }
 
-            if try await pInfo.tryParseAnnotations(with: item) {
+            if Property.canParse(firstWord: bodyInfo.firstWord) {
+                if let prop = try await Property.parse(pInfo: bodyInfo) {
+                    await ParserUtil.appendConsumedDescriptionLines(from: parser, to: prop)
+                    await item.append(prop)
+                    continue
+                } else {
+                    throw Model_ParsingError.invalidPropertyLine(bodyInfo)
+                }
+            }
+
+            if try await bodyInfo.tryParseAnnotations(with: item) {
                 continue
             }
 
-            if try await pInfo.tryParseAttachedSections(with: item) {
+            if try await bodyInfo.tryParseAttachedSections(with: item) {
                 continue
             }
 

@@ -258,7 +258,7 @@ Pipelines/
 │   └── PassDownAndProcessAnnotations.swift
 ├── 3.5. Validate/          # Semantic validation after hydration; emits diagnostics, does not throw
 │   ├── Validate.swift      # Factory: Validate.models()
-│   └── ValidateModels.swift # Checks: unresolved custom types (W301), unresolved modules (W303), duplicate type names (W304), duplicate members (W305/W306)
+│   └── ValidateModels.swift # Checks: unresolved custom types (W301), unresolved `@name` refs (W302), unresolved modules (W303), duplicate type names (W304), duplicate members (W305/W306)
 ├── 4. Transform/
 │   ├── Transform.swift
 │   └── Plugins.swift
@@ -445,6 +445,7 @@ Each phase is a `PipelinePhase` that holds a list of `PipelinePass` implementati
 
 - `ValidateModelsPass` — semantic validation pass run after hydration, before rendering. Emits structured `diagnostic` debug events (never throws) so warnings appear in the Problems panel without halting the pipeline.
   - **W301** — Unresolved custom type reference (property refers to a type not found in `ParsedTypesCache`).
+  - **W302** — Unresolved `@identifier` on a property line (constraint/expression reference not found in module/class `namedConstraints`/`expressions` or `common.modelhike`).
   - **W303** — Unresolved module reference on a container (references a `+module` that was never defined).
   - **W304** — Duplicate type name within the same container.
   - **W305** — Duplicate property name within the same class/entity.
@@ -932,7 +933,7 @@ Used by `DevTester` (via `Environment.debug`) to run the full pipeline against r
 - ✅ Spring Boot monorepo blueprint (`api-springboot-monorepo`) with Java symbols when that blueprint is active
 - ✅ GraphQL + gRPC API scaffolding support in the DSL and modifier libraries
 - ✅ Annotation cascade system
-- ✅ Semantic validation phase (`Validate.models()`) — emits W301/W303–W307 diagnostics for unresolved types, duplicate names, missing modules, and missing blueprint tags
+- ✅ Semantic validation phase (`Validate.models()`) — emits W301–W307 diagnostics for unresolved types and `@` references, duplicate names, missing modules, and missing blueprint tags
 - ✅ World-class error messages — modifier/operator errors include structured `DiagnosticSuggestion` hints generated via `Suggestions` utility (Levenshtein distance + available-options metadata); nil-condition and nil-variable-clear warnings (W201/W202); blueprint preflight check (E101)
 - ✅ Structured diagnostics in debug UI — `/api/diagnostics` endpoint; Problems panel in debug console
 - ✅ Type inference and hydration (entity/dto/cache/apiInput/embeddedType classification)
@@ -1069,7 +1070,13 @@ CRITICAL:
 | `Member_Derived_For_Dto` | `.` | DTO field |
 | `Member_Method` | `~` | Method inside a class |
 | `Member_ParameterMetadata` | `>>>` | Parameter metadata line preceding a method header |
-| `Container_Member` | `+` | Module declaration inside container |
+| `Member_Description` | `--` | Inline / continuation description lines |
+| `Member_Output` | `->` | Output parameter marker (`>>>` or signature) |
+| `Member_InOut` | `<->` | In-out parameter marker (`>>>` or signature) |
+| `Container_Member` | `+` | Module declaration inside container; container reference inside system |
+| `SystemFenceChar` | `*` | Asterism fence character for system-level blocks |
+| `SystemFenceMinCount` | `3` | Minimum number of asterisks in a valid system fence line |
+| `InfraNodeUnderlineChar` | `+` | Setext underline character for infra-node headers inside a system body |
 | `External_Import_File` | `+` | File import (same prefix as container member) |
 | `AttachedSection` | `#` | API block or other attached section |
 | `AttachedSubSection` | `##` | Sub-section entry (custom API operation) |

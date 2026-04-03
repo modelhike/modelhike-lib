@@ -16,6 +16,11 @@ public actor C4Container : ArtifactHolder {
     public let dataType: ArtifactKind = .container
 
     public var containerType: ContainerKind
+    public private(set) var description: String?
+
+    public func setDescription(_ value: String?) {
+        self.description = value
+    }
 
     public var components = C4ComponentList()
     public private(set) var unresolvedMembers: [ContainerModuleMember] = []
