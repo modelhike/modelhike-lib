@@ -146,7 +146,7 @@ import Testing
 
     @Test func outputArrowMarkerOnMetadataLine() async throws {
         let method = try await parseMethod("""
-            >>> -> amount: Float
+            >>> --> amount: Float
             ~ transfer(amount: Float) : Void
             """)
 
@@ -158,7 +158,7 @@ import Testing
 
     @Test func inOutArrowMarkerOnMetadataLine() async throws {
         let method = try await parseMethod("""
-            >>> <-> buffer: String
+            >>> <--> buffer: String
             ~ fill(buffer: String) : Void
             """)
 
@@ -170,7 +170,7 @@ import Testing
 
     @Test func outputArrowInMethodSignature() async throws {
         let method = try await parseMethod("""
-            ~ foo(a: Id, -> b: Float) : Bool
+            ~ foo(a: Id, --> b: Float) : Bool
             """)
 
         let params = await method.parameters
@@ -182,7 +182,7 @@ import Testing
 
     @Test func inOutArrowInMethodSignature() async throws {
         let method = try await parseMethod("""
-            ~ foo(a: Id, <-> b: String) : Bool
+            ~ foo(a: Id, <--> b: String) : Bool
             """)
 
         let params = await method.parameters
@@ -193,7 +193,7 @@ import Testing
 
     @Test func outputParamWithDefaultInSignature() async throws {
         let method = try await parseMethod("""
-            ~ foo(a: Id, -> b: Float = 0) : Bool
+            ~ foo(a: Id, --> b: Float = 0) : Bool
             """)
 
         let params = await method.parameters

@@ -1071,8 +1071,8 @@ CRITICAL:
 | `Member_Method` | `~` | Method inside a class |
 | `Member_ParameterMetadata` | `>>>` | Parameter metadata line preceding a method header |
 | `Member_Description` | `--` | Inline / continuation description lines |
-| `Member_Output` | `->` | Output parameter marker (`>>>` or signature) |
-| `Member_InOut` | `<->` | In-out parameter marker (`>>>` or signature) |
+| `Member_Output` | `-->` | Output parameter marker (`>>>` or signature) |
+| `Member_InOut` | `<-->` | In-out parameter marker (`>>>` or signature) |
 | `Container_Member` | `+` | Module declaration inside container; container reference inside system |
 | `SystemFenceChar` | `*` | Asterism fence character for system-level blocks |
 | `SystemFenceMinCount` | `3` | Minimum number of asterisks in a valid system fence line |

@@ -305,8 +305,8 @@ All statements below work in both file types; only the prefix changes.
 | `param.is-required`         | Bool — parameter is required                             |
 | `param.has-default-value`   | Bool — parameter has a default value                     |
 | `param.default-value`       | Default value string                                     |
-| `param.is-output`           | Bool — `->`, `<->`, or `#output`                         |
-| `param.is-inout`            | Bool — `<->` (output + required)                         |
+| `param.is-output`           | Bool — `-->`, `<-->`, or `#output`                       |
+| `param.is-inout`            | Bool — `<-->` (output + required)                        |
 | `param.description`         | Per-parameter prose from `>>>` line                      |
 | `param.has-description`     | Bool                                                     |
 

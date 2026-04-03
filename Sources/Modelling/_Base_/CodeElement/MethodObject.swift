@@ -216,7 +216,7 @@ public actor MethodObject: CodeMember {
         return parts
     }
 
-    /// Parses one method argument: optional `->` / `<->`, `name : Type`, optional `= default`.
+    /// Parses one method argument: optional `-->` / `<-->`, `name : Type`, optional `= default`.
     private static func parseMethodArgumentSegment(_ segment: String) -> (name: String, type: TypeInfo, metadata: ParameterMetadata)? {
         var s = segment.trim()
         guard !s.isEmpty else { return nil }
@@ -434,7 +434,7 @@ public struct ParameterMetadata: Sendable {
         guard line.hasPrefix(prefix) else { return nil }
 
         let afterPrefix = String(line.dropFirst(prefix.count)).trim()
-        // afterPrefix: "* paramName: Type ..." or "-> name: Type ..."
+        // afterPrefix: "* paramName: Type ..." or "--> name: Type ..."
 
         guard let marker = afterPrefix.split(whereSeparator: { $0.isWhitespace }).first.map(String.init), !marker.isEmpty else { return nil }
         var propertyLine = String(afterPrefix.dropFirst(marker.count)).trimmingCharacters(in: .whitespaces)

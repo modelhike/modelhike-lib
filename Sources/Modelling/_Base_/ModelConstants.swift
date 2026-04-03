@@ -22,9 +22,9 @@ public enum ModelConstants {
     /// Inline or after-line documentation prefix (`-- text`).
     public static let Member_Description = "--"
     /// Output-only parameter marker (signature or `>>>` metadata line).
-    public static let Member_Output = "->"
+    public static let Member_Output = "-->"
     /// Bidirectional (inout) parameter marker (signature or `>>>` metadata line).
-    public static let Member_InOut = "<->"
+    public static let Member_InOut = "<-->"
 
     public static let External_Import_File = "+"
     public static let Container_Member = "+"

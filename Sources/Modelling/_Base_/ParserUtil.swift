@@ -54,7 +54,7 @@ public class ParserUtil {
         }
     }
 
-    /// `true` when `token` is a `>>>` line marker (`*`, `->`, …), not bare description text.
+    /// `true` when `token` is a `>>>` line marker (`*`, `-->`, …), not bare description text.
     public static func isParameterMetadataMarkerToken(_ token: String) -> Bool {
         if token == ModelConstants.Member_Output || token == ModelConstants.Member_InOut { return true }
         if token == ModelConstants.Member_PrimaryKey || token == ModelConstants.Member_Mandatory { return true }

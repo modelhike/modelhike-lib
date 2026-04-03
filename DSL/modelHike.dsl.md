@@ -25,10 +25,10 @@ ModelHike DSL lets you capture **architecture, data models, and APIs** in a sing
 | `methodName(…)` + `------` | **Method** — setext header + dash underline | After properties in a class |
 | `~ methodName(…)` | **Method** — tilde-prefix style (no underline) | After properties in a class |
 | `>>> * param: Type …` | **Parameter metadata** — one line per parameter, immediately before method header | Before method header |
-| `>>>` (prose) | **Description line** — bare `>>>` text (no `*`, `->`, `<->`, …) merges into the next element’s `description` | Before container, module, class, or method |
+| `>>>` (prose) | **Description line** — bare `>>>` text (no `*`, `-->`, `<-->`, …) merges into the next element’s `description` | Before container, module, class, or method |
 | `--` (inline) | **Inline description** — ` -- text` at end of a line | After headers / properties / signatures |
 | `--` (next lines) | **Continuation description** — lines starting with `--` (not an all-dash underline) | After a parsed element |
-| `->` / `<->` | **Output / in-out parameter** — in `>>>` lines or in the method signature before `paramName` | Method parameters |
+| `-->` / `<-->` | **Output / in-out parameter** — in `>>>` lines or in the method signature before `paramName` | Method parameters |
 | `@Name` | **Constraint or expression reference** — `@Name` inside `{ … }` applies a named constraint (`appliedConstraints`); `= @Name` default references a module `=` expression | Property lines |
 | `= name : { … }` | **Named constraint** — boolean expression in `{ … }` (may span lines); module- or class-level | Module or class body |
 | `=` (module) | **Module-level expression** — same shape as a calculated property at module scope | Inside `=== Module ===` |
@@ -393,7 +393,7 @@ Everything inside classes/DTOs boils down to **properties**.
 
 * **Inline:** append ` -- prose` to the end of a property or header line (space–dash–dash–space). The remainder is stripped from the line and stored as `description`.
 * **Following lines:** lines starting with `--` (not a setext/rule underline) attach to the **previous** member or header as extra description text.
-* **Prose `>>>` blocks:** consecutive lines beginning with `>>>` whose remainder does **not** start with a parameter marker (`*`, `->`, `<->`, …) attach as description to the **next** container, module, class, or method.
+* **Prose `>>>` blocks:** consecutive lines beginning with `>>>` whose remainder does **not** start with a parameter marker (`*`, `-->`, `<-->`, …) attach as description to the **next** container, module, class, or method.
 
 ### 5.5 `@` references on property lines
 
@@ -731,12 +731,12 @@ To attach rich metadata to individual parameters, write one `>>>` line per param
 | ------ | ------- |
 | `*` or `**` | Required parameter (`RequiredKind.yes`) |
 | `-` or any other | Optional parameter (`RequiredKind.no`) |
-| `->` | Output parameter — optional (`required = .no`), `isOutput = true` |
-| `<->` | In-out parameter — required (`required = .yes`), `isOutput = true` |
+| `-->` | Output parameter — optional (`required = .no`), `isOutput = true` |
+| `<-->` | In-out parameter — required (`required = .yes`), `isOutput = true` |
 
-The special tag `#output` marks a parameter as output/return-by-reference (`isOutput = true`) — same as `->` on the `>>>` line.
+The special tag `#output` marks a parameter as output/return-by-reference (`isOutput = true`) — same as `-->` on the `>>>` line.
 
-You may also prefix parameters in the **signature** with `->` or `<->` (e.g. `~ swap(-> out: Int) : Void`). Signature defaults are supported: `~ f(-> x: Int = 0) : Bool`. When both `>>>` metadata and a signature marker exist for the same parameter, the **`>>>` line wins**.
+You may also prefix parameters in the **signature** with `-->` or `<-->` (e.g. `~ swap(--> out: Int) : Void`). Signature defaults are supported: `~ f(--> x: Int = 0) : Bool`. When both `>>>` metadata and a signature marker exist for the same parameter, the **`>>>` line wins**.
 
 ```modelhike
 >>> * customerId: Id
