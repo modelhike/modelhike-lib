@@ -8,21 +8,22 @@ When the pipeline doesn't produce the output you expect, ModelHike provides seve
 
 1. [Quick Reference](#1-quick-reference)
 2. [Always-On Pipeline Output](#2-always-on-pipeline-output)
-3. [Debug Flags (`ContextDebugFlags`)](#3-debug-flags-contextdebugflags)
-4. [Event Hooks (`CodeGenerationEvents`)](#4-event-hooks-codegenerationevents)
-5. [Error Output Options](#5-error-output-options)
-6. [In-Template Debugging (SoupyScript)](#6-in-template-debugging-soupyscript)
-7. [Front-Matter Directives & File Exclusion](#7-front-matter-directives--file-exclusion)
-8. [Error Reporting & Call Stack](#8-error-reporting--call-stack)
-9. [Isolating a Single File or Object](#9-isolating-a-single-file-or-object)
-10. [Isolating with `runTemplateStr()`](#10-isolating-with-runtemplatestr)
-11. [Isolating with Inline Models](#11-isolating-with-inline-models)
-12. [Scoping the Run with `containersToOutput`](#12-scoping-the-run-with-containerstooutput)
-13. [Using the Xcode Debugger](#13-using-the-xcode-debugger)
-14. [Common Debugging Scenarios](#14-common-debugging-scenarios)
-15. [Blueprint-Specific Debugging Patterns](#15-blueprint-specific-debugging-patterns)
-16. [Visual Debugger](#16-visual-debugger)
-17. [Diagnostic Codes You Will See](#17-diagnostic-codes-you-will-see)
+3. [Performance Timing](#3-performance-timing)
+4. [Debug Flags (`ContextDebugFlags`)](#4-debug-flags-contextdebugflags)
+5. [Event Hooks (`CodeGenerationEvents`)](#5-event-hooks-codegenerationevents)
+6. [Error Output Options](#6-error-output-options)
+7. [In-Template Debugging (SoupyScript)](#7-in-template-debugging-soupyscript)
+8. [Front-Matter Directives & File Exclusion](#8-front-matter-directives--file-exclusion)
+9. [Error Reporting & Call Stack](#9-error-reporting--call-stack)
+10. [Isolating a Single File or Object](#10-isolating-a-single-file-or-object)
+11. [Isolating with `runTemplateStr()`](#11-isolating-with-runtemplatestr)
+12. [Isolating with Inline Models](#12-isolating-with-inline-models)
+13. [Scoping the Run with `containersToOutput`](#13-scoping-the-run-with-containerstooutput)
+14. [Using the Xcode Debugger](#14-using-the-xcode-debugger)
+15. [Common Debugging Scenarios](#15-common-debugging-scenarios)
+16. [Blueprint-Specific Debugging Patterns](#16-blueprint-specific-debugging-patterns)
+17. [Visual Debugger](#17-visual-debugger)
+18. [Diagnostic Codes You Will See](#18-diagnostic-codes-you-will-see)
 
 ---
 
@@ -73,7 +74,43 @@ If you see `💡 Loaded domain types: 0` or unexpectedly low counts, the model f
 
 ---
 
-## 3. Debug Flags (`ContextDebugFlags`)
+## 3. Performance Timing
+
+For a lightweight timing breakdown, set `config.recordPerformance = true` before calling `pipeline.run(using: config)`. The pipeline creates an internal performance recorder for that run and stores it on `pipeline.state.performanceRecorder`.
+
+When running through `DevTester`, pass `--perf` to enable the same timing report automatically.
+
+```swift
+let pipeline = Pipelines.codegen
+var config = Environment.debug
+config.recordPerformance = true
+
+try await pipeline.run(using: config)
+
+if let report = await pipeline.state.performanceRecorder?.textReport() {
+    print(report)
+}
+```
+
+The report includes:
+
+| Level | What it shows |
+|---|---|
+| Pipeline | Total wall-clock runtime |
+| Phase | Discover / Load / Hydrate / Transform / Render / Persist timings |
+| Pass | Individual pass timings within each phase |
+
+Typical `DevTester` usage:
+
+```bash
+swift run DevTester --perf
+swift run DevTester --debug --perf
+swift run DevTester --debug-stepping --perf
+```
+
+---
+
+## 4. Debug Flags (`ContextDebugFlags`)
 
 Flags are simple booleans on `config.flags`. Set them before the pipeline runs. Each one activates a category of `print()` output via `ContextDebugLog`.
 
@@ -139,7 +176,7 @@ config.flags.fileGeneration = true
 
 ---
 
-## 4. Event Hooks (`CodeGenerationEvents`)
+## 5. Event Hooks (`CodeGenerationEvents`)
 
 Event hooks let you run custom closures at specific moments in the pipeline. They are set on `config.events` and offer two key capabilities:
 
@@ -262,7 +299,7 @@ The recommended pattern for targeted debugging is:
 
 ---
 
-## 5. Error Output Options
+## 6. Error Output Options
 
 When the pipeline throws an error, `PipelineErrorPrinter` formats the output. You can control what's included:
 
@@ -299,7 +336,7 @@ This appears before the detailed error, so you immediately know which phase cras
 
 ---
 
-## 6. In-Template Debugging (SoupyScript)
+## 7. In-Template Debugging (SoupyScript)
 
 When the issue is inside a `.teso` template or `.ss` script, use these SoupyScript statements to probe values at runtime.
 
@@ -362,7 +399,7 @@ Lines starting with `//` inside `.teso` and `.ss` files are treated as comments 
 
 ---
 
-## 7. Front-Matter Directives & File Exclusion
+## 8. Front-Matter Directives & File Exclusion
 
 `.teso` template files can have a front-matter block (between `---` fences) that controls whether the file is included in output. This is relevant to debugging because a missing file in output may be due to front-matter exclusion rather than a bug.
 
@@ -403,7 +440,7 @@ If your output has unexpected values, check whether front-matter variables are s
 
 ---
 
-## 8. Error Reporting & Call Stack
+## 9. Error Reporting & Call Stack
 
 ### Error Types
 
@@ -443,7 +480,7 @@ This means that if an error occurs **inside a template function body**, the erro
 
 ---
 
-## 9. Isolating a Single File or Object
+## 10. Isolating a Single File or Object
 
 ### By Output Filename
 
@@ -501,7 +538,7 @@ config.events.onBeforeRenderFile = { filename, pInfo in
 
 ---
 
-## 10. Isolating with `runTemplateStr()`
+## 11. Isolating with `runTemplateStr()`
 
 For expression-level debugging, bypass the full pipeline entirely. `DevMain.swift` has a `runTemplateStr()` function that renders a single template string against hardcoded data:
 
@@ -539,7 +576,7 @@ This is the fastest way to test:
 
 ---
 
-## 11. Isolating with Inline Models
+## 12. Isolating with Inline Models
 
 When a model parsing issue is hard to isolate in a large `.modelhike` file, you can define a minimal model directly in Swift code using `InlineModelLoader`. This bypasses file discovery entirely and lets you test parsing with a controlled, minimal input.
 
@@ -577,7 +614,7 @@ To use it, you would switch the pipeline's model loading to use the inline loade
 
 ---
 
-## 12. Scoping the Run with `containersToOutput`
+## 13. Scoping the Run with `containersToOutput`
 
 Limit code generation to specific containers to reduce noise and speed up iteration:
 
@@ -589,7 +626,7 @@ The pipeline will only generate output for the named container(s), skipping all 
 
 ---
 
-## 13. Using the Xcode Debugger
+## 14. Using the Xcode Debugger
 
 When the higher-level tools aren't enough, you can use Xcode's native debugger against the `DevTester` target.
 
@@ -621,7 +658,7 @@ Since the pipeline processes many objects and files, Xcode conditional breakpoin
 
 ---
 
-## 14. Common Debugging Scenarios
+## 15. Common Debugging Scenarios
 
 ### "A file is missing from the output"
 
@@ -708,7 +745,7 @@ The modifier chain (`Modifiers.apply()`, `ModifierInstance`, built-in and bluepr
 
 ---
 
-## 15. Blueprint-Specific Debugging Patterns
+## 16. Blueprint-Specific Debugging Patterns
 
 The blueprints in `modelhike-blueprints` have their own debugging conventions worth knowing.
 
@@ -846,7 +883,7 @@ These set context variables available throughout the blueprint's templates. If o
 
 ---
 
-## 16. Visual Debugger
+## 17. Visual Debugger
 
 For session-oriented debugging, use the browser debugger instead of raw terminal output:
 
@@ -893,7 +930,7 @@ This is especially effective for `W201`, `W202`, validation warnings, and render
 
 ---
 
-## 17. Diagnostic Codes You Will See
+## 18. Diagnostic Codes You Will See
 
 The current error-handling/debugging work introduced several high-signal codes:
 
@@ -918,7 +955,7 @@ For the full architecture and UI behavior, see `Docs/debug/VISUALDEBUG.md`.
 
 ---
 
-## 18. Test Coverage for Enriched Error Paths
+## 19. Test Coverage for Enriched Error Paths
 
 The enriched error-handling work is backed by dedicated test suites in `Tests/Debug/`:
 
@@ -956,7 +993,7 @@ swift test --filter Debug
 
 ---
 
-## 19. Where `Suggestions` Is Integrated
+## 20. Where `Suggestions` Is Integrated
 
 The `Suggestions` utility (`Sources/Debug/Suggestions.swift`) provides Levenshtein-distance-based "did you mean?" hints and available-options formatting. It is integrated at these call sites:
 

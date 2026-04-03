@@ -70,6 +70,7 @@ Relevant flags:
 
 - `--debug`: enable post-mortem debug mode
 - `--debug-stepping`: enable live streaming mode (server starts before pipeline)
+- `--perf`: print pipeline total, phase, and pass timings after the run completes
 - `--debug-port=<port>`: choose the HTTP server port (default 4800)
 - `--debug-dev`: serve debug console directly from `DevTester/Assets/debug-console/`
 - `--no-open`: do not auto-open the browser

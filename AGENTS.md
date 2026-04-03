@@ -245,6 +245,7 @@ Pipelines/
 ├── Pipeline.swift          # Pipeline struct; runs phases sequentially; PipelineState actor
 ├── Pipelines.swift         # Pre-built pipeline presets: .codegen, .content, .empty
 ├── PipelineConfig.swift    # OutputConfig protocol + PipelineConfig struct
+├── PipelinePerformance.swift # Optional pipeline/phase/pass timing recorder + report types
 ├── PipelinePass.swift      # Protocol hierarchy for passes
 ├── PipelinePhase.swift     # Phase protocol
 ├── PipelineErrorPrinter.swift
@@ -781,6 +782,7 @@ The `DevTester` target is the **development harness** — an executable that imp
 - Uses `Pipelines.codegen`
 - Config from `Environment.debug`
 - Currently set to `config.containersToOutput = ["APIs"]`
+- Passing `--perf` sets `config.recordPerformance = true` and prints a timing report after the run
 - Commented-out hooks show how to enable per-file debug tracing
 
 **`runTemplateStr()`:**
@@ -808,8 +810,9 @@ Two debug modes are available:
 
 - **`--debug`** — post-mortem mode: pipeline runs to completion, then the server starts and the browser is opened for inspection.
 - **`--debug-stepping`** — live streaming mode: server starts first, WebSocket clients can connect before the pipeline runs, and every debug event is broadcast over WebSocket in real time via `StreamingDebugRecorder`.
+- **`--perf`** — enables the pipeline performance recorder and prints total, phase, and pass timings to stdout after the run.
 
-**Flags:** `--debug`, `--debug-stepping`, `--debug-port=<port>`, `--debug-dev` (serve HTML from Assets), `--no-open`
+**Flags:** `--debug`, `--debug-stepping`, `--perf`, `--debug-port=<port>`, `--debug-dev` (serve HTML from Assets), `--no-open`
 
 **Full reference:** [`Docs/debug/VISUALDEBUG.md`](Docs/debug/VISUALDEBUG.md) — runtime flow, architecture, integration inventory, event emission matrix, and troubleshooting.
 

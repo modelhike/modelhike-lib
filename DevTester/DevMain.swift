@@ -30,16 +30,21 @@ struct Development: Sendable {
         let port = parseDebugPort(from: args) ?? 4800
         let devAssetsPath = parseDebugDev(from: args)
         let noOpen = args.contains("--no-open")
+        let recordPerformance = args.contains("--perf")
 
         let pipeline = Pipelines.codegen
         var config = Environment.debug
         config.containersToOutput = ["APIs"]
+        config.recordPerformance = recordPerformance
 
         let recorder = DefaultDebugRecorder()
         config.debugRecorder = recorder
         config.debugStepper = NoOpDebugStepper()
 
         try await pipeline.run(using: config)
+        if recordPerformance, let report = await pipeline.state.performanceRecorder?.textReport() {
+            print(report)
+        }
 
         let session = await recorder.session(config: config)
         let renderedOutputs = await pipeline.state.renderedOutputRecords()
@@ -84,6 +89,7 @@ struct Development: Sendable {
         let port = parseDebugPort(from: args) ?? 4800
         let devAssetsPath = parseDebugDev(from: args)
         let noOpen = args.contains("--no-open")
+        let recordPerformance = args.contains("--perf")
 
         let wsManager = WebSocketClientManager()
         let streamingRecorder = StreamingDebugRecorder(wsManager: wsManager)
@@ -101,6 +107,7 @@ struct Development: Sendable {
         let pipeline = Pipelines.codegen
         var config = Environment.debug
         config.containersToOutput = ["APIs"]
+        config.recordPerformance = recordPerformance
         config.debugRecorder = streamingRecorder
         config.debugStepper = stepper
 
@@ -156,6 +163,9 @@ struct Development: Sendable {
         // Run the pipeline — it will pause at any breakpoints set from the browser
         print("▶️  Running pipeline with live stepping enabled…")
         try await pipeline.run(using: config)
+        if recordPerformance, let report = await pipeline.state.performanceRecorder?.textReport() {
+            print(report)
+        }
 
         // Pipeline finished — update the REST session and notify browser
         let finalSession = await streamingRecorder.session(config: config)
@@ -201,9 +211,11 @@ struct Development: Sendable {
     // MARK: - Normal generation (no debug)
 
     static func runCodebaseGeneration() async throws {
+        let args = CommandLine.arguments
         let pipeline = Pipelines.codegen
         var config = Environment.debug
         config.containersToOutput = ["APIs"]
+        config.recordPerformance = args.contains("--perf")
 
         //for debugging
         //config.flags.fileGeneration = true
@@ -252,6 +264,9 @@ struct Development: Sendable {
                   
         //continue run
         try await pipeline.run(using: config)
+        if config.recordPerformance, let report = await pipeline.state.performanceRecorder?.textReport() {
+            print(report)
+        }
     }
     
     

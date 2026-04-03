@@ -33,6 +33,9 @@ public struct PipelineConfig : OutputConfig {
     
     /// When set, enables breakpoint stepping. Used with `--debug` flag.
     public var debugStepper: (any DebugStepper)?
+
+    /// When true, the pipeline records total, phase, and pass timings for the current run.
+    public var recordPerformance: Bool = false
     
     public init() {}
 }
@@ -78,4 +81,5 @@ public protocol OutputConfig: Sendable {
     
     var debugRecorder: (any DebugRecorder)? {get set}
     var debugStepper: (any DebugStepper)? {get set}
+    var recordPerformance: Bool {get set}
 }

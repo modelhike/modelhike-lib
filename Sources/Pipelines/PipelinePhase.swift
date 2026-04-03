@@ -214,12 +214,37 @@ extension PipelinePhase {
         pipeline: Pipeline, passes: [Pass], runPass: (Pass, Self) async throws -> Bool
     ) async throws -> Bool {
         var lastRunResult = true
+        let performanceRecorder = await pipeline.state.performanceRecorder
+        let clock = ContinuousClock()
 
         for pass in passes {
-            let success = try await runPass(pass, self)
-            if !success {
-                lastRunResult = false
-                break
+            let passName = String(describing: type(of: pass))
+            let passStart = clock.now
+
+            do {
+                let success = try await runPass(pass, self)
+                let passDurationMs = PipelinePerformanceTime.milliseconds(from: passStart.duration(to: clock.now))
+                await performanceRecorder?.recordPassCompleted(
+                    phaseName: name,
+                    passName: passName,
+                    durationMs: passDurationMs,
+                    success: success,
+                    errorMessage: nil
+                )
+                if !success {
+                    lastRunResult = false
+                    break
+                }
+            } catch let err {
+                let passDurationMs = PipelinePerformanceTime.milliseconds(from: passStart.duration(to: clock.now))
+                await performanceRecorder?.recordPassCompleted(
+                    phaseName: name,
+                    passName: passName,
+                    durationMs: passDurationMs,
+                    success: false,
+                    errorMessage: String(describing: err)
+                )
+                throw err
             }
         }
 

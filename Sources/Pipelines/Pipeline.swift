@@ -24,19 +24,42 @@ public struct Pipeline: Sendable {
         
     @discardableResult
     public func run(using config: OutputConfig) async throws -> Bool {
+        let clock = ContinuousClock()
+        let pipelineStart = clock.now
+
         do {
             await ws.config(config)
+            await state.configure(using: config)
             let recorder = config.debugRecorder
+            let performanceRecorder = await state.performanceRecorder
             var lastRunResult = true
+
+            await performanceRecorder?.recordPipelineStarted()
 
             for phase in phases {
                 await recorder?.recordPhaseStarted(name: phase.name)
+                await performanceRecorder?.recordPhaseStarted(name: phase.name)
+                let phaseStart = clock.now
                 do {
                     let success = try await phase.runIn(pipeline: self)
+                    let phaseDurationMs = PipelinePerformanceTime.milliseconds(from: phaseStart.duration(to: clock.now))
                     await recorder?.recordPhaseCompleted(name: phase.name, success: success, errorMessage: nil)
+                    await performanceRecorder?.recordPhaseCompleted(
+                        name: phase.name,
+                        durationMs: phaseDurationMs,
+                        success: success,
+                        errorMessage: nil
+                    )
                     if !success { lastRunResult = false; break }
                 } catch let err {
+                    let phaseDurationMs = PipelinePerformanceTime.milliseconds(from: phaseStart.duration(to: clock.now))
                     await recorder?.recordPhaseCompleted(name: phase.name, success: false, errorMessage: String(describing: err))
+                    await performanceRecorder?.recordPhaseCompleted(
+                        name: phase.name,
+                        durationMs: phaseDurationMs,
+                        success: false,
+                        errorMessage: String(describing: err)
+                    )
                     print("❌❌ ERROR OCCURRED IN \(phase.name) Phase ❌❌")
                     throw err
                 }
@@ -45,6 +68,13 @@ public struct Pipeline: Sendable {
             if let recorder, await ws.model.isModelsLoaded {
                 await recorder.captureModel(await ws.model)
             }
+
+            let totalDurationMs = PipelinePerformanceTime.milliseconds(from: pipelineStart.duration(to: clock.now))
+            await performanceRecorder?.recordPipelineCompleted(
+                durationMs: totalDurationMs,
+                success: lastRunResult,
+                errorMessage: nil
+            )
 
             return lastRunResult
         } catch let err {
@@ -57,7 +87,15 @@ public struct Pipeline: Sendable {
             } else if let errWithMessageOnly = err as? ErrorWithMessage {
                 print( errWithMessageOnly.infoWithCode )
             }
-            
+
+            let totalDurationMs = PipelinePerformanceTime.milliseconds(from: pipelineStart.duration(to: clock.now))
+            let performanceRecorder = await state.performanceRecorder
+            await performanceRecorder?.recordPipelineCompleted(
+                durationMs: totalDurationMs,
+                success: false,
+                errorMessage: String(describing: err)
+            )
+
             print("❌❌❌ TERMINATED DUE TO ERROR ❌❌❌")
             return false
         }
@@ -192,9 +230,14 @@ typealias PipelineBuilder = ResultBuilder<PipelinePass>
 
 public actor PipelineState {
     public internal(set) var generationSandboxes: [GenerationSandbox] = []
+    public private(set) var performanceRecorder: (any PipelinePerformanceRecorder)?
     
     public func append(sandbox: GenerationSandbox) {
         generationSandboxes.append(sandbox)
+    }
+
+    public func configure(using config: OutputConfig) {
+        self.performanceRecorder = config.recordPerformance ? DefaultPipelinePerformanceRecorder() : nil
     }
     
     public init() {
