@@ -10,6 +10,7 @@ public struct TemplateSoupSymbols: Sendable {
     public private(set) var modifiers: [String: Modifier] = [:]
     public private(set) var statements: [any FileTemplateStmtConfig] = []
     public private(set) var infixOperators: [InfixOperatorProtocol] = []
+    private var infixOperatorsByName: [String: [InfixOperatorProtocol]] = [:]
 
     public mutating func add(modifiers modifiersList: [Modifier]) {
         for modifier in modifiersList {
@@ -23,5 +24,20 @@ public struct TemplateSoupSymbols: Sendable {
     
     public mutating func add(infixOperators operatorsList: [InfixOperatorProtocol]) {
         self.infixOperators.append(contentsOf: operatorsList)
+        for op in operatorsList {
+            infixOperatorsByName[op.name, default: []].append(op)
+        }
+    }
+
+    public func infixOperators(named name: String) -> [InfixOperatorProtocol] {
+        infixOperatorsByName[name] ?? []
+    }
+
+    public func hasInfixOperator(named name: String) -> Bool {
+        infixOperatorsByName[name] != nil
+    }
+
+    public var allInfixOperatorNames: [String] {
+        Array(infixOperatorsByName.keys)
     }
 }

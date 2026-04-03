@@ -29,8 +29,6 @@ public enum Modifiers  {
         
         let context = pInfo.ctx
         var result : [ModifierInstance] = []
-        
-        let knownModifierNames = await Array(context.symbols.template.modifiers.keys)
 
         for component in components {
             let str = String(component)
@@ -46,6 +44,7 @@ public enum Modifiers  {
                         throw TemplateSoup_ParsingError.modifierInvalidSyntax(
                             "'\(str)' requires arguments — use '\(str)(arg1, …)'", pInfo)
                     }
+                    let knownModifierNames = await Array(context.symbols.template.modifiers.keys)
                     throw TemplateSoup_ParsingError.modifierNotFound(
                         "'\(str)' not found"
                             + Suggestions.lookupMessageSuffix(
@@ -74,6 +73,7 @@ public enum Modifiers  {
                     throw TemplateSoup_ParsingError.modifierInvalidSyntax(
                         "'\(fnName)' does not accept arguments — use '| \(fnName)' without parentheses", pInfo)
                 } else {
+                    let knownModifierNames = await Array(context.symbols.template.modifiers.keys)
                     throw TemplateSoup_ParsingError.modifierNotFound(
                         "'\(fnName)' not found"
                             + Suggestions.lookupMessageSuffix(

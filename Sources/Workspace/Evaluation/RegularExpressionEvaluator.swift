@@ -254,6 +254,7 @@ public actor RegularExpressionEvaluator {
         // item 4 - var4, or, var5
 
         let ctx = pInfo.ctx
+        let symbols = await ctx.symbols.template
         var newOuter: [[String]] = []
 
         var i = 0
@@ -263,29 +264,21 @@ public actor RegularExpressionEvaluator {
             //arrays having extra operator at start/end will be having even count
             if inner.count % 2 == 0 {
                 //check if the first item of the inner is an operator
-                if let op = inner.first {
-                    if let _ = await ctx.symbols.template.infixOperators.first(where: { $0.name == op }) {
-                        inner.removeFirst()
-
-                        newOuter.append([op])
-                        newOuter.append(inner)
-
-                        i += 1
-                        continue
-                    }
+                if let op = inner.first, symbols.hasInfixOperator(named: op) {
+                    inner.removeFirst()
+                    newOuter.append([op])
+                    newOuter.append(inner)
+                    i += 1
+                    continue
                 }
 
                 //check if the last item of the inner is an operator
-                if let op = inner.last {
-                    if let _ = await ctx.symbols.template.infixOperators.first(where: { $0.name == op }) {
-                        inner.removeLast()
-
-                        newOuter.append(inner)
-                        newOuter.append([op])
-
-                        i += 1
-                        continue
-                    }
+                if let op = inner.last, symbols.hasInfixOperator(named: op) {
+                    inner.removeLast()
+                    newOuter.append(inner)
+                    newOuter.append([op])
+                    i += 1
+                    continue
                 }
 
                 throw TemplateSoup_ParsingError.invalidExpression(expression, pInfo)
@@ -309,17 +302,11 @@ public actor RegularExpressionEvaluator {
     /// 3. If no type match is found, throw with the actual vs expected type pairs for all name-matched candidates.
     /// 4. If no name match is found, throw `infixOperatorNotFound` with "did you mean?" diagnostics.
     private static func applyInfix(named op: String, lhs: Sendable?, rhs: Sendable?, pInfo: ParsedInfo) async throws -> Sendable {
-        let allOperators = await pInfo.ctx.symbols.template.infixOperators
+        let symbols = await pInfo.ctx.symbols.template
+        let nameMatches = symbols.infixOperators(named: op)
 
-        var allNames: [String] = []
-        var nameMatches: [InfixOperatorProtocol] = []
-        for candidate in allOperators {
-            allNames.append(candidate.name)
-            if candidate.name == op { nameMatches.append(candidate) }
-        }
-        
         guard !nameMatches.isEmpty else {
-            throw Suggestions.infixOperatorNotFound(op, candidates: allNames, pInfo: pInfo)
+            throw Suggestions.infixOperatorNotFound(op, candidates: symbols.allInfixOperatorNames, pInfo: pInfo)
         }
 
         let lhsRuntimeType = runtimeType(of: lhs)
