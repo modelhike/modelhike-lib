@@ -241,9 +241,12 @@ public actor LocalFileBlueprint: Blueprint {
             try await renderTemplateFile(templateFile, to: outputFolder, using: templateSoup, with: pInfo)
         }
 
-        for file in fileset.staticFiles {
-            //create the folder only if any file is copied
+        //create the folder only if any file is copied
+        if fileset.staticFiles.isNotEmpty {
             try await outputFolder.ensureExists()
+        }
+        
+        for file in fileset.staticFiles {
             await templateSoup.context.debugLog.copyingFileInFolder(file.name, folder: outputFolder.folder)
             let copyFile = FileToCopy(file: file, pInfo: pInfo)
             await outputFolder.add(copyFile)

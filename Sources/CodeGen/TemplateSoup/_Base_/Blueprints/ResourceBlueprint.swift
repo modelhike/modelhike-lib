@@ -277,8 +277,12 @@ public actor ResourceBlueprint: Blueprint {
             try await renderTemplateFile(templateFile, to: outputFolder, using: templateSoup, with: pInfo)
         }
 
+        //create the folder only if any file is copied
+        if fileset.staticFiles.isNotEmpty {
+            try await outputFolder.ensureExists()
+        }
+        
         for file in fileset.staticFiles {
-            //create the folder only if any file is copied
             await templateSoup.context.debugLog.copyingFileInFolder(file.filename, folder: outputFolder.folder)
             let outFile = StaticFile(filename: file.filename, data: file.data, pInfo: pInfo)
             await outputFolder.add(outFile)
