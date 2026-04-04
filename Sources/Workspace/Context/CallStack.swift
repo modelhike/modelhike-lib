@@ -44,7 +44,7 @@ public struct CallStackItem : Sendable {
     }
 }
 
-public actor CallStack : @preconcurrency Sequence {
+public actor CallStack {
     private var stack: [CallStackable] = []
     
     public func snapshot() -> [CallStackable] {
@@ -58,9 +58,5 @@ public actor CallStack : @preconcurrency Sequence {
     @discardableResult
     public func popLast() -> CallStackable? {
         return stack.popLast()
-    }
-    
-    public func makeIterator() -> IndexingIterator<[CallStackable]> {
-        return stack.reversed().makeIterator()
     }
 }

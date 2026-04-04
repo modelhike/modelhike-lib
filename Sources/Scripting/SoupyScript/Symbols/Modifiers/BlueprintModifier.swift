@@ -57,7 +57,7 @@ public enum BlueprintModifierInputType: String, Sendable {
 public struct BlueprintModifierWithoutParams: ModifierWithoutArgsProtocol, ModifierInstanceWithoutArgsProtocol {
     public let name: String
     public var inputType: any Any.Type { _blueprintInputType.metatype }
-    private let templateContents: String
+    private let templateSource: TemplateExecutionSource
     private let inputVarName: String
     private let _blueprintInputType: BlueprintModifierInputType
     private let templateSoup: TemplateSoup
@@ -70,8 +70,7 @@ public struct BlueprintModifierWithoutParams: ModifierWithoutArgsProtocol, Modif
                 name, runtimeTypeName(of: value), pInfo)
         }
         return try await templateSoup.renderTemplate(
-            string: templateContents,
-            identifier: "_modifier_\(name)",
+            source: templateSource,
             data: [inputVarName: value],
             with: pInfo
         )
@@ -79,7 +78,11 @@ public struct BlueprintModifierWithoutParams: ModifierWithoutArgsProtocol, Modif
 
     public init(name: String, templateContents: String, inputVarName: String, inputType: BlueprintModifierInputType, templateSoup: TemplateSoup) {
         self.name = name
-        self.templateContents = templateContents
+        self.templateSource = TemplateExecutionSource.parse(
+            contents: templateContents,
+            identifier: "_modifier_\(name)",
+            parseFrontMatter: false
+        )
         self.inputVarName = inputVarName
         self._blueprintInputType = inputType
         self.templateSoup = templateSoup
@@ -98,7 +101,7 @@ public struct BlueprintModifierWithoutParams: ModifierWithoutArgsProtocol, Modif
 public struct BlueprintModifierWithParams: ModifierWithUnNamedArgsProtocol, ModifierInstanceWithUnNamedArgsProtocol {
     public let name: String
     public var inputType: any Any.Type { _blueprintInputType.metatype }
-    private let templateContents: String
+    private let templateSource: TemplateExecutionSource
     private let inputVarName: String
     private let _blueprintInputType: BlueprintModifierInputType
     private let paramNames: [String]
@@ -128,8 +131,7 @@ public struct BlueprintModifierWithParams: ModifierWithUnNamedArgsProtocol, Modi
         }
 
         return try await templateSoup.renderTemplate(
-            string: templateContents,
-            identifier: "_modifier_\(name)",
+            source: templateSource,
             data: data,
             with: pInfo
         )
@@ -137,7 +139,11 @@ public struct BlueprintModifierWithParams: ModifierWithUnNamedArgsProtocol, Modi
 
     public init(name: String, templateContents: String, inputVarName: String, inputType: BlueprintModifierInputType, paramNames: [String], templateSoup: TemplateSoup) {
         self.name = name
-        self.templateContents = templateContents
+        self.templateSource = TemplateExecutionSource.parse(
+            contents: templateContents,
+            identifier: "_modifier_\(name)",
+            parseFrontMatter: false
+        )
         self.inputVarName = inputVarName
         self._blueprintInputType = inputType
         self.paramNames = paramNames

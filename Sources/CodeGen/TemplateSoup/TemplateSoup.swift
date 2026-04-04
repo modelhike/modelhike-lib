@@ -10,11 +10,27 @@ public typealias LoadTemplateHandler = @Sendable (_ templateName: String,_ loade
 public typealias LoadScriptHandler = @Sendable (_ scriptName: String,_ loader: Blueprint, _ pInfo: ParsedInfo) async throws -> Script
 
 public actor TemplateSoup : TemplateRenderer {
+    private struct TemplateSourceCacheKey: Hashable {
+        let identifier: String
+        let sourceContents: String
+        let parseFrontMatter: Bool
+    }
+
+    private struct CompiledTemplateCacheKey: Hashable {
+        let identifier: String
+        let sourceContents: String
+        let bodyContents: String
+    }
+
     let context: GenerationContext
     var blueprint: Blueprint
+    private var templateSourceCache: [TemplateSourceCacheKey: TemplateExecutionSource] = [:]
+    private var compiledTemplateCache: [CompiledTemplateCacheKey: CompiledTemplate] = [:]
     
     public func blueprint(_ value: Blueprint) {
         self.blueprint = value
+        self.templateSourceCache.removeAll()
+        self.compiledTemplateCache.removeAll()
     }
     
     public var onLoadTemplate : LoadTemplateHandler = { (templateName, loader, pInfo) async throws -> Template in
@@ -101,18 +117,14 @@ public actor TemplateSoup : TemplateRenderer {
     //MARK: TemplateRenderer protocol implementation
     public func renderTemplate(fileName templateFile: String, data: StringDictionary = [:], with pInfo: ParsedInfo) async throws -> String? {
         do {
-            
             let fileTemplate = try await self.loadTemplate(fileName: templateFile, with: pInfo)
-            
-            await context.pushSnapshot()
-            await context.append(variables: data)
-            
-            let templateEval = TemplateEvaluator()
-            let rendering = try await templateEval.execute(template: fileTemplate, with: context)
-            
-            await context.popSnapshot()
-            
-            return rendering
+            return try await renderTemplate(
+                contents: fileTemplate.toString(),
+                identifier: fileTemplate.name,
+                data: data,
+                with: pInfo,
+                parseFrontMatter: true
+            )
         } catch let err {
             if let evalErr = err as? TemplateSoup_EvaluationError {
                 if case .templateDoesNotExist(_, pInfo) = evalErr {
@@ -128,18 +140,27 @@ public actor TemplateSoup : TemplateRenderer {
     
     /// - Parameter parseFrontMatter: When `false`, leading ``TemplateConstants/frontMatterIndicator`` YAML is not consumed (blueprint already split front matter from the body).
     public func renderTemplate(string templateString: String, identifier: String = "", data: StringDictionary = [:], with pInfo: ParsedInfo, parseFrontMatter: Bool = true) async throws -> String? {
-        let template = StringTemplate(contents: templateString, name: identifier)
+        try await renderTemplate(contents: templateString, identifier: identifier, data: data, with: pInfo, parseFrontMatter: parseFrontMatter)
+    }
 
+    func renderTemplate(source templateSource: TemplateExecutionSource, data: StringDictionary = [:], with pInfo: ParsedInfo, frontMatterIdentifier: String? = nil) async throws -> String? {
         await context.pushSnapshot()
         await context.append(variables: data)
 
-        let templateEval = TemplateEvaluator()
-        let rendering = try await templateEval.execute(template: template, with: context, consumeLeadingFrontMatter: parseFrontMatter)
+        let compiledTemplate = try await compiledTemplate(for: templateSource)
+        let rendering = try await TemplateEvaluator.execute(
+            compiledTemplate: compiledTemplate,
+            with: context,
+            frontMatterIdentifier: frontMatterIdentifier
+        )
 
         await context.popSnapshot()
-
         //print(rendering)
         return rendering
+    }
+
+    func compiledTemplateCacheCount() -> Int {
+        compiledTemplateCache.count
     }
     
     public func forEach(forInExpression expression: String, with pInfo: ParsedInfo, renderClosure: @Sendable () async throws -> Void ) async throws {
@@ -178,11 +199,42 @@ public actor TemplateSoup : TemplateRenderer {
         let curLine = await lineParser.currentLine()
         
         if curLine.hasOnly(TemplateConstants.frontMatterIndicator) {
-            let frontMatter = try await FrontMatter (lineParser: lineParser, with: context)
+            let frontMatter = try await FrontMatter(lineParser: lineParser, with: context)
             return frontMatter
         }
         
         return nil
+    }
+
+    private func renderTemplate(contents: String, identifier: String, data: StringDictionary, with pInfo: ParsedInfo, parseFrontMatter: Bool) async throws -> String? {
+        let templateSource = executionSource(forContents: contents, identifier: identifier, parseFrontMatter: parseFrontMatter)
+        return try await renderTemplate(source: templateSource, data: data, with: pInfo)
+    }
+
+    private func executionSource(forContents contents: String, identifier: String, parseFrontMatter: Bool) -> TemplateExecutionSource {
+        let cacheKey = TemplateSourceCacheKey(identifier: identifier, sourceContents: contents, parseFrontMatter: parseFrontMatter)
+        if let cached = templateSourceCache[cacheKey] {
+            return cached
+        }
+
+        let templateSource = TemplateExecutionSource.parse(contents: contents, identifier: identifier, parseFrontMatter: parseFrontMatter)
+        templateSourceCache[cacheKey] = templateSource
+        return templateSource
+    }
+
+    private func compiledTemplate(for templateSource: TemplateExecutionSource) async throws -> CompiledTemplate {
+        let cacheKey = CompiledTemplateCacheKey(
+            identifier: templateSource.identifier,
+            sourceContents: templateSource.sourceContents,
+            bodyContents: templateSource.bodyContents
+        )
+        if let cached = compiledTemplateCache[cacheKey] {
+            return cached
+        }
+
+        let compiledTemplate = try await TemplateEvaluator.compile(templateSource: templateSource, with: context)
+        compiledTemplateCache[cacheKey] = compiledTemplate
+        return compiledTemplate
     }
         
     public init(loader: Blueprint, context: GenerationContext) {

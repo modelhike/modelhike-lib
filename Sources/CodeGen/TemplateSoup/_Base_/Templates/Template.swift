@@ -47,3 +47,36 @@ public protocol TemplateInitialiserWithNoArg: Sendable {
     
     var initialiser: @Sendable (ParsedInfo) -> T {get}
 }
+
+struct TemplateExecutionSource: Sendable {
+    let identifier: String
+    let sourceContents: String
+    let bodyContents: String
+    let frontMatter: CachedTemplateFrontMatter?
+
+    init(identifier: String, sourceContents: String, bodyContents: String, frontMatter: CachedTemplateFrontMatter?) {
+        self.identifier = identifier
+        self.sourceContents = sourceContents
+        self.bodyContents = bodyContents
+        self.frontMatter = frontMatter
+    }
+
+    static func parse(contents: String, identifier: String, parseFrontMatter: Bool) -> TemplateExecutionSource {
+        if parseFrontMatter {
+            let split = CachedTemplateFrontMatter.split(contents: contents, identifier: identifier)
+            return TemplateExecutionSource(
+                identifier: identifier,
+                sourceContents: contents,
+                bodyContents: split.body,
+                frontMatter: split.frontMatter
+            )
+        }
+
+        return TemplateExecutionSource(
+            identifier: identifier,
+            sourceContents: contents,
+            bodyContents: contents,
+            frontMatter: nil
+        )
+    }
+}

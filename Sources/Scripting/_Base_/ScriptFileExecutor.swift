@@ -30,7 +30,7 @@ public actor ScriptFileExecutor: SoupyScriptExecutor {
             let curLine = await lineParser.currentLine()
             
             if curLine.hasOnly(TemplateConstants.frontMatterIndicator) {
-                var frontMatter = try await FrontMatter (lineParser: lineParser, with: ctx)
+                var frontMatter = try await FrontMatter(lineParser: lineParser, with: ctx)
                 try await frontMatter.processVariables()
             }
             

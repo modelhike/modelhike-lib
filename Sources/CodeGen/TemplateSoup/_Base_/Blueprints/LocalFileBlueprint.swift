@@ -9,6 +9,7 @@ import Foundation
 public actor LocalFileBlueprint: Blueprint {
     private var templateCache: [String: Template] = [:]
     private var scriptFileCache: [String: Script] = [:]
+    private var filesetCache: [String: LocalFilesetTemplate] = [:]
 
     public let blueprintPath: LocalPath
     public let rootPath: LocalPath
@@ -159,9 +160,8 @@ public actor LocalFileBlueprint: Blueprint {
         }
 
         do {
-            let inFolder = LocalFolder(path: self.blueprintPath / foldername)
-
-            try await renderLocalFiles(from: inFolder, to: outputFolder, using: templateSoup, with: pInfo)
+            let fileset = try cachedFileset(for: foldername)
+            try await renderFileset(fileset, to: outputFolder, using: templateSoup, with: pInfo)
         } catch let err {
             if err as? ErrorWithMessageAndParsedInfo != nil {
                 throw err
@@ -173,118 +173,172 @@ public actor LocalFileBlueprint: Blueprint {
         }
     }
 
-    private func renderLocalFiles(
-        from inFolder: LocalFolder, to outputFolder: OutputFolder, using templateSoup: TemplateSoup,
-        with pInfo: ParsedInfo
-    ) async throws {
+    func cachedFilesetCount() -> Int {
+        filesetCache.count
+    }
 
-        let files = inFolder.files
+    private func cachedFileset(for foldername: String) throws -> LocalFilesetTemplate {
+        if let cached = filesetCache[foldername] {
+            return cached
+        }
+
+        let folder = LocalFolder(path: blueprintPath / foldername)
+        let fileset = try buildFileset(from: folder, relativePath: foldername)
+        filesetCache[foldername] = fileset
+        return fileset
+    }
+
+    private func buildFileset(from folder: LocalFolder, relativePath: String) throws -> LocalFilesetTemplate {
+        let files = folder.files
+        var templateFiles: [CachedLocalTemplateFile] = []
+        var staticFiles: [LocalFile] = []
+        var subfolders: [CachedLocalFilesetSubfolder] = []
 
         for file in files {
-            if file.extension == TemplateConstants.TemplateExtension {  //template file
-                let actualTemplateFilename = file.nameExcludingExtension
-
-                //render the filename if it has an expression within '{{' and '}}'
-                let filename =
-                try await ContentHandler.eval(expression: actualTemplateFilename, with: templateSoup.context)
-                    ?? actualTemplateFilename
-
-                let contents = try file.readTextContents()
-
-                let renderClosure: RenderClosure = { [self] (outputname: String, pInfo: ParsedInfo) in
-                    do{
-                    let outputFilename: String = outputname.isNotEmpty ? outputname : filename
-
-                    //if handler returns false, dont render file
-                        if try await !self.context.events.canRender(filename: outputFilename, templatename: actualTemplateFilename, with: pInfo) {
-                        return
-                    }
-                    
-                    let stringToRender: String
-                    let parseFrontMatter: Bool
-                    //check if parser directives to exclude file
-                    if let ctx = pInfo.ctx as? GenerationContext,
-                       var frontMatter = try await FrontMatter(in: contents, filename: filename, with: ctx) {
-                        try await frontMatter.processVariables()
-                        stringToRender = await frontMatter.bodyAfterFrontMatter()
-                        parseFrontMatter = false
-                    } else {
-                        stringToRender = contents
-                        parseFrontMatter = true
-                    }
-
-                        if let renderedString = try await templateSoup.renderTemplate(
-                        string: stringToRender, identifier: actualTemplateFilename, with: pInfo, parseFrontMatter: parseFrontMatter)
-                    {
-                        
-                            await templateSoup.context.debugLog.generatingFileInFolder(
-                            filename, with: actualTemplateFilename, folder: outputFolder.folder, pInfo: pInfo)
-
-                        let outFile = TemplateRenderedFile(filename: outputFilename, contents: renderedString, pInfo: pInfo )
-                            await outputFolder.add(outFile)
-                    }
-                    } catch let err {
-                        if let directive = err as? ParserDirective {
-                            if case let .excludeFile(filename) = directive {
-                                await pInfo.ctx.debugLog.excludingFile(filename)
-                                return  //nothing to generate from this excluded file
-                            } else if case let .stopRenderingCurrentFile(filename, pInfo) = directive {
-                                await pInfo.ctx.debugLog.stopRenderingCurrentFile(filename, pInfo: pInfo)
-                                return  //nothing to generate from this rendering stopped file
-                            } else if case let .throwErrorFromCurrentFile(filename, errMsg, pInfo) = directive {
-                                await pInfo.ctx.debugLog.throwErrorFromCurrentFile(filename, err: errMsg, pInfo: pInfo)
-                                throw EvaluationError.templateRenderingError(pInfo, directive)
-                            }
-                        } else {
-                            throw err
-                        }
-                    }
-                }
-
-                let parsingIdentifier = actualTemplateFilename
-                if let frontMatter = try await templateSoup.frontMatter(
-                    in: contents, identifier: parsingIdentifier),
-                   let pInfo = await frontMatter.hasDirective(ParserDirective.includeFor)
-                {
-                    try await templateSoup.forEach(forInExpression: pInfo.line, with: pInfo) {
-                        
-                        if await frontMatter.hasDirective(ParserDirective.outputFilename) != nil {
-                            if let outputFilename = try await frontMatter.evalDirective(
-                                ParserDirective.outputFilename, pInfo: pInfo) as? String
-                            {
-                                try await renderClosure(outputFilename, pInfo)
-                            }
-                        } else {
-                            try await renderClosure("", pInfo)
-                        }
-                    }
-                } else {
-                    let pInfo = await ParsedInfo.dummyForFrontMatterError(
-                        identifier: parsingIdentifier, with: context)
-                    try await renderClosure("", pInfo)
-                }
-
-            } else {  //not a template file
-                //create the folder only if any file is copied
-                try await outputFolder.ensureExists()
-
-                await templateSoup.context.debugLog.copyingFileInFolder(file.name, folder: outputFolder.folder)
-
-                let copyFile = FileToCopy(file: file, pInfo: pInfo)
-                await outputFolder.add(copyFile)
+            if file.extension == TemplateConstants.TemplateExtension {
+                let templateName = file.nameExcludingExtension
+                let templateIdentifier = relativePath.isEmpty ? templateName : "\(relativePath)/\(templateName)"
+                let templateSource = TemplateExecutionSource.parse(
+                    contents: try file.readTextContents(),
+                    identifier: templateIdentifier,
+                    parseFrontMatter: true
+                )
+                templateFiles.append(
+                    CachedLocalTemplateFile(
+                        file: file,
+                        outputNameTemplate: templateName,
+                        templateName: templateName,
+                        templateSource: templateSource
+                    )
+                )
+            } else {
+                staticFiles.append(file)
             }
         }
 
-        //copy files from subfolders also
-        for subFolder in inFolder.subFolders {
-            let subfoldername =
-            try await ContentHandler.eval(expression: subFolder.name, with: templateSoup.context)
-                ?? subFolder.name
-
-            let newFolder = await outputFolder.subFolder(subfoldername)
-            try await renderLocalFiles(from: subFolder, to: newFolder, using: templateSoup, with: pInfo)
+        for subFolder in folder.subFolders {
+            let relativeSubfolder = relativePath.isEmpty ? subFolder.name : "\(relativePath)/\(subFolder.name)"
+            let subfileset = try buildFileset(from: subFolder, relativePath: relativeSubfolder)
+            subfolders.append(CachedLocalFilesetSubfolder(outputNameTemplate: subFolder.name, fileset: subfileset))
         }
 
+        return LocalFilesetTemplate(
+            name: folder.name,
+            files: files,
+            templateFiles: templateFiles,
+            staticFiles: staticFiles,
+            subfolders: subfolders
+        )
+    }
+
+    private func renderFileset(
+        _ fileset: LocalFilesetTemplate,
+        to outputFolder: OutputFolder,
+        using templateSoup: TemplateSoup,
+        with pInfo: ParsedInfo
+    ) async throws {
+        for templateFile in fileset.templateFiles {
+            try await renderTemplateFile(templateFile, to: outputFolder, using: templateSoup, with: pInfo)
+        }
+
+        for file in fileset.staticFiles {
+            //create the folder only if any file is copied
+            try await outputFolder.ensureExists()
+            await templateSoup.context.debugLog.copyingFileInFolder(file.name, folder: outputFolder.folder)
+            let copyFile = FileToCopy(file: file, pInfo: pInfo)
+            await outputFolder.add(copyFile)
+        }
+
+        //copy files from subfolders also
+        for subfolder in fileset.subfolders {
+            //render the foldername if it has an expression within '{{' and '}}'
+            let subfoldername = try await ContentHandler.eval(expression: subfolder.outputNameTemplate, with: templateSoup.context)
+                ?? subfolder.outputNameTemplate
+            let newFolder = await outputFolder.subFolder(subfoldername)
+            try await renderFileset(subfolder.fileset, to: newFolder, using: templateSoup, with: pInfo)
+        }
+    }
+
+    private func renderTemplateFile(
+        _ templateFile: CachedLocalTemplateFile,
+        to outputFolder: OutputFolder,
+        using templateSoup: TemplateSoup,
+        with pInfo: ParsedInfo
+    ) async throws {
+        //render the filename if it has an expression within '{{' and '}}'
+        let filename = try await ContentHandler.eval(expression: templateFile.outputNameTemplate, with: templateSoup.context)
+            ?? templateFile.outputNameTemplate
+        let parsingIdentifier = templateFile.templateName
+        let sourceContents = templateFile.templateSource.sourceContents
+        let parsingFrontMatter = templateFile.templateSource.frontMatter?.withIdentifier(parsingIdentifier)
+        let includeForInfo: ParsedInfo? = if let parsingFrontMatter {
+            await FrontMatter.hasDirective(ParserDirective.includeFor, in: parsingFrontMatter, with: templateSoup.context, sourceContents: sourceContents)
+        } else {
+            nil
+        }
+        let hasOutputFilename = if let parsingFrontMatter {
+            await FrontMatter.hasDirective(ParserDirective.outputFilename, in: parsingFrontMatter, with: templateSoup.context, sourceContents: sourceContents) != nil
+        } else {
+            false
+        }
+
+        let renderClosure: RenderClosure = { [self] outputname, renderPInfo in
+            do {
+                let outputFilename = outputname.isNotEmpty ? outputname : filename
+                //if handler returns false, dont render file
+                if try await !self.context.events.canRender(filename: outputFilename, templatename: templateFile.templateName, with: renderPInfo) {
+                    return
+                }
+
+                //check if parser directives to exclude file
+                if let renderedString = try await templateSoup.renderTemplate(
+                    source: templateFile.templateSource,
+                    with: renderPInfo,
+                    frontMatterIdentifier: filename
+                ) {
+                    await templateSoup.context.debugLog.generatingFileInFolder(
+                        filename,
+                        with: templateFile.templateName,
+                        folder: outputFolder.folder,
+                        pInfo: renderPInfo
+                    )
+
+                    let outFile = TemplateRenderedFile(filename: outputFilename, contents: renderedString, pInfo: renderPInfo)
+                    await outputFolder.add(outFile)
+                }
+            } catch let err {
+                if let directive = err as? ParserDirective {
+                    if case let .excludeFile(filename) = directive {
+                        await renderPInfo.ctx.debugLog.excludingFile(filename)
+                        return  //nothing to generate from this excluded file
+                    } else if case let .stopRenderingCurrentFile(filename, pInfo) = directive {
+                        await renderPInfo.ctx.debugLog.stopRenderingCurrentFile(filename, pInfo: pInfo)
+                        return  //nothing to generate from this rendering stopped file
+                    } else if case let .throwErrorFromCurrentFile(filename, errMsg, pInfo) = directive {
+                        await renderPInfo.ctx.debugLog.throwErrorFromCurrentFile(filename, err: errMsg, pInfo: pInfo)
+                        throw EvaluationError.templateRenderingError(pInfo, directive)
+                    }
+                } else {
+                    throw err
+                }
+            }
+        }
+
+        if let includeForInfo, let parsingFrontMatter {
+            try await templateSoup.forEach(forInExpression: includeForInfo.line, with: includeForInfo) {
+                if hasOutputFilename {
+                    if let outputFilename = try await FrontMatter.evalDirective(ParserDirective.outputFilename, in: parsingFrontMatter, pInfo: includeForInfo) as? String {
+                        try await renderClosure(outputFilename, includeForInfo)
+                    }
+                    // ← if evalDirective returns nil, no renderClosure at all — file silently dropped
+                } else {
+                    try await renderClosure("", includeForInfo)
+                }
+            }
+        } else {
+            let renderPInfo = await ParsedInfo.dummyForFrontMatterError(identifier: parsingIdentifier, with: context)
+            try await renderClosure("", renderPInfo)
+        }
     }
 
     public func readTextContents(filename: String, with pInfo: ParsedInfo) throws -> String {
