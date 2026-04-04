@@ -39,7 +39,7 @@ public actor Workspace {
     public func render(string input: String, data: [String: Sendable], modifiers: [Modifier] = []) async throws -> String? {
         let sandbox = await newStringSandbox()
 
-        if !modifiers.isEmpty {
+        if modifiers.isNotEmpty {
             await sandbox.context.symbols.addTemplate(modifiers: modifiers)
         }
 

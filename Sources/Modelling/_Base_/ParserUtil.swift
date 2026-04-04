@@ -23,7 +23,7 @@ public class ParserUtil {
         public init() {}
 
         public var combinedDescription: String? {
-            guard !descriptionLines.isEmpty else { return nil }
+            guard descriptionLines.isNotEmpty else { return nil }
             return descriptionLines.joined(separator: " ")
         }
 
@@ -103,7 +103,7 @@ public class ParserUtil {
             parts.append(text)
             await parser.skipLine()
         }
-        guard !parts.isEmpty else { return nil }
+        guard parts.isNotEmpty else { return nil }
         return parts.joined(separator: " ")
     }
 
@@ -139,7 +139,7 @@ public class ParserUtil {
 
     /// Appends `more` onto an actor's existing description, preserving any previous text.
     public static func appendDescription(_ more: String?, to target: any HasDescription_Actor) async {
-        guard let more, !more.isEmpty else { return }
+        guard let more, more.isNotEmpty else { return }
         await target.setDescription(joinedDescription(await target.description, more))
     }
 
@@ -189,7 +189,7 @@ public class ParserUtil {
         guard let colon = rest.firstIndex(of: ":") else { return nil }
         let name = String(rest[..<colon]).trim()
         let bodyStart = String(rest[rest.index(after: colon)...]).trim()
-        guard !name.isEmpty, bodyStart.hasPrefix("{") else { return nil }
+        guard name.isNotEmpty, bodyStart.hasPrefix("{") else { return nil }
         return (name, bodyStart)
     }
 
@@ -330,7 +330,7 @@ public class ParserUtil {
         let outsideRefs = extractAtReferences(from: outsideConstraintBlock)
         let defaultName = appliedDefaultExpression
         let offending = outsideRefs.filter { ref in defaultName.map { $0 != ref } ?? true }
-        if !offending.isEmpty {
+        if offending.isNotEmpty {
             throw Model_ParsingError.propertyConstraintReferenceOutsideBlock(refs: offending, pInfo)
         }
         return insideRefs
@@ -339,7 +339,7 @@ public class ParserUtil {
     /// Returns a `[String]` array of valid values parsed from `vvsString` (e.g. `"NEW", "ACTIVE"`).
     /// Returns an empty array when `vvsString` is `nil` or empty.
     public static func parseValidValueSet(from vvsString: String?) -> [String] {
-        guard let vvsString, !vvsString.isEmpty else { return [] }
+        guard let vvsString, vvsString.isNotEmpty else { return [] }
         return vvsString.matches(of: CommonRegEx.validValue).map { String($0.output) }
     }
 
@@ -371,7 +371,7 @@ public class ParserUtil {
     /// Returns a `[Constraint]` array parsed from `constraintString` without touching any actor.
     /// Returns an empty array when `constraintString` is `nil`, empty, or malformed.
     public static func parseConstraints(from constraintString: String?) -> [Constraint] {
-        guard let constraintString, !constraintString.isEmpty else { return [] }
+        guard let constraintString, constraintString.isNotEmpty else { return [] }
         return (try? ConstraintParser.parseList(constraintString)) ?? []
     }
 

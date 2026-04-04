@@ -64,7 +64,7 @@ public actor GenerationContext: Context {
 
     /// Registers many generated file paths in one actor turn (avoids N sequential hops from parallel persist tasks).
     public func addGenerated(filePaths paths: [String]) {
-        guard !paths.isEmpty else { return }
+        guard paths.isNotEmpty else { return }
         generatedFiles.append(contentsOf: paths)
     }
     

@@ -76,14 +76,14 @@ public actor C4System: ArtifactHolder {
             await str += "  " + item.givenname + .newLine
         }
 
-        if !infraNodes.isEmpty {
+        if infraNodes.isNotEmpty {
             str += "infra \(infraNodes.count):" + .newLine
             for node in infraNodes {
                 str += "  " + node.givenname + .newLine
             }
         }
 
-        if !groups.isEmpty {
+        if groups.isNotEmpty {
             str += "groups \(groups.count):" + .newLine
             for g in groups {
                 str += "  +--- " + g.givenname + .newLine

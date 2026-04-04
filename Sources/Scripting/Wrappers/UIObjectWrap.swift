@@ -33,7 +33,7 @@ public actor UIObject_Wrap: ObjectWrapper {
     private func uiHasDescription() async -> Bool {
         if let v = item as? UIView {
             let d = await v.description
-            return d.map { !$0.isEmpty } ?? false
+            return d.map { $0.isNotEmpty } ?? false
         }
         return false
     }

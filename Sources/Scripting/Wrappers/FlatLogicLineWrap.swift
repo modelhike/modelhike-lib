@@ -67,7 +67,7 @@ public struct FlatLogicLineData: Sendable {
             let nextIdx = stmts.index(after: i)
 
             // Skip `let` children absorbed into the parent block's letBinding.
-            if kind == .let, let p = parentStmt, !p.node.resultLetName.isEmpty {
+            if kind == .let, let p = parentStmt, p.node.resultLetName.isNotEmpty {
                 i = nextIdx
                 continue
             }
@@ -80,7 +80,7 @@ public struct FlatLogicLineData: Sendable {
             }
             if isBlock {
                 let children = stmt.children
-                if !children.isEmpty {
+                if children.isNotEmpty {
                     result.append(contentsOf: await flatten(stmts: children, baseDepth: baseDepth + 1, parentStmt: stmt))
                 }
             }
@@ -214,7 +214,7 @@ public struct FlatLogicLineData: Sendable {
         // Own node carries the name (db-raw, db-proc-call open rows).
         // Child rows (e.g. sql open) inherit it from the parent stmt's node.
         let mergedDbRawResultLetName: String
-        if !node.resultLetName.isEmpty {
+        if node.resultLetName.isNotEmpty {
             mergedDbRawResultLetName = node.resultLetName
         } else {
             mergedDbRawResultLetName = parentStmt?.node.resultLetName ?? ""

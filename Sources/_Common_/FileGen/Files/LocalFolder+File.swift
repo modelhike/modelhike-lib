@@ -253,7 +253,7 @@ public struct LocalFile : File, LocalFileSystemItem {
             let contents = try readTextContents()
             var lines = contents.splitIntoLines()
             if ignoreEmptyLines {
-                lines = lines.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+                lines = lines.filter { $0.trimmingCharacters(in: .whitespacesAndNewlines).isNotEmpty }
             }
             return lines
         }
@@ -348,7 +348,7 @@ public extension LocalFileSystemItem {
         guard path.string != "/" else { return nil }
         
         let components = url.pathComponents.dropLast()
-        if !components.isEmpty {
+        if components.isNotEmpty {
             let parentPath = components.joined(separator: "/") + "/"
             return LocalFolder(path: parentPath)
         } else {

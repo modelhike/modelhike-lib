@@ -134,7 +134,7 @@ public struct IfStmt: MultiBlockTemplateStmt {
             await str += debugStringForChildren()
             
             for elseIfBlock in elseIfBlocks {
-                if await !elseIfBlock.isEmpty {
+                if await elseIfBlock.isNotEmpty {
                     str +=  """
                 
                 ELSE IF stmt (level: \(pInfo.level))
@@ -177,6 +177,9 @@ public struct ElseIfBlock: PartOfMultiBlockContainer {
     public var condition = ""
     public var pInfo: ParsedInfo { get async { await wrap.pInfo }}
     public var isEmpty: Bool { get async { await wrap.isEmpty }}
+
+    public var isNotEmpty: Bool { get async { !(await isEmpty) }}
+
     public var firstWord: String { wrap.firstWord }
     public var container: GenericStmtsContainer { get async { await wrap.container }}
     

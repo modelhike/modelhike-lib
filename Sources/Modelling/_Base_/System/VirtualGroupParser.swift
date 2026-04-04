@@ -44,7 +44,7 @@ public enum VirtualGroupParser {
         guard trimmed.hasPrefix(ModelConstants.VirtualGroupFence) else { return false }
         let rest = trimmed.dropFirst(ModelConstants.VirtualGroupFence.count)
             .trimmingCharacters(in: .whitespaces)
-        return !rest.isEmpty
+        return rest.isNotEmpty
     }
 
     /// `+---` alone — nothing after the fence token.
@@ -89,7 +89,7 @@ public enum VirtualGroupParser {
             tags = tagStr.map { ParserUtil.parseTags(from: $0) } ?? []
         }
 
-        guard !groupName.isEmpty else { return nil }
+        guard groupName.isNotEmpty else { return nil }
 
         var group = VirtualGroup(givenname: groupName, description: inlineDesc, tags: tags)
         await parser.skipLine() // consume the opening fence line
@@ -166,7 +166,7 @@ public enum VirtualGroupParser {
                 let rest = pInfo.line
                     .remainingLine(after: ModelConstants.Container_Member)
                     .trimmingCharacters(in: .whitespaces)
-                if !rest.isEmpty {
+                if rest.isNotEmpty {
                     group.appendRef(rest)
                 }
                 await parser.skipLine()

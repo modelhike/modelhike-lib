@@ -32,6 +32,8 @@ public struct CodeLogic: Sendable {
 
     public var isEmpty: Bool { statements.isEmpty }
 
+    public var isNotEmpty: Bool { !isEmpty }
+
     public init(statements: [CodeLogicStmt] = []) {
         self.statements = statements
     }

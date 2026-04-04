@@ -28,32 +28,32 @@ public actor MethodObject_Wrap: ObjectWrapper {
         case .hasReturnType: return await item.returnType.kind != .unKnown
         case .parameters:
             return await item.parameters.map { MethodParameter_Wrap($0) }
-        case .hasParameters: return !(await item.parameters.isEmpty)
+        case .hasParameters: return (await item.parameters).isNotEmpty
         case .hasLogic: return await item.hasLogic
         case .logicLines:
-            guard let logic = await item.logic, !logic.isEmpty else {
+            guard let logic = await item.logic, logic.isNotEmpty else {
                 return [FlatLogicLine_Wrap]()
             }
             let lines = await FlatLogicLineData.flatten(logic: logic)
             return lines.map { FlatLogicLine_Wrap($0) }
         case .hasDbLogic:
-            guard let logic = await item.logic, !logic.isEmpty else { return false }
+            guard let logic = await item.logic, logic.isNotEmpty else { return false }
             return await logic.containsDataAccessStatement()
         case .hasDbTxnLogic:
-            guard let logic = await item.logic, !logic.isEmpty else { return false }
+            guard let logic = await item.logic, logic.isNotEmpty else { return false }
             return await logic.containsTransactionControlStatement()
         case .hasHttpLogic:
-            guard let logic = await item.logic, !logic.isEmpty else { return false }
+            guard let logic = await item.logic, logic.isNotEmpty else { return false }
             return await logic.containsHttpClientStatement()
         case .hasWsLogic:
-            guard let logic = await item.logic, !logic.isEmpty else { return false }
+            guard let logic = await item.logic, logic.isNotEmpty else { return false }
             return await logic.containsWebSocketStatement()
         case .hasGrpcLogic:
-            guard let logic = await item.logic, !logic.isEmpty else { return false }
+            guard let logic = await item.logic, logic.isNotEmpty else { return false }
             return await logic.containsGrpcClientStatement()
         case .description: return await item.description ?? ""
         case .hasDescription:
-            return (await item.description).map { !$0.isEmpty } ?? false
+            return (await item.description).map { $0.isNotEmpty } ?? false
         }
     }
 
@@ -93,7 +93,7 @@ public actor MethodParameter_Wrap: DynamicMemberLookup, SendableDebugStringConve
         case .isOutput: item.metadata.isOutput
         case .isInout: item.metadata.isOutput && item.metadata.required == .yes
         case .description: item.metadata.description ?? ""
-        case .hasDescription: item.metadata.description.map { !$0.isEmpty } ?? false
+        case .hasDescription: item.metadata.description.map { $0.isNotEmpty } ?? false
         }
     }
 

@@ -51,7 +51,7 @@ public actor MethodObject: CodeMember {
         // Tilde and setext underline checks performed once against the resolved signature line.
         if isTildePrefixed(signatureLine) { return true }
         let underline = await parser.lookAheadLine(by: signatureOffset + 1)
-        return !underline.isEmpty && underline.hasOnly(ModelConstants.MethodUnderlineChar)
+        return underline.isNotEmpty && underline.hasOnly(ModelConstants.MethodUnderlineChar)
     }
 
     /// Parses the current line (or a block of `>>>` metadata lines + signature) as a method.
@@ -191,14 +191,14 @@ public actor MethodObject: CodeMember {
     /// Splits a method parameter list on commas not inside `()`, `<>`, or `[]`.
     private static func splitTopLevelCommas(_ raw: String) -> [String] {
         let s = raw.trim()
-        guard !s.isEmpty else { return [] }
+        guard s.isNotEmpty else { return [] }
         var parts: [String] = []
         var depth = NestedDelimiterDepth()
         var current = ""
 
         func appendCurrentIfNonEmpty() {
             let piece = current.trim()
-            if !piece.isEmpty {
+            if piece.isNotEmpty {
                 parts.append(piece)
             }
             current = ""
@@ -219,12 +219,12 @@ public actor MethodObject: CodeMember {
     /// Parses one method argument: optional `-->` / `<-->`, `name : Type`, optional `= default`.
     private static func parseMethodArgumentSegment(_ segment: String) -> (name: String, type: TypeInfo, metadata: ParameterMetadata)? {
         var s = segment.trim()
-        guard !s.isEmpty else { return nil }
+        guard s.isNotEmpty else { return nil }
         var meta = ParameterMetadata()
         consumeDirectionPrefix(from: &s, metadata: &meta)
 
         guard let (name, remainder) = splitNameAndRemainder(from: s) else { return nil }
-        guard !name.isEmpty else { return nil }
+        guard name.isNotEmpty else { return nil }
 
         let (typeString, defaultValue) = splitTypeAndDefault(from: remainder)
         meta.defaultValue = defaultValue
@@ -302,7 +302,7 @@ public actor MethodObject: CodeMember {
         self.logic = value
     }
 
-    public var hasLogic: Bool { logic != nil && !(logic?.isEmpty ?? true) }
+    public var hasLogic: Bool { logic?.isNotEmpty == true }
 
     /// **Setext style** — logic body starts immediately after the `~~~~~~` underline.
     /// No opening `~~~` fence; closing `~~~` is required to end the block.
@@ -437,7 +437,7 @@ public struct ParameterMetadata: Sendable {
         // afterPrefix: "* paramName: Type ..." or "--> name: Type ..."
 
         let marker = String(afterPrefix.prefix(while: { !$0.isWhitespace }))
-        guard !marker.isEmpty else { return nil }
+        guard marker.isNotEmpty else { return nil }
         var propertyLine = afterPrefix.dropFirst(marker.count).trimmingCharacters(in: .whitespaces)
         let paramDesc = ParserUtil.extractInlineDescription(from: &propertyLine)
         // propertyLine: "paramName: Type [= default] [{ constraints }] [(attributes)] [#tags]"

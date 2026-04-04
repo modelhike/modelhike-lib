@@ -64,7 +64,7 @@ public enum InfraNodeParser {
     public static func canParse(parser lineParser: LineParser) async -> Bool {
         let currentLine = await lineParser.currentLine()
         let trimmed = currentLine.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { return false }
+        guard trimmed.isNotEmpty else { return false }
 
         // Must not be a container-ref (`+ Name`) or an asterism (`* * *`)
         guard !trimmed.hasPrefix(ModelConstants.Container_Member + " ") else { return false }
@@ -79,7 +79,7 @@ public enum InfraNodeParser {
 
         let nextLine = await lineParser.lookAheadLine(by: 1)
         let nextTrimmed = nextLine.trimmingCharacters(in: .whitespaces)
-        return nextTrimmed.hasOnly(ModelConstants.InfraNodeUnderlineChar) && !nextTrimmed.isEmpty
+        return nextTrimmed.hasOnly(ModelConstants.InfraNodeUnderlineChar) && nextTrimmed.isNotEmpty
     }
 
     // MARK: - parse
@@ -118,7 +118,7 @@ public enum InfraNodeParser {
             guard let eqRange = trimmed.range(of: "=") else { break }
             let key = String(trimmed[..<eqRange.lowerBound]).trim()
             let value = String(trimmed[eqRange.upperBound...]).trim()
-            guard !key.isEmpty else { break }
+            guard key.isNotEmpty else { break }
 
             node.properties.append(InfraProperty(key: key, value: value))
             await parser.skipLine()

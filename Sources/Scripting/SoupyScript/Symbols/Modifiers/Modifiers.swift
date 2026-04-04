@@ -96,7 +96,7 @@ public enum Modifiers  {
 
 public extension Array where Element == ModifierInstance {
     func nameString() -> String {
-        guard isEmpty == false else { return "none" }
+        guard isNotEmpty else { return "none" }
         return map(\.name).joined()
     }
 }

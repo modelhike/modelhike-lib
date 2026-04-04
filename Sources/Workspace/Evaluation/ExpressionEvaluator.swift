@@ -190,7 +190,7 @@ public actor ExpressionEvaluator {
         var result: [String] = []
         for segment in inner.split(separator: ",") {
             let seg = segment.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !seg.isEmpty else { continue }
+            guard seg.isNotEmpty else { continue }
             if seg.hasPrefix("\""), seg.hasSuffix("\""), seg.count >= 2 {
                 result.append(String(seg.dropFirst().dropLast()))
             } else {

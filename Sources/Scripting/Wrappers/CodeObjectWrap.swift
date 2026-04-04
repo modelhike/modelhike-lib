@@ -76,9 +76,9 @@ public actor CodeObject_Wrap: ObjectWrapper {
         case .cache: await item.dataType == .cache
         case .workflow: await item.dataType == .workflow
         case .hasPushApis: await hasPushDataApi()
-        case .hasAnyApis: !(await apis).isEmpty
+        case .hasAnyApis: (await apis).isNotEmpty
         case .methods: await item.methods.map { MethodObject_Wrap($0) }
-        case .hasMethods: !(await item.methods.isEmpty)
+        case .hasMethods: (await item.methods).isNotEmpty
         case .hasDbLogic: await hasAnyMethodWithDataAccessLogic()
         case .hasDbTxnLogic: await hasAnyMethodWithTransactionControlLogic()
         case .hasHttpLogic: await hasAnyMethodWithHttpClientLogic()
@@ -97,11 +97,11 @@ public actor CodeObject_Wrap: ObjectWrapper {
     private func codeObjectHasDescription() async -> Bool {
         if let d = item as? DomainObject {
             let desc = await d.description
-            return desc.map { !$0.isEmpty } ?? false
+            return desc.map { $0.isNotEmpty } ?? false
         }
         if let d = item as? DtoObject {
             let desc = await d.description
-            return desc.map { !$0.isEmpty } ?? false
+            return desc.map { $0.isNotEmpty } ?? false
         }
         return false
     }
@@ -109,7 +109,7 @@ public actor CodeObject_Wrap: ObjectWrapper {
     /// True if any method uses data-access statement kinds (SQL, queries, DML, etc.) — language-agnostic; blueprints map to e.g. R2DBC `DatabaseClient`.
     private func hasAnyMethodWithDataAccessLogic() async -> Bool {
         for m in await item.methods {
-            guard let logic = await m.logic, !logic.isEmpty else { continue }
+            guard let logic = await m.logic, logic.isNotEmpty else { continue }
             if await logic.containsDataAccessStatement() { return true }
         }
         return false
@@ -118,7 +118,7 @@ public actor CodeObject_Wrap: ObjectWrapper {
     /// True if any method uses transaction-control kinds (`transaction`, `commit`, …) — for e.g. `ReactiveTransactionManager` injection.
     private func hasAnyMethodWithTransactionControlLogic() async -> Bool {
         for m in await item.methods {
-            guard let logic = await m.logic, !logic.isEmpty else { continue }
+            guard let logic = await m.logic, logic.isNotEmpty else { continue }
             if await logic.containsTransactionControlStatement() { return true }
         }
         return false
@@ -126,7 +126,7 @@ public actor CodeObject_Wrap: ObjectWrapper {
 
     private func hasAnyMethodWithHttpClientLogic() async -> Bool {
         for m in await item.methods {
-            guard let logic = await m.logic, !logic.isEmpty else { continue }
+            guard let logic = await m.logic, logic.isNotEmpty else { continue }
             if await logic.containsHttpClientStatement() { return true }
         }
         return false
@@ -134,7 +134,7 @@ public actor CodeObject_Wrap: ObjectWrapper {
 
     private func hasAnyMethodWithWebSocketClientLogic() async -> Bool {
         for m in await item.methods {
-            guard let logic = await m.logic, !logic.isEmpty else { continue }
+            guard let logic = await m.logic, logic.isNotEmpty else { continue }
             if await logic.containsWebSocketStatement() { return true }
         }
         return false
@@ -142,7 +142,7 @@ public actor CodeObject_Wrap: ObjectWrapper {
 
     private func hasAnyMethodWithGrpcClientLogic() async -> Bool {
         for m in await item.methods {
-            guard let logic = await m.logic, !logic.isEmpty else { continue }
+            guard let logic = await m.logic, logic.isNotEmpty else { continue }
             if await logic.containsGrpcClientStatement() { return true }
         }
         return false
@@ -250,14 +250,14 @@ public actor TypeProperty_Wrap: ObjectWrapper {
         case .defaultValue: await item.defaultValue ?? ""
         case .hasDefaultValue: await item.defaultValue != nil
         case .validValueSet: await item.validValueSet.joined(separator: ", ")
-        case .hasValidValueSet: await item.validValueSet.isEmpty == false
+        case .hasValidValueSet: await item.validValueSet.isNotEmpty
         case .constraints: await constraintsList
-        case .hasConstraints: await constraintsList.isEmpty == false
+        case .hasConstraints: await constraintsList.isNotEmpty
         case .description: await item.description ?? ""
         case .hasDescription:
-            (await item.description).map { !$0.isEmpty } ?? false
+            (await item.description).map { $0.isNotEmpty } ?? false
         case .appliedConstraints: await item.appliedConstraints.joined(separator: ", ")
-        case .hasAppliedConstraints: await !item.appliedConstraints.isEmpty
+        case .hasAppliedConstraints: await item.appliedConstraints.isNotEmpty
         case .appliedDefaultExpression: await item.appliedDefaultExpression ?? ""
         case .hasAppliedDefaultExpression: await item.appliedDefaultExpression != nil
         }
@@ -320,7 +320,7 @@ public actor Constraint_Wrap: ObjectWrapper {
         case .value: ConstraintRenderer.renderValue(of: item)
         case .expr: ConstraintExpr_Wrap(item.expr)
         case .description: item.description ?? ""
-        case .hasDescription: item.description.map { !$0.isEmpty } ?? false
+        case .hasDescription: item.description.map { $0.isNotEmpty } ?? false
         }
     }
 

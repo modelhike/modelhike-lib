@@ -142,11 +142,11 @@ public actor C4Component_Wrap : ObjectWrapper {
         case .name: await item.name
         case .types: await types
         case .embeddedTypes: await embeddedTypes
-        case .hasEmbeddedTypes: !(await embeddedTypes).isEmpty
+        case .hasEmbeddedTypes: (await embeddedTypes).isNotEmpty
         case .entities: await entities
-        case .hasEntities: !(await entities).isEmpty
+        case .hasEntities: (await entities).isNotEmpty
         case .dtos: await dtos
-        case .hasDtos: !(await dtos).isEmpty
+        case .hasDtos: (await dtos).isNotEmpty
         case .entitiesAndDtos: await entitiesAndDtos
         case .pushApis: await pushDataApis
         case .hasPushApis: await hasPushDataApi()
@@ -154,19 +154,19 @@ public actor C4Component_Wrap : ObjectWrapper {
         case .hasQueryApis: await hasQueryApi()
         case .mutationApis: await mutationApis
         case .hasMutationApis: await hasMutationApi()
-        case .hasAnyApis: !(await apis).isEmpty
+        case .hasAnyApis: (await apis).isNotEmpty
         case .description: await item.description ?? ""
         case .hasDescription:
-            (await item.description).map { !$0.isEmpty } ?? false
+            (await item.description).map { $0.isNotEmpty } ?? false
         case .expressions:
             await item.expressions.map { TypeProperty_Wrap($0) }
-        case .hasExpressions: await !item.expressions.isEmpty
+        case .hasExpressions: await item.expressions.isNotEmpty
         case .functions:
             await item.functions.map { MethodObject_Wrap($0) }
-        case .hasFunctions: await !item.functions.isEmpty
+        case .hasFunctions: await item.functions.isNotEmpty
         case .namedConstraints:
             await item.namedConstraints.snapshot().map { Constraint_Wrap($0) }
-        case .hasNamedConstraints: await !item.namedConstraints.snapshot().isEmpty
+        case .hasNamedConstraints: await item.namedConstraints.snapshot().isNotEmpty
         }
         return value
     }

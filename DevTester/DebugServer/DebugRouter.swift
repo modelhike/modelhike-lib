@@ -411,7 +411,7 @@ actor DebugRouter {
         }
         guard let body,
               let request = try? JSONDecoder().decode(EvalRequest.self, from: body),
-              let expr = request.expression, !expr.isEmpty else {
+              let expr = request.expression, expr.isNotEmpty else {
             return .ok(body: "{\"error\":\"Missing expression\"}")
         }
         guard let pipeline, let recorder else {
@@ -493,7 +493,7 @@ actor DebugRouter {
         } else {
             candidates.append(outputRoot.appendingPathComponent(record.outputPath).path)
         }
-        if !record.workingDir.isEmpty {
+        if record.workingDir.isNotEmpty {
             if record.workingDir.hasPrefix("/") {
                 let absWD = URL(fileURLWithPath: record.workingDir)
                 candidates.append(absWD.appendingPathComponent(record.outputPath).path)
@@ -510,7 +510,7 @@ actor DebugRouter {
         var result: [String: Sendable] = [:]
         for (key, value) in flat {
             let parts = key.split(separator: ".").map(String.init)
-            guard !parts.isEmpty else { continue }
+            guard parts.isNotEmpty else { continue }
             setNested(result: &result, path: parts, value: value)
         }
         return result

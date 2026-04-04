@@ -1160,7 +1160,7 @@ private func parseKV(from children: [CodeLogicStmt]) -> [CodeLogicStmt.AssignNod
         // Accepts explicit `assign key = value` and bare `key = value` inside parameter blocks.
         guard child.kind == .assign || child.kind == .unknown else { return nil }
         let p = child.expression.slicing(around: " = ")
-        guard !p.lhs.isEmpty else { return nil }
+        guard p.lhs.isNotEmpty else { return nil }
         return .init(key: p.lhs, value: p.rhs)
     }
 }

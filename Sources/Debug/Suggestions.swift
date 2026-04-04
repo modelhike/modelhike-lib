@@ -117,7 +117,7 @@ public enum Suggestions {
     /// - `options` preserves the raw candidate list for richer tooling
     public static func didYouMeanSuggestion(for query: String, in candidates: [String]) -> DiagnosticSuggestion? {
         let matches = closestMatches(for: query, in: candidates)
-        guard !matches.isEmpty else { return nil }
+        guard matches.isNotEmpty else { return nil }
         if matches.count == 1 {
             return DiagnosticSuggestion(
                 kind: .didYouMean,
@@ -201,7 +201,7 @@ public enum Suggestions {
             in: candidates,
             availableOptionsLabel: availableOptionsLabel
         )
-        guard !suggestions.isEmpty else { return "" }
+        guard suggestions.isNotEmpty else { return "" }
 
         let didYouMean = suggestions.first { $0.kind == .didYouMean }?.message
         let availableOptions = suggestions.first { $0.kind == .availableOptions }?.message

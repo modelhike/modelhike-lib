@@ -13,7 +13,7 @@ public extension ChoiceOf where RegexOutput == Substring {
     init<S: Sequence<String>>(_ components: S) {
         let exps = components.map { AlternationBuilder.buildExpression($0) }
         
-        guard !exps.isEmpty else {
+        guard exps.isNotEmpty else {
             fatalError(#function + ": Empty choice!")
         }
         

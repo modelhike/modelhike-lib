@@ -36,11 +36,11 @@ public struct RegularExpressionEvaluator: Sendable {
         var tokens: [ExpressionToken] = []
         var rest = expression[...]
 
-        while !rest.isEmpty {
+        while rest.isNotEmpty {
             while rest.first?.isWhitespace == true {
                 rest.removeFirst()
             }
-            guard !rest.isEmpty else { break }
+            guard rest.isNotEmpty else { break }
 
             if rest.prefixMatch(of: ExpressionTokenizer.openParen) != nil {
                 rest.removeFirst()
@@ -305,7 +305,7 @@ public struct RegularExpressionEvaluator: Sendable {
         let symbols = await pInfo.ctx.symbols.template
         let nameMatches = symbols.infixOperators(named: op)
 
-        guard !nameMatches.isEmpty else {
+        guard nameMatches.isNotEmpty else {
             throw Suggestions.infixOperatorNotFound(op, candidates: symbols.allInfixOperatorNames, pInfo: pInfo)
         }
 

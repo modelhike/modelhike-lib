@@ -48,10 +48,10 @@ public actor C4Container_Wrap : ObjectWrapper {
         case .defaultModule: await item.getFirstModule(appModel: appModel)
         
         case .types: await types
-        case .hasAnyApis: !(await apis).isEmpty
+        case .hasAnyApis: (await apis).isNotEmpty
         case .description: await item.description ?? ""
         case .hasDescription:
-            (await item.description).map { !$0.isEmpty } ?? false
+            (await item.description).map { $0.isNotEmpty } ?? false
         }
         return value
     }

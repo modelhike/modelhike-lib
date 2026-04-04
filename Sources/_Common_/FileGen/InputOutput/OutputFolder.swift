@@ -73,7 +73,7 @@ public actor OutputFolder : SendableDebugStringConvertible {
         //create the folder only if any file or sub folder is persisted
         try self.ensureExists()
 
-        if !subFolders.isEmpty {
+        if subFolders.isNotEmpty {
             var subRoots: [LocalFolder] = []
             subRoots.reserveCapacity(subFolders.count)
             try await withThrowingTaskGroup(of: LocalFolder?.self) { group in
@@ -92,7 +92,7 @@ public actor OutputFolder : SendableDebugStringConvertible {
             await context.addGenerated(folderRoots: subRoots, addFileCount: false)
         }
 
-        if !folderItems.isEmpty {
+        if folderItems.isNotEmpty {
             var renderedRoots: [LocalFolder] = []
             renderedRoots.reserveCapacity(folderItems.count)
             try await withThrowingTaskGroup(of: LocalFolder?.self) { group in
@@ -112,7 +112,7 @@ public actor OutputFolder : SendableDebugStringConvertible {
             await context.addGenerated(folderRoots: renderedRoots, addFileCount: true)
         }
 
-        if !items.isEmpty {
+        if items.isNotEmpty {
             var filePaths: [String] = []
             filePaths.reserveCapacity(items.count)
             try await withThrowingTaskGroup(of: String?.self) { group in

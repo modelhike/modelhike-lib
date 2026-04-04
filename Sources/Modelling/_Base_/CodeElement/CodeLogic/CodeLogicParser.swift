@@ -116,7 +116,7 @@ public enum CodeLogicParser {
             await parser.skipLine()
         }
 
-        guard !rawLines.isEmpty else { return nil }
+        guard rawLines.isNotEmpty else { return nil }
 
         let stream = LineStream(rawLines)
         return CodeLogic(statements: try await buildStatements(from: stream, baseDepth: 1, pInfo: pInfo))
@@ -164,7 +164,7 @@ public enum CodeLogicParser {
         }
         line = String(line[i...])
 
-        guard !line.isEmpty else {
+        guard line.isNotEmpty else {
             return ParsedLogicLine(depth: N + 1, keyword: "", expression: "")
         }
 
@@ -229,7 +229,7 @@ public enum CodeLogicParser {
             // Same-depth sibling children — db>, http>, grpc> etc. claim their following
             // siblings (where>, include>, path>, headers>, let, ...) from the stream directly.
             let claimable = kind.siblingChildKinds
-            if !claimable.isEmpty {
+            if claimable.isNotEmpty {
                 while let next = stream.current,
                       next.depth == baseDepth,
                       claimable.contains(CodeLogicStmtKind.parse(next.keyword)) {

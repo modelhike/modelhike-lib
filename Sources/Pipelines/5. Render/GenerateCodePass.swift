@@ -50,7 +50,7 @@ public struct GenerateCodePass : RenderingPass {
 
     private func containersToRender(in phase: RenderPhase, pInfo: ParsedInfo) async throws -> [C4Container] {
         let containersToOutput = await phase.config.containersToOutput
-        if !containersToOutput.isEmpty {
+        if containersToOutput.isNotEmpty {
             var resolved: [C4Container] = []
             for name in containersToOutput {
                 resolved.append(try await resolveContainer(named: name, model: phase.context.model, pInfo: pInfo))

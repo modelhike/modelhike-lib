@@ -171,7 +171,7 @@ public actor AppModel {
 
     private func resolveReferenceTargets(for property: Property, in ctx: LoadContext) async {
         let kind = await property.type.kind
-        guard let targets = kind.referenceTargets, targets.isEmpty == false else {
+        guard let targets = kind.referenceTargets, targets.isNotEmpty else {
             return
         }
 

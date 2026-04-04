@@ -17,7 +17,7 @@ public actor DebugDictionary{
     var title: String = ""
     
     public var hasAny: Bool {
-        return !self.debugInfo.isEmpty
+        return self.debugInfo.isNotEmpty
     }
     
     public func set(_ key: String, value: TemplateSoupExpressionDebugInfo) {

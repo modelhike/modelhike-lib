@@ -89,7 +89,7 @@ public actor CodeGenerationSandbox : GenerationSandbox {
 
         if await blueprint.hasFolder(SpecialFolderNames.modifiers) {
             let blueprintModifiers = try await blueprint.modifiers(templateSoup: templateSoup, with: pInfo)
-            if !blueprintModifiers.isEmpty {
+            if blueprintModifiers.isNotEmpty {
                 await context.symbols.addTemplate(modifiers: blueprintModifiers)
                 print("ℹ️ Loaded \(blueprintModifiers.count) blueprint modifier(s) from \(SpecialFolderNames.modifiers)/")
             }

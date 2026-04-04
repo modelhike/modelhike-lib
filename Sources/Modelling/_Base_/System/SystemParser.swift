@@ -41,7 +41,7 @@ public enum SystemParser {
     /// `*` characters on an otherwise empty line, e.g. `* * * * *`.
     public static func isAsterismLine(_ line: String) -> Bool {
         let trimmed = line.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { return false }
+        guard trimmed.isNotEmpty else { return false }
         let parts = trimmed.components(separatedBy: " ")
         guard parts.count >= ModelConstants.SystemFenceMinCount else { return false }
         return parts.allSatisfy { $0 == ModelConstants.SystemFenceChar }
@@ -56,7 +56,7 @@ public enum SystemParser {
         guard isAsterismLine(currentLine) else { return false }
         let nameCandidate = await lineParser.lookAheadLine(by: 1)
         let trimmedName = nameCandidate.trimmingCharacters(in: .whitespaces)
-        guard !trimmedName.isEmpty else { return false }
+        guard trimmedName.isNotEmpty else { return false }
         guard !isAsterismLine(trimmedName) else { return false } // name line must not itself be a fence
         let closingFence = await lineParser.lookAheadLine(by: 2)
         return isAsterismLine(closingFence)
@@ -113,7 +113,7 @@ public enum SystemParser {
             // `+ Container Name` — store as unresolved reference.
             if pInfo.firstWord == ModelConstants.Container_Member {
                 let rest = pInfo.line.remainingLine(after: ModelConstants.Container_Member).trimmingCharacters(in: .whitespaces)
-                if !rest.isEmpty {
+                if rest.isNotEmpty {
                     await item.appendUnresolvedRef(rest)
                 }
                 await parser.skipLine()

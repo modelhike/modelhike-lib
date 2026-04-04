@@ -336,7 +336,7 @@ public enum PropertyKind : Equatable, Sendable {
 
     private static func referenceComponents(from value: String) -> (target: String, field: String?) {
         let trimmed = value.trim()
-        guard trimmed.isEmpty == false else {
+        guard trimmed.isNotEmpty else {
             return ("", nil)
         }
 
