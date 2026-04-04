@@ -10,7 +10,7 @@ import Foundation
 internal final class PluralKit {
 
     private var uncountables: [String] = []
-    private var rules: [(rule: String, template: String)] = []
+    private var rules: [(regex: NSRegularExpression, template: String)] = []
 
     nonisolated(unsafe)
     public static let shared: PluralKit = PluralKit()
@@ -118,7 +118,7 @@ internal final class PluralKit {
         }
 
         for pair in rules {
-            let newValue = regexReplace(input: word, pattern: pair.rule, template: pair.template)
+            let newValue = regexReplace(input: word, regex: pair.regex, template: pair.template)
             if newValue != word {
                 return newValue
             }
@@ -126,9 +126,8 @@ internal final class PluralKit {
         return word
     }
 
-    private func regexReplace(input: String, pattern: String, template: String) -> String {
-        let regex = try! NSRegularExpression(pattern: pattern, options: .caseInsensitive)
-        let range = NSRange(location: 0, length: input.count)
+    private func regexReplace(input: String, regex: NSRegularExpression, template: String) -> String {
+        let range = NSRange(input.startIndex..<input.endIndex, in: input)
         let output = regex.stringByReplacingMatches(in: input, options: [], range: range, withTemplate: template)
         return output
     }
@@ -136,7 +135,8 @@ internal final class PluralKit {
     // MARK: - API
 
     public func add(rule: String, with template: String) {
-        rules.insert((rule: rule, template: template), at: 0)
+        let regex = try! NSRegularExpression(pattern: rule, options: .caseInsensitive)
+        rules.insert((regex: regex, template: template), at: 0)
     }
 
     public func uncountable(word: String) {

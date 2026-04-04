@@ -8,6 +8,7 @@ import Foundation
 import RegexBuilder
 
 public enum ContentHandler {
+    private static let templateMarkers = ["{{", "={{"]
     
     nonisolated(unsafe)
     static let lineRegEx: Regex<(Substring, String, Optional<String>, Optional<String>)>  = Regex {
@@ -136,5 +137,12 @@ public enum ContentHandler {
     
     public static func eval(expression: String, with ctx: GenerationContext) async throws -> String? {
         return try await ContentHandler.execute(line: expression, identifier: "Eval", with: ctx)
+    }
+
+    public static func evalIfNeeded(expression: String, with ctx: GenerationContext) async throws -> String? {
+        if templateMarkers.allSatisfy({ expression.contains($0) == false }) {
+            return expression.trim().isNotEmpty ? expression : nil
+        }
+        return try await eval(expression: expression, with: ctx)
     }
 }

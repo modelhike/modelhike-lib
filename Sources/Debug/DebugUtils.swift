@@ -19,6 +19,10 @@ public final class ContextDebugLog: Sendable {
     public let flags: ContextDebugFlags
     private let recorder: (any DebugRecorder)?
 
+    private var hasRecorder: Bool {
+        recorder != nil
+    }
+
     public init(flags: ContextDebugFlags, recorder: (any DebugRecorder)? = nil) {
         self.flags = flags
         self.recorder = recorder
@@ -39,9 +43,14 @@ public final class ContextDebugLog: Sendable {
         source: SourceLocation,
         suggestions: [DiagnosticSuggestion] = []
     ) {
-        recordEvent(.diagnostic(severity: severity, code: code, message: message,
-                                source: source, suggestions: suggestions))
-        if flags.printDiagnosticsToStdout, severity == .warning || severity == .error {
+        let shouldPrint = flags.printDiagnosticsToStdout && (severity == .warning || severity == .error)
+        guard hasRecorder || shouldPrint else { return }
+
+        if hasRecorder {
+            recordEvent(.diagnostic(severity: severity, code: code, message: message,
+                                    source: source, suggestions: suggestions))
+        }
+        if shouldPrint {
             let codeStr = code.map { "[\($0)] " } ?? ""
             let suggStr = suggestions.isEmpty
                 ? ""
@@ -108,10 +117,7 @@ public final class ContextDebugLog: Sendable {
 
     /// Records file generation and adds to session.files for traceability.
     public func recordFileGenerated(outputPath: String, templateName: String?, objectName: String?, workingDir: String, source: SourceLocation) async {
-        guard let recorder else {
-            recordEvent(.fileGenerated(outputPath: outputPath, templateName: templateName, objectName: objectName, source: source))
-            return
-        }
+        guard let recorder else { return }
         await recorder.recordGeneratedFile(
             outputPath: outputPath,
             templateName: templateName,
@@ -158,14 +164,20 @@ public final class ContextDebugLog: Sendable {
     }
     
     public func multiBlockDetected(keyWord: String, pInfo: ParsedInfo) {
-        recordEvent(.multiBlockDetected(keyword: keyWord, source: SourceLocation(from: pInfo)))
+        guard hasRecorder || flags.lineByLineParsing || flags.blockByBlockParsing else { return }
+        if hasRecorder {
+            recordEvent(.multiBlockDetected(keyword: keyWord, source: SourceLocation(from: pInfo)))
+        }
         if flags.lineByLineParsing || flags.blockByBlockParsing {
             print("[\(pInfo.lineNo)] MULTIBLOCK DETECT>> \(keyWord)")
         }
     }
     
     public func multiBlockDetectFailed(pInfo: ParsedInfo) {
-        recordEvent(.multiBlockFailed(source: SourceLocation(from: pInfo)))
+        guard hasRecorder || flags.lineByLineParsing || flags.blockByBlockParsing else { return }
+        if hasRecorder {
+            recordEvent(.multiBlockFailed(source: SourceLocation(from: pInfo)))
+        }
         if flags.lineByLineParsing || flags.blockByBlockParsing {
             print("[\(pInfo.lineNo)] FAILED MULTIBLOCK PARSE>> \(pInfo.line) ")
         }
@@ -193,7 +205,8 @@ public final class ContextDebugLog: Sendable {
     }
 
     public func inlineFunctionCall(_ line: String, pInfo: ParsedInfo) {
-        if recorder != nil {
+        guard hasRecorder || flags.lineByLineParsing else { return }
+        if hasRecorder {
             recordEvent(.functionCallEvaluated(expression: line, source: SourceLocation(from: pInfo)))
         }
         if flags.lineByLineParsing {
@@ -234,43 +247,57 @@ public final class ContextDebugLog: Sendable {
     }
     
     public func printParsedTree(for containers: SoupyScriptStmtContainerList) async {
+        guard hasRecorder || flags.printParsedTree else { return }
         let desc = await containers.debugDescription
-        recordEvent(.parsedTreeDumped(treeName: "containers", treeDescription: desc))
+        if hasRecorder {
+            recordEvent(.parsedTreeDumped(treeName: "containers", treeDescription: desc))
+        }
         if flags.printParsedTree {
             print(desc)
         }
     }
     
     public func ifConditionSatisfied(condition: String, pInfo: ParsedInfo) {
-        recordEvent(.controlFlow(branch: .ifTrue, condition: condition, satisfied: true, source: SourceLocation(from: pInfo)))
+        guard hasRecorder || flags.lineByLineParsing || flags.blockByBlockParsing || flags.controlFlow else { return }
+        if hasRecorder {
+            recordEvent(.controlFlow(branch: .ifTrue, condition: condition, satisfied: true, source: SourceLocation(from: pInfo)))
+        }
         if flags.lineByLineParsing || flags.blockByBlockParsing || flags.controlFlow {
             print("[\(pInfo.lineNo)] IF Condition Satisfied>> \(pInfo.line)")
         }
     }
     
     public func elseIfConditionSatisfied(condition: String, pInfo: ParsedInfo) {
-        recordEvent(.controlFlow(branch: .elseIfTrue, condition: condition, satisfied: true, source: SourceLocation(from: pInfo)))
+        guard hasRecorder || flags.lineByLineParsing || flags.blockByBlockParsing || flags.controlFlow else { return }
+        if hasRecorder {
+            recordEvent(.controlFlow(branch: .elseIfTrue, condition: condition, satisfied: true, source: SourceLocation(from: pInfo)))
+        }
         if flags.lineByLineParsing || flags.blockByBlockParsing || flags.controlFlow {
             print("[\(pInfo.lineNo)] ELSE IF Condition Satisfied>> \(pInfo.line)")
         }
     }
     
     public func elseBlockExecuting(_ pInfo: ParsedInfo) {
-        recordEvent(.controlFlow(branch: .elseBlock, condition: "", satisfied: true, source: SourceLocation(from: pInfo)))
+        guard hasRecorder || flags.lineByLineParsing || flags.blockByBlockParsing || flags.controlFlow else { return }
+        if hasRecorder {
+            recordEvent(.controlFlow(branch: .elseBlock, condition: "", satisfied: true, source: SourceLocation(from: pInfo)))
+        }
         if flags.lineByLineParsing || flags.blockByBlockParsing || flags.controlFlow {
             print("[\(pInfo.lineNo)] ELSE Block executing>> \(pInfo.line)")
         }
     }
     
     public func templateParsingStarting(name: String = "") {
-        if name.isNotEmpty { recordEvent(.templateParseStarted(name: name)) }
+        guard hasRecorder || flags.lineByLineParsing || flags.blockByBlockParsing else { return }
+        if hasRecorder, name.isNotEmpty { recordEvent(.templateParseStarted(name: name)) }
         if flags.lineByLineParsing || flags.blockByBlockParsing {
             print("TEMPLATE PARSING START -------------\n\n")
         }
     }
     
     public func templateExecutionStarting(name: String = "", pInfo: ParsedInfo? = nil) {
-        if name.isNotEmpty, let pInfo {
+        guard hasRecorder || flags.lineByLineParsing || flags.blockByBlockParsing else { return }
+        if hasRecorder, name.isNotEmpty, let pInfo {
             recordEvent(.templateStarted(name: name, source: SourceLocation(from: pInfo)))
         }
         if flags.lineByLineParsing || flags.blockByBlockParsing {
@@ -279,14 +306,16 @@ public final class ContextDebugLog: Sendable {
     }
     
     public func scriptFileParsingStarting(name: String = "") {
-        if name.isNotEmpty { recordEvent(.scriptParseStarted(name: name)) }
+        guard hasRecorder || flags.lineByLineParsing || flags.blockByBlockParsing else { return }
+        if hasRecorder, name.isNotEmpty { recordEvent(.scriptParseStarted(name: name)) }
         if flags.lineByLineParsing || flags.blockByBlockParsing {
             print("SCRIPT PARSING START -------------\n\n")
         }
     }
     
     public func scriptFileExecutionStarting(name: String = "", pInfo: ParsedInfo? = nil) {
-        if name.isNotEmpty, let pInfo {
+        guard hasRecorder || flags.lineByLineParsing || flags.blockByBlockParsing else { return }
+        if hasRecorder, name.isNotEmpty, let pInfo {
             recordEvent(.scriptStarted(name: name, source: SourceLocation(from: pInfo)))
         }
         if flags.lineByLineParsing || flags.blockByBlockParsing {
@@ -295,104 +324,146 @@ public final class ContextDebugLog: Sendable {
     }
     
     public func workingDirectoryChanged(_ path: String, pInfo: ParsedInfo? = nil) {
+        guard hasRecorder || flags.changesInWorkingDirectory else { return }
         let src = pInfo.map { SourceLocation(from: $0) }
             ?? SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)
-        recordEvent(.workingDirChanged(from: "", to: path, source: src))
+        if hasRecorder {
+            recordEvent(.workingDirChanged(from: "", to: path, source: src))
+        }
         if flags.changesInWorkingDirectory {
             print("Working Dir: \(path)")
         }
     }
     
     public func stopRenderingCurrentFile(_ filepath: String, pInfo: ParsedInfo) {
-        recordEvent(.fileRenderStopped(path: filepath, source: SourceLocation(from: pInfo)))
+        guard hasRecorder || flags.renderingStoppedInFiles else { return }
+        if hasRecorder {
+            recordEvent(.fileRenderStopped(path: filepath, source: SourceLocation(from: pInfo)))
+        }
         if flags.renderingStoppedInFiles {
             print("⚠️ Stop Rendering \(filepath) ...")
         }
     }
     
     public func throwErrorFromCurrentFile(_ filepath: String, err: String, pInfo: ParsedInfo) {
-        recordEvent(.fatalError(message: err, source: SourceLocation(from: pInfo)))
+        guard hasRecorder || flags.errorThrownInFiles else { return }
+        if hasRecorder {
+            recordEvent(.fatalError(message: err, source: SourceLocation(from: pInfo)))
+        }
         if flags.errorThrownInFiles {
             print("🚨 Error '\(err)' Thrown From \(filepath) ...")
         }
     }
     
     public func excludingFile(_ filepath: String, pInfo: ParsedInfo? = nil) {
+        guard hasRecorder || flags.excludedFiles else { return }
         let src = pInfo.map { SourceLocation(from: $0) }
             ?? SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)
-        recordEvent(.fileExcluded(path: filepath, reason: "include-if", source: src))
+        if hasRecorder {
+            recordEvent(.fileExcluded(path: filepath, reason: "include-if", source: src))
+        }
         if flags.excludedFiles {
             print("⚠️ Excluding \(filepath) ...")
         }
     }
     
     public func generatingFile(_ filepath: String) {
-        recordEvent(.fileGenerated(outputPath: filepath, templateName: nil, objectName: nil, source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)))
+        guard hasRecorder || flags.fileGeneration else { return }
+        if hasRecorder {
+            recordEvent(.fileGenerated(outputPath: filepath, templateName: nil, objectName: nil, source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)))
+        }
         if flags.fileGeneration {
             print("Generating \(filepath) ...")
         }
     }
     
     public func copyingFile(_ filepath: String) {
-        recordEvent(.fileCopied(sourcePath: filepath, outputPath: filepath, source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)))
+        guard hasRecorder || flags.fileGeneration else { return }
+        if hasRecorder {
+            recordEvent(.fileCopied(sourcePath: filepath, outputPath: filepath, source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)))
+        }
         if flags.fileGeneration {
             print("Copying \(filepath) ...")
         }
     }
     
     public func copyingFile(_ filepath: String, to newFilePath: String) {
-        recordEvent(.fileCopied(sourcePath: filepath, outputPath: newFilePath, source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)))
+        guard hasRecorder || flags.fileGeneration else { return }
+        if hasRecorder {
+            recordEvent(.fileCopied(sourcePath: filepath, outputPath: newFilePath, source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)))
+        }
         if flags.fileGeneration {
             print("Copying \(filepath) to \(newFilePath)...")
         }
     }
     
     public func copyingFileInFolder(_ filepath: String, folder: LocalFolder) {
-        recordEvent(.fileCopied(sourcePath: filepath, outputPath: folder.pathString + "/" + filepath, source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)))
+        guard hasRecorder || flags.fileGeneration else { return }
+        if hasRecorder {
+            recordEvent(.fileCopied(sourcePath: filepath, outputPath: folder.pathString + "/" + filepath, source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)))
+        }
         if flags.fileGeneration {
             print("[ \(folder.pathString) ] Copying \(filepath) ...")
         }
     }
     
     public func copyingFileInFolder(_ filepath: String, to newFilePath: String, folder: LocalFolder) {
-        recordEvent(.fileCopied(sourcePath: filepath, outputPath: newFilePath, source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)))
+        guard hasRecorder || flags.fileGeneration else { return }
+        if hasRecorder {
+            recordEvent(.fileCopied(sourcePath: filepath, outputPath: newFilePath, source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)))
+        }
         if flags.fileGeneration {
             print("[ \(folder.pathString) ] Copying \(filepath) to \(newFilePath)...")
         }
     }
     
     public func copyingFolder(_ path: String) {
-        recordEvent(.folderCopied(path: path, outputPath: path, source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)))
+        guard hasRecorder || flags.fileGeneration else { return }
+        if hasRecorder {
+            recordEvent(.folderCopied(path: path, outputPath: path, source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)))
+        }
         if flags.fileGeneration {
             print("Copying folder \(path) ...")
         }
     }
     
     public func copyingFolder(_ path: String, to newPath: String) {
-        recordEvent(.folderCopied(path: path, outputPath: newPath, source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)))
+        guard hasRecorder || flags.fileGeneration else { return }
+        if hasRecorder {
+            recordEvent(.folderCopied(path: path, outputPath: newPath, source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)))
+        }
         if flags.fileGeneration {
             print("Copying folder \(path) to \(newPath)...")
         }
     }
     
     public func renderingFolder(_ path: String, to newPath: String) {
-        recordEvent(.folderRendered(path: path, outputPath: newPath, source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)))
+        guard hasRecorder || flags.fileGeneration else { return }
+        if hasRecorder {
+            recordEvent(.folderRendered(path: path, outputPath: newPath, source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)))
+        }
         if flags.fileGeneration {
             print("Rendering folder \(path) to \(newPath)...")
         }
     }
     
     public func generatingFile(_ filepath: String, with template: String) {
-        recordEvent(.fileGenerated(outputPath: filepath, templateName: template, objectName: nil, source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)))
+        guard hasRecorder || flags.fileGeneration else { return }
+        if hasRecorder {
+            recordEvent(.fileGenerated(outputPath: filepath, templateName: template, objectName: nil, source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)))
+        }
         if flags.fileGeneration {
             print("Generating \(filepath) [template \(template)] ...")
         }
     }
     
     public func fileNotGenerated(_ filepath: String, with template: String, pInfo: ParsedInfo? = nil) {
+        guard hasRecorder || flags.fileGeneration else { return }
         let src = pInfo.map { SourceLocation(from: $0) }
             ?? SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)
-        recordEvent(.fileSkipped(path: filepath, templateName: template, reason: "not generated", source: src))
+        if hasRecorder {
+            recordEvent(.fileSkipped(path: filepath, templateName: template, reason: "not generated", source: src))
+        }
         if flags.fileGeneration {
             print("⚠️ File \(filepath) [template \(template)] was not generated.")
         }
@@ -413,14 +484,20 @@ public final class ContextDebugLog: Sendable {
     }
     
     public func fileNotGeneratedInFolder(_ filepath: String, with template: String, folder: LocalFolder) {
-        recordEvent(.fileSkipped(path: filepath, templateName: template, reason: "not generated", source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)))
+        guard hasRecorder || flags.fileGeneration else { return }
+        if hasRecorder {
+            recordEvent(.fileSkipped(path: filepath, templateName: template, reason: "not generated", source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)))
+        }
         if flags.fileGeneration {
             print("⚠️ [ \(folder.pathString) ] File \(filepath) [template \(template)] was not generated.")
         }
     }
     
     public func fileNotGenerated(_ filepath: String) {
-        recordEvent(.fileSkipped(path: filepath, templateName: nil, reason: "not generated", source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)))
+        guard hasRecorder || flags.fileGeneration else { return }
+        if hasRecorder {
+            recordEvent(.fileSkipped(path: filepath, templateName: nil, reason: "not generated", source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)))
+        }
         if flags.fileGeneration {
             print("⚠️ File \(filepath) was not generated.")
         }

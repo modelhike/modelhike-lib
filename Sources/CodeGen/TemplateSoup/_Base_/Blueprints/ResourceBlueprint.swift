@@ -287,7 +287,7 @@ public actor ResourceBlueprint: Blueprint {
         //copy files from subfolders also
         for subfolder in fileset.subfolders {
             //render the foldername if it has an expression within '{{' and '}}'
-            let subfoldername = try await ContentHandler.eval(expression: subfolder.outputNameTemplate, with: templateSoup.context)
+            let subfoldername = try await ContentHandler.evalIfNeeded(expression: subfolder.outputNameTemplate, with: templateSoup.context)
                 ?? subfolder.outputNameTemplate
             let newFolder = await outputFolder.subFolder(subfoldername)
             try await renderFileset(subfolder.fileset, to: newFolder, using: templateSoup, with: pInfo)
@@ -301,18 +301,17 @@ public actor ResourceBlueprint: Blueprint {
         with pInfo: ParsedInfo
     ) async throws {
         //render the filename if it has an expression within '{{' and '}}'
-        let filename = try await ContentHandler.eval(expression: templateFile.outputNameTemplate, with: templateSoup.context)
+        let filename = try await ContentHandler.evalIfNeeded(expression: templateFile.outputNameTemplate, with: templateSoup.context)
             ?? templateFile.outputNameTemplate
         let parsingIdentifier = templateFile.templateName
-        let sourceContents = templateFile.templateSource.sourceContents
         let parsingFrontMatter = templateFile.templateSource.frontMatter?.withIdentifier(parsingIdentifier)
         let includeForInfo: ParsedInfo? = if let parsingFrontMatter {
-            await FrontMatter.hasDirective(ParserDirective.includeFor, in: parsingFrontMatter, with: templateSoup.context, sourceContents: sourceContents)
+            await FrontMatter.hasDirective(ParserDirective.includeFor, in: parsingFrontMatter, with: templateSoup.context)
         } else {
             nil
         }
         let hasOutputFilename = if let parsingFrontMatter {
-            await FrontMatter.hasDirective(ParserDirective.outputFilename, in: parsingFrontMatter, with: templateSoup.context, sourceContents: sourceContents) != nil
+            await FrontMatter.hasDirective(ParserDirective.outputFilename, in: parsingFrontMatter, with: templateSoup.context) != nil
         } else {
             false
         }

@@ -6,6 +6,17 @@
 
 import Foundation
 
+private enum StringRegexCache {
+    static let normalizeForVariableName = try! NSRegularExpression(pattern: "[^A-Za-z_0-9]+")
+    static let normalizeForPackageName = try! NSRegularExpression(pattern: "[^A-Za-z_.0-9]+")
+    static let normalizeForId = try! NSRegularExpression(pattern: "[^A-Za-z_0-9]+")
+    static let normalizeForFolderName = try! NSRegularExpression(pattern: "[^A-Za-z0-9]+")
+
+    static let camelAcronym = try! NSRegularExpression(pattern: "([A-Z]+)([A-Z][a-z]|[0-9])", options: [])
+    static let camelFullWords = try! NSRegularExpression(pattern: "([a-z])([A-Z]|[0-9])", options: [])
+    static let camelDigitsFirst = try! NSRegularExpression(pattern: "([0-9])([A-Z])", options: [])
+}
+
 public extension String {
     var isNotEmpty: Bool { !isEmpty }
     var nonEmpty: String? { isEmpty ? nil : self }
@@ -204,12 +215,10 @@ public extension String {
     }
     
     func normalizeForVariableName() -> String {
-        let _functionNamePattern = "[^A-Za-z_0-9]+"
-
         var code  = self
         //code = code.replacingOccurrences(of: "-", with: "")
         code = code.replacingOccurrences(of: " ", with: "")
-        code = code.replacingOccurrences(of: _functionNamePattern, with: "_", options: [.regularExpression])
+        code = code.replacingMatches(using: StringRegexCache.normalizeForVariableName, withTemplate: "_")
 
         if  let first = code.first, first.isNumber {
             code = "value" + code
@@ -225,12 +234,10 @@ public extension String {
     }
     
     func normalizeForPackageName() -> String {
-        let _functionNamePattern = "[^A-Za-z_.0-9]+"
-        
         var code  = self
         //code = code.replacingOccurrences(of: "-", with: "")
         code = code.replacingOccurrences(of: " ", with: ".")
-        code = code.replacingOccurrences(of: _functionNamePattern, with: "_", options: [.regularExpression])
+        code = code.replacingMatches(using: StringRegexCache.normalizeForPackageName, withTemplate: "_")
         
         if  let first = code.first, first.isNumber {
             code = "value" + code
@@ -246,20 +253,16 @@ public extension String {
     }
     
     func normalizeForId() -> String {
-        let _functionNamePattern = "[^A-Za-z_0-9]+"
-
         var code  = self
         code = code.replacingOccurrences(of: "-", with: "")
-        code = code.replacingOccurrences(of: _functionNamePattern, with: "", options: [.regularExpression])
+        code = code.replacingMatches(using: StringRegexCache.normalizeForId, withTemplate: "")
         
         return code
     }
     
     func normalizeForFolderName() -> String {
-        let _functionNamePattern = "[^A-Za-z0-9]+"
-
         var code  = self
-        code = code.replacingOccurrences(of: _functionNamePattern, with: "-", options: [.regularExpression])
+        code = code.replacingMatches(using: StringRegexCache.normalizeForFolderName, withTemplate: "-")
         
         return code
     }
@@ -393,33 +396,24 @@ public extension Array where Element == Substring {
 //SRC: https://gist.github.com/dmsl1805/ad9a14b127d0409cf9621dc13d237457
 public extension String {
   func camelCaseToSnakeCase() -> String {
-    let acronymPattern = "([A-Z]+)([A-Z][a-z]|[0-9])"
-    let fullWordsPattern = "([a-z])([A-Z]|[0-9])"
-    let digitsFirstPattern = "([0-9])([A-Z])"
-    return self.processCamelCaseRegex(pattern: acronymPattern)?
-      .processCamelCaseRegex(pattern: fullWordsPattern)?
-      .processCamelCaseRegex(pattern:digitsFirstPattern)?.lowercased() ?? self.lowercased()
+    replacingMatches(using: StringRegexCache.camelAcronym, withTemplate: "$1_$2")
+      .replacingMatches(using: StringRegexCache.camelFullWords, withTemplate: "$1_$2")
+      .replacingMatches(using: StringRegexCache.camelDigitsFirst, withTemplate: "$1_$2")
+      .lowercased()
   }
 
-  fileprivate func processCamelCaseRegex(pattern: String) -> String? {
-    let regex = try? NSRegularExpression(pattern: pattern, options: [])
-    let range = NSRange(location: 0, length: count)
-    return regex?.stringByReplacingMatches(in: self, options: [], range: range, withTemplate: "$1_$2")
-  }
-    
     func camelCaseToKebabCase() -> String {
-      let acronymPattern = "([A-Z]+)([A-Z][a-z]|[0-9])"
-      let fullWordsPattern = "([a-z])([A-Z]|[0-9])"
-      let digitsFirstPattern = "([0-9])([A-Z])"
-      return self.processKebabCaseRegex(pattern: acronymPattern)?
-        .processKebabCaseRegex(pattern: fullWordsPattern)?
-        .processKebabCaseRegex(pattern:digitsFirstPattern)?.lowercased() ?? self.lowercased()
+      replacingMatches(using: StringRegexCache.camelAcronym, withTemplate: "$1-$2")
+        .replacingMatches(using: StringRegexCache.camelFullWords, withTemplate: "$1-$2")
+        .replacingMatches(using: StringRegexCache.camelDigitsFirst, withTemplate: "$1-$2")
+        .lowercased()
     }
+}
 
-    fileprivate func processKebabCaseRegex(pattern: String) -> String? {
-      let regex = try? NSRegularExpression(pattern: pattern, options: [])
-      let range = NSRange(location: 0, length: count)
-      return regex?.stringByReplacingMatches(in: self, options: [], range: range, withTemplate: "$1-$2")
+private extension String {
+    func replacingMatches(using regex: NSRegularExpression, withTemplate template: String) -> String {
+        let range = NSRange(startIndex..<endIndex, in: self)
+        return regex.stringByReplacingMatches(in: self, options: [], range: range, withTemplate: template)
     }
 }
 
