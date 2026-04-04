@@ -9,14 +9,14 @@ import Foundation
 
 internal final class PluralKit {
 
-    private var uncountables: [String] = []
+    private var uncountables: Set<String> = []
     private var rules: [(regex: NSRegularExpression, template: String)] = []
 
     nonisolated(unsafe)
     public static let shared: PluralKit = PluralKit()
 
     public init() {
-        uncountables = [
+        uncountables = Set([
             "access", "accommodation", "adulthood", "advertising", "advice",
             "aggression", "aid", "air", "alcohol", "anger", "applause",
             "arithmetic", "art", "assistance", "athletics", "attention",
@@ -50,7 +50,7 @@ internal final class PluralKit {
             "sorrow", "soup", "speed", "spelling", "steam", "stuff", "stupidity",
             "sunshine", "symmetry", "tennis", "thirst", "thunder", "toast",
             "tolerance", "toys", "traffic", "transporation", "travel", "trust", "understanding",
-            "unemployment", "unity", "validity", "veal", "vengeance", "violence"]
+            "unemployment", "unity", "validity", "veal", "vengeance", "violence"])
 
         add(rule: "$", with:"$1s")
         add(rule: "s$", with:"$1ses")
@@ -140,10 +140,10 @@ internal final class PluralKit {
     }
 
     public func uncountable(word: String) {
-        uncountables.insert(word.lowercased(), at: 0)
+        uncountables.insert(word.lowercased())
     }
 
     public func unchanging(word: String) {
-        uncountables.insert(word.lowercased(), at: 0)
+        uncountables.insert(word.lowercased())
     }
 }
