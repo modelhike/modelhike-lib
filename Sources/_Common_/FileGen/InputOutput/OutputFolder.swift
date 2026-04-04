@@ -73,23 +73,64 @@ public actor OutputFolder : SendableDebugStringConvertible {
         //create the folder only if any file or sub folder is persisted
         try self.ensureExists()
 
-        for folder in subFolders {
-            try await folder.persist(with: context)
-            await context.addGenerated(folderPath: folder.path, addFileCount: false)
+        if !subFolders.isEmpty {
+            var subRoots: [LocalFolder] = []
+            subRoots.reserveCapacity(subFolders.count)
+            try await withThrowingTaskGroup(of: LocalFolder?.self) { group in
+                for folder in subFolders {
+                    group.addTask {
+                        try await folder.persist(with: context)
+                        return LocalFolder(path: await folder.path)
+                    }
+                }
+                for try await root in group {
+                    if let root {
+                        subRoots.append(root)
+                    }
+                }
+            }
+            await context.addGenerated(folderRoots: subRoots, addFileCount: false)
         }
 
-        for folder in folderItems {
-            if let outputFolder = await folder.outputFolder {
-                try await folder.persist()
-                await context.addGenerated(folderPath: outputFolder.folder)
+        if !folderItems.isEmpty {
+            var renderedRoots: [LocalFolder] = []
+            renderedRoots.reserveCapacity(folderItems.count)
+            try await withThrowingTaskGroup(of: LocalFolder?.self) { group in
+                for folder in folderItems {
+                    group.addTask {
+                        guard let outputFolder = await folder.outputFolder else { return nil }
+                        try await folder.persist()
+                        return await outputFolder.folder
+                    }
+                }
+                for try await root in group {
+                    if let root {
+                        renderedRoots.append(root)
+                    }
+                }
             }
+            await context.addGenerated(folderRoots: renderedRoots, addFileCount: true)
         }
 
-        for item in items {
-            if let outputPath = await item.outputPath {
-                await context.addGenerated(filePath: outputPath / item.filename)
-                try await item.persist()
+        if !items.isEmpty {
+            var filePaths: [String] = []
+            filePaths.reserveCapacity(items.count)
+            try await withThrowingTaskGroup(of: String?.self) { group in
+                for item in items {
+                    group.addTask {
+                        guard let outputPath = await item.outputPath else { return nil }
+                        let name = await item.filename
+                        try await item.persist()
+                        return (outputPath / name).string
+                    }
+                }
+                for try await path in group {
+                    if let path {
+                        filePaths.append(path)
+                    }
+                }
             }
+            await context.addGenerated(filePaths: filePaths)
         }
     }
 

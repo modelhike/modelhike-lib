@@ -184,14 +184,15 @@ public struct LocalFolder : Folder, LocalFileSystemItem {
     }
     
     public func deleteAllFilesAndFolders() throws {
-        if !self.exists { return } //nothing to delete; folder does not exists
-        
-        let fileManager = FileManager.default
-        let items = try fileManager.contentsOfDirectory(at: url, includingPropertiesForKeys: nil)
-        
+        guard self.exists else { return } //nothing to delete; folder does not exists
+
+        let fm = FileManager.default
         do {
-            for item in items {
-                try fileManager.removeItem(atPath: item.path(percentEncoded: false))
+            if path.isDirectory {
+                try fm.removeItem(at: url)
+                try self.ensureExists()
+            } else {
+                try fm.removeItem(at: url)
             }
         } catch {
             throw LocationError(path: path, reason: .deleteFailed(error))

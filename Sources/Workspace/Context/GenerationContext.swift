@@ -61,6 +61,12 @@ public actor GenerationContext: Context {
     public func addGenerated(filePath: LocalPath) {
         self.addGenerated(filePath: filePath.string)
     }
+
+    /// Registers many generated file paths in one actor turn (avoids N sequential hops from parallel persist tasks).
+    public func addGenerated(filePaths paths: [String]) {
+        guard !paths.isEmpty else { return }
+        generatedFiles.append(contentsOf: paths)
+    }
     
     public func addGenerated(folderPath: LocalPath, addFileCount: Bool = true) {
         return addGenerated(folderPath: LocalFolder(path: folderPath), addFileCount: addFileCount)
@@ -88,6 +94,13 @@ public actor GenerationContext: Context {
                     self.addGenerated(file: file)
                 }
             }
+        }
+    }
+
+    /// Registers several persisted folder trees in one actor turn (same semantics as repeated ``addGenerated(folderPath:addFileCount:)``).
+    public func addGenerated(folderRoots: [LocalFolder], addFileCount: Bool = true) {
+        for root in folderRoots {
+            addGenerated(folderPath: root, addFileCount: addFileCount)
         }
     }
 
