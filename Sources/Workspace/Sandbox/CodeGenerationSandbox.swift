@@ -95,6 +95,8 @@ public actor CodeGenerationSandbox : GenerationSandbox {
             }
         }
 
+        try await preloadMainScriptFrontMatter(from: blueprint, pInfo: pInfo)
+
         //handle special folders
         if await blueprint.hasFolder(SpecialFolderNames.root) {
             let specialActivity = SpecialActivityCallStackItem(activityName: "Rendering Root Folder")
@@ -108,6 +110,18 @@ public actor CodeGenerationSandbox : GenerationSandbox {
         }
 
         return try await templateSoup.startMainScript(with: pInfo)
+    }
+
+    private func preloadMainScriptFrontMatter(from blueprint: Blueprint, pInfo: ParsedInfo) async throws {
+        let mainScript = try await blueprint.loadScriptFile(fileName: TemplateConstants.MainScriptFile, with: pInfo)
+        let source = TemplateExecutionSource.parse(
+            contents: mainScript.toString(),
+            identifier: TemplateConstants.MainScriptFile,
+            parseFrontMatter: true
+        )
+        if let frontMatter = source.frontMatter {
+            try await FrontMatter.processVariables(in: frontMatter, with: context)
+        }
     }
     
     
