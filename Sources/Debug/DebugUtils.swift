@@ -14,10 +14,10 @@ func debugValueString(_ value: any Sendable) -> String {
     return String(describing: value)
 }
 
-public final class ContextDebugLog: Sendable {
+public final class ContextDebugLog: @unchecked Sendable {
     public let stack = CallStack()
-    public let flags: ContextDebugFlags
-    private let recorder: (any DebugRecorder)?
+    public private(set) var flags: ContextDebugFlags
+    private var recorder: (any DebugRecorder)?
 
     private var hasRecorder: Bool {
         recorder != nil
@@ -26,6 +26,33 @@ public final class ContextDebugLog: Sendable {
     public init(flags: ContextDebugFlags, recorder: (any DebugRecorder)? = nil) {
         self.flags = flags
         self.recorder = recorder
+    }
+
+    public func configure(flags: ContextDebugFlags, recorder: (any DebugRecorder)? = nil) {
+        self.flags = flags
+        self.recorder = recorder
+    }
+
+    /// Best-effort drain for fire-and-forget recorder tasks before reading a session snapshot.
+    public func drainRecorder(maxPolls: Int = 16) async {
+        guard let recorder else { return }
+
+        var lastCount = await recorder.currentEventCount
+        var stableReads = 0
+
+        for _ in 0..<maxPolls {
+            await Task.yield()
+            let currentCount = await recorder.currentEventCount
+            if currentCount == lastCount {
+                stableReads += 1
+                if stableReads >= 2 {
+                    return
+                }
+            } else {
+                stableReads = 0
+                lastCount = currentCount
+            }
+        }
     }
 
     /// Emit a debug event into the recorder (fire-and-forget; does nothing when no recorder is attached).

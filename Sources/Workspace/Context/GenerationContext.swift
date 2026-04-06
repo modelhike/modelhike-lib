@@ -34,6 +34,8 @@ public actor GenerationContext: Context {
     public func config(_ value: OutputConfig) {
         self.config = value
         self.events = value.events
+        self.debugLog.configure(flags: value.flags, recorder: value.debugRecorder)
+        self.blueprints = BlueprintAggregator(config: value)
     }
     
     public private(set) var blueprints: BlueprintAggregator
