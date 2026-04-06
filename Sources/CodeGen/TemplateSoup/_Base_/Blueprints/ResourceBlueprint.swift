@@ -40,13 +40,30 @@ public actor ResourceBlueprint: Blueprint {
     public var blueprintPath: String
     public var resourceRoot: String
 
+    private func bundleURL(forResource filename: String, withExtension ext: String?) -> URL? {
+        let ns = filename as NSString
+        let dir = ns.deletingLastPathComponent
+        let base = ns.lastPathComponent
+        let name: String
+        let resolvedExt: String?
+        if let ext {
+            name = base
+            resolvedExt = ext
+        } else {
+            let pathExt = (base as NSString).pathExtension
+            name = (base as NSString).deletingPathExtension
+            resolvedExt = pathExt.isEmpty ? TemplateConstants.TemplateExtension : pathExt
+        }
+        let subdir = dir.isEmpty ? blueprintPath : blueprintPath + dir + "/"
+        return bundle.url(forResource: name, withExtension: resolvedExt, subdirectory: subdir)
+    }
+
     public func loadScriptFile(fileName: String, with pInfo: ParsedInfo) async throws -> any Script {
         if let cached = scriptFileCache[fileName] { return cached }
 
-        if let resourceURL = bundle.url(
+        if let resourceURL = bundleURL(
             forResource: fileName,
-            withExtension: TemplateConstants.ScriptExtension,
-            subdirectory: blueprintPath)
+            withExtension: TemplateConstants.ScriptExtension)
         {
             do {
                 let content = try String(contentsOf: resourceURL)
@@ -65,10 +82,9 @@ public actor ResourceBlueprint: Blueprint {
     public func loadTemplate(fileName: String, with pInfo: ParsedInfo) throws -> Template {
         if let cached = templateCache[fileName] { return cached }
 
-        if let resourceURL = bundle.url(
+        if let resourceURL = bundleURL(
             forResource: fileName,
-            withExtension: TemplateConstants.TemplateExtension,
-            subdirectory: blueprintPath)
+            withExtension: TemplateConstants.TemplateExtension)
         {
             do {
                 let content = try String(contentsOf: resourceURL)
@@ -129,16 +145,7 @@ public actor ResourceBlueprint: Blueprint {
     }
 
     public func hasFile(_ filename: String) -> Bool {
-        let file = filename as NSString
-        let name = file.deletingPathExtension
-        let ext = file.pathExtension
-        let fileExt: String? = ext.isEmpty ? nil : ext
-
-        return bundle.url(
-            forResource: name,
-            withExtension: fileExt,
-            subdirectory: blueprintPath
-        ) != nil
+        bundleURL(forResource: filename, withExtension: nil) != nil
     }
 
     public func listFiles(inFolder foldername: String) -> [String] {
@@ -381,11 +388,7 @@ public actor ResourceBlueprint: Blueprint {
     }
 
     public func readTextContents(filename: String, with pInfo: ParsedInfo) throws -> String {
-        if let resourceURL = bundle.url(
-            forResource: filename,
-            withExtension: TemplateConstants.TemplateExtension,
-            subdirectory: blueprintPath)
-        {
+        if let resourceURL = bundleURL(forResource: filename, withExtension: nil) {
             do {
                 let content = try String(contentsOf: resourceURL)
                 return content

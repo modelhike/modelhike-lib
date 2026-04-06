@@ -21,8 +21,8 @@ public actor ResourceBlueprintFinder {
     
     public init(bundle: Bundle) {
         self.bundle = bundle
-        self.blueprintsRoot = "/Resources/blueprints/"
-        self.resourceRoot = "/Resources/"
+        self.blueprintsRoot = "blueprints/"
+        self.resourceRoot = ""
     }
 }
 

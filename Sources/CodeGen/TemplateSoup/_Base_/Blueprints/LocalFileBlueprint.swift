@@ -17,6 +17,20 @@ public actor LocalFileBlueprint: Blueprint {
     public var paths: [LocalPath]
     public let blueprintName: String
 
+    private func resolvedFilename(for filename: String, withExtension ext: String? = nil) -> String {
+        let ns = filename as NSString
+        let dir = ns.deletingLastPathComponent
+        let base = ns.lastPathComponent
+        let pathExt = (base as NSString).pathExtension
+        let resolvedBase: String
+        if let ext {
+            resolvedBase = pathExt == ext ? base : "\(base).\(ext)"
+        } else {
+            resolvedBase = pathExt.isEmpty ? "\(base).\(TemplateConstants.TemplateExtension)" : base
+        }
+        return dir.isEmpty ? resolvedBase : "\(dir)/\(resolvedBase)"
+    }
+
     public func loadScriptFile(fileName: String, with pInfo: ParsedInfo) async throws -> any Script {
         if let cached = scriptFileCache[fileName] { return cached }
 
@@ -27,9 +41,10 @@ public actor LocalFileBlueprint: Blueprint {
                     "Blueprint folder '\(loadPath.string)' was not found.", pInfo)
             }
 
-            let scriptFileName = "\(fileName).\(TemplateConstants.ScriptExtension)"
-
-            let scriptFilePath = loadPath / scriptFileName
+            let scriptFilePath = loadPath / resolvedFilename(
+                for: fileName,
+                withExtension: TemplateConstants.ScriptExtension
+            )
 
             if !scriptFilePath.exists { continue }  //check if found in next oath
 
@@ -56,9 +71,10 @@ public actor LocalFileBlueprint: Blueprint {
                     "Blueprint folder '\(loadPath.string)' was not found.", pInfo)
             }
 
-            let templateName = "\(fileName).\(TemplateConstants.TemplateExtension)"
-
-            let templatePath = loadPath / templateName
+            let templatePath = loadPath / resolvedFilename(
+                for: fileName,
+                withExtension: TemplateConstants.TemplateExtension
+            )
 
             if !templatePath.exists { continue }  //check if found in next oath
 
@@ -103,7 +119,7 @@ public actor LocalFileBlueprint: Blueprint {
             return false
         }
 
-        return (self.blueprintPath / filename).exists
+        return (self.blueprintPath / resolvedFilename(for: filename)).exists
     }
 
     public func listFiles(inFolder foldername: String) -> [String] {
@@ -349,7 +365,7 @@ public actor LocalFileBlueprint: Blueprint {
                 "There is no folder called \(self.blueprintPath.string)", pInfo)
         }
 
-        let inFile = LocalFile(path: self.blueprintPath / filename)
+        let inFile = LocalFile(path: self.blueprintPath / resolvedFilename(for: filename))
         let inFileContents = try inFile.readTextContents()
         return inFileContents
     }
