@@ -74,7 +74,7 @@ public struct ValidateModelsPass: LoadingPass {
         var count = 0
         var seen: [String: String] = [:]  // normalised name → first occurrence description
 
-        let allTypes = await model.types.items
+        let allTypes = await allLoadedTypes(model: model)
         for type_ in allTypes {
             let name = await type_.name
             let displayName = await type_.givenname
@@ -97,7 +97,7 @@ public struct ValidateModelsPass: LoadingPass {
 
     private func validateDuplicateMemberNames(model: AppModel, ctx: LoadContext) async -> Int {
         var count = 0
-        let allTypes = await model.types.items
+        let allTypes = await allLoadedTypes(model: model)
         for type_ in allTypes {
             let typeName = await type_.name
             var seenProps: [String: Bool] = [:]
@@ -138,7 +138,7 @@ public struct ValidateModelsPass: LoadingPass {
 
     private func validateUnresolvedTypeReferences(model: AppModel, ctx: LoadContext) async -> Int {
         var count = 0
-        let typeItems = await model.types.items
+        let typeItems = await allLoadedTypes(model: model)
         let knownTypeNamesSet = Set(await typeItems.asyncThrowingMap { await $0.name })
         let knownTypeNamesSorted = knownTypeNamesSet.sorted()
 
@@ -147,10 +147,11 @@ public struct ValidateModelsPass: LoadingPass {
             for prop in await type_.properties {
                 let propName = await prop.name
                 let typeInfo = await prop.type
-                let typeName = typeInfo.objectString()
+                guard case let .customType(typeName) = typeInfo.kind else {
+                    continue
+                }
 
-                // Only check custom types that couldn't be resolved
-                if typeInfo.isCustomType, !knownTypeNamesSet.contains(typeName) {
+                if !knownTypeNamesSet.contains(typeName) {
                     count += 1
                     ctx.debugLog.recordLookupDiagnostic(
                         .warning,
@@ -197,7 +198,7 @@ public struct ValidateModelsPass: LoadingPass {
             }
         }
 
-        let allTypes = await model.types.items
+        let allTypes = await allLoadedTypes(model: model)
         for type_ in allTypes {
             let ownerName = await type_.name
             var scopeNames = knownLower
@@ -216,6 +217,32 @@ public struct ValidateModelsPass: LoadingPass {
         }
 
         return count
+    }
+
+    private func allLoadedTypes(model: AppModel) async -> [CodeObject] {
+        var result: [CodeObject] = []
+
+        for component in await model.commonModel.snapshot() {
+            await collectTypes(from: component, into: &result)
+        }
+
+        for container in await model.containers.snapshot() {
+            for component in await container.components.snapshot() {
+                await collectTypes(from: component, into: &result)
+            }
+        }
+
+        return result
+    }
+
+    private func collectTypes(from component: C4Component, into result: inout [CodeObject]) async {
+        for item in await component.items {
+            if let submodule = item as? C4Component {
+                await collectTypes(from: submodule, into: &result)
+            } else if let type = item as? CodeObject {
+                result.append(type)
+            }
+        }
     }
 
     /// Adds a component's module-level expression names and named constraint names into one lookup pool.
