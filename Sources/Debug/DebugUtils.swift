@@ -86,6 +86,25 @@ public final class ContextDebugLog: @unchecked Sendable {
         }
     }
 
+    /// Emit pipeline/progress messages that should be suppressible for library consumers.
+    public func pipelineProgress(_ message: String) {
+        if flags.pipelineProgressToStdout {
+            print(message)
+        }
+    }
+
+    /// Emit pipeline error/status messages that should be suppressible for library consumers.
+    public func pipelineError(_ message: String) {
+        if flags.pipelineProgressToStdout {
+            print(message)
+        }
+    }
+
+    /// Convenience overload for surfacing raw errors through the pipeline error channel.
+    public func pipelineError(_ error: Error) {
+        pipelineError(String(describing: error))
+    }
+
     /// Convenience overload accepting ParsedInfo for location.
     public func recordDiagnostic(
         _ severity: DiagnosticSeverity,
@@ -532,15 +551,15 @@ public final class ContextDebugLog: @unchecked Sendable {
     
     public func pipelinePhaseCannotRun(_ phase: any PipelinePhase, msg: String) {
         recordEvent(.phaseSkipped(name: runtimeTypeName(of: phase), reason: msg))
-        print("⦻ Phase \(phase) cannot run.")
-        print("⦻ \(msg)")
+        pipelineError("⦻ Phase \(phase) cannot run.")
+        pipelineError("⦻ \(msg)")
     }
     
     public func pipelinePassCannotRun(_ pass: any PipelinePass, msg: String? = nil) {
         recordEvent(.passSkipped(name: runtimeTypeName(of: pass), reason: msg))
-        print("⦻ Pass \(pass) cannot run.")
+        pipelineError("⦻ Pass \(pass) cannot run.")
         if let msg {
-            print("⦻ \(msg)")
+            pipelineError("⦻ \(msg)")
         }
     }
 }
@@ -548,6 +567,7 @@ public final class ContextDebugLog: @unchecked Sendable {
 public struct ContextDebugFlags: Sendable {
     public var printParsedTree = false
     public var printDiagnosticsToStdout = true
+    public var pipelineProgressToStdout = true
     
     public var lineByLineParsing = false
     public var blockByBlockParsing = false

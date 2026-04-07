@@ -40,6 +40,7 @@ public struct AnnounceStmt: LineTemplateStmt {
 
     public func execute(with ctx: Context) async throws -> String? {
         guard Expression.isNotEmpty else { return nil }
+        let debugLog = await ctx.debugLog
 
         let value: String
         if let expn = try? await ctx.evaluate(value: Expression, with: pInfo) {
@@ -48,9 +49,9 @@ public struct AnnounceStmt: LineTemplateStmt {
             value = "🔈🎈[Line no: \(lineNo)] - nothing to announce"
         }
 
-        print(value)
+        debugLog.pipelineProgress(value)
         // Emit to debug timeline so announce output is visible in the debug console
-        await ctx.debugLog.recordEvent(.announce(value: value))
+        debugLog.recordEvent(.announce(value: value))
         return nil
     }
 

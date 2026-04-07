@@ -26,9 +26,9 @@ public struct ValidateModelsPass: LoadingPass {
         totalWarnings += await validateUnresolvedAtReferences(model: model, ctx: ctx)
 
         if totalWarnings > 0 {
-            print("⚠️  Validation complete: \(totalWarnings) warning(s). Generation will continue.")
+            ctx.debugLog.pipelineProgress("⚠️  Validation complete: \(totalWarnings) warning(s). Generation will continue.")
         } else {
-            print("✅ Validation complete: no issues found.")
+            ctx.debugLog.pipelineProgress("✅ Validation complete: no issues found.")
         }
 
         return true

@@ -8,6 +8,7 @@ public struct PipelineErrorPrinter {
     func printError(_ err: Error, context: Context) async {
         let stack = await context.debugLog.stack.snapshot()
         let includeMemoryVariablesDump = await context.config.errorOutput.includeMemoryVariablesDump
+        let debugLog = await context.debugLog
         
         let callStackInfo = StringTemplate {
             "[Call Stack]"
@@ -71,7 +72,7 @@ public struct PipelineErrorPrinter {
                       \(extraInfo)
                       
                       """
-            print(msg)
+            debugLog.pipelineError(msg)
             //print(Thread.callStackSymbols)
         } else if let parseErr = err as? Model_ParsingError {
             let pInfo = parseErr.pInfo
@@ -82,7 +83,7 @@ public struct PipelineErrorPrinter {
                       \(extraInfo)
                       
                       """
-            print(msg)
+            debugLog.pipelineError(msg)
             //print(Thread.callStackSymbols)
         } else if let evalErr = err as? EvaluationError {
             let pInfo = evalErr.pInfo
@@ -102,7 +103,7 @@ public struct PipelineErrorPrinter {
                   \(extraInfo)
                   
                   """
-            print(msg)
+            debugLog.pipelineError(msg)
             //print(Thread.callStackSymbols)
         } else if let tsParseErr = err as? TemplateSoup_ParsingError {
             let pInfo = tsParseErr.pInfo
@@ -113,7 +114,7 @@ public struct PipelineErrorPrinter {
                   \(extraInfo)
                   
                   """
-            print(msg)
+            debugLog.pipelineError(msg)
         } else if let tsEvalErr = err as? TemplateSoup_EvaluationError {
             let pInfo = tsEvalErr.pInfo
             let msg = """
@@ -123,7 +124,7 @@ public struct PipelineErrorPrinter {
                   \(extraInfo)
                   
                   """
-            print(msg)
+            debugLog.pipelineError(msg)
         } else if let err = err as? ErrorWithMessageAndParsedInfo {
             let msg = """
                   🐞🐞 UNHANDLED ERROR (\(type(of: err))) 🐞🐞
@@ -132,11 +133,11 @@ public struct PipelineErrorPrinter {
                   \(extraInfo)
                   
                   """
-            print(msg)
+            debugLog.pipelineError(msg)
             //print(Thread.callStackSymbols)
         } else {
-            print("❌❌ UNKNOWN INTERNAL ERROR (\(type(of: err))) ❌❌")
-            print(err)
+            debugLog.pipelineError("❌❌ UNKNOWN INTERNAL ERROR (\(type(of: err))) ❌❌")
+            debugLog.pipelineError(err)
         }
         
     }

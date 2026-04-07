@@ -196,7 +196,7 @@ public protocol PipelinePhase: Sendable {
 extension PipelinePhase {
     public func canRunIn(pipeline: Pipeline) -> Bool {
         if !hasPasses {
-            pipeline.ws.context.debugLog.pipelinePhaseCannotRun(self, msg: "No passes to run")
+            pipeline.debugLog.pipelinePhaseCannotRun(self, msg: "No passes to run")
             return false
         } else {
             return true

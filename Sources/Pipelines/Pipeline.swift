@@ -8,7 +8,8 @@ import Foundation
 
 public struct Pipeline: Sendable {
     public private(set) var ws: Workspace
-            
+    public var debugLog: ContextDebugLog { ws.debugLog }
+
     let discover: DiscoverPhase
     let load: LoadPhase
     let hydrate: HydratePhase
@@ -60,7 +61,7 @@ public struct Pipeline: Sendable {
                         success: false,
                         errorMessage: String(describing: err)
                     )
-                    print("❌❌ ERROR OCCURRED IN \(phase.name) Phase ❌❌")
+                    debugLog.pipelineError("❌❌ ERROR OCCURRED IN \(phase.name) Phase ❌❌")
                     throw err
                 }
             }
@@ -85,7 +86,7 @@ public struct Pipeline: Sendable {
                     await recorder.recordErrorWithStackAndMemory(errWithPInfo, category: errorCategory(for: err))
                 }
             } else if let errWithMessageOnly = err as? ErrorWithMessage {
-                print( errWithMessageOnly.infoWithCode )
+                debugLog.pipelineError(errWithMessageOnly.infoWithCode)
             }
 
             let totalDurationMs = PipelinePerformanceTime.milliseconds(from: pipelineStart.duration(to: clock.now))
@@ -96,7 +97,7 @@ public struct Pipeline: Sendable {
                 errorMessage: String(describing: err)
             )
 
-            print("❌❌❌ TERMINATED DUE TO ERROR ❌❌❌")
+            debugLog.pipelineError("❌❌❌ TERMINATED DUE TO ERROR ❌❌❌")
             return false
         }
     }
@@ -122,10 +123,10 @@ public struct Pipeline: Sendable {
             if let errWithPInfo = err as? ErrorWithMessageAndParsedInfo {
                 await printError(err, errWithPInfo.pInfo.ctx)
             } else if let errWithMessageOnly = err as? ErrorWithMessage {
-                print( errWithMessageOnly.infoWithCode )
+                debugLog.pipelineError(errWithMessageOnly.infoWithCode)
             }
 
-            print("❌❌❌ TERMINATED DUE TO ERROR ❌❌❌")
+            debugLog.pipelineError("❌❌❌ TERMINATED DUE TO ERROR ❌❌❌")
             return nil
         }
     }

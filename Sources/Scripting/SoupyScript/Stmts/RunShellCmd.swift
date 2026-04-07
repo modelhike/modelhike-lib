@@ -40,34 +40,35 @@ public struct RunShellCmdStmt: LineTemplateStmt, CustomDebugStringConvertible {
 
     public func execute(with ctx: Context) async throws -> String? {
         guard CommandToRun.isNotEmpty else { return nil }
+        let debugLog = await ctx.debugLog
 
         if await ctx.workingDirectoryString.isEmpty {
             throw TemplateSoup_EvaluationError.workingDirectoryNotSet(pInfo)
         }
 
         #if os(macOS)
-        print("⚙️  Running the shell command...")
+        debugLog.pipelineProgress("⚙️  Running the shell command...")
         let fullPath = await ctx.config.output.path / ctx.workingDirectoryString
         let options = Shell.Options(workingDirectory: fullPath.string)
         let result = Shell.execute(command: CommandToRun, options: options)
 
         if result.failed {
             if let stderr = result.stderr, stderr.isNotEmpty {
-                print(stderr)
-                print("")
+                debugLog.pipelineError(stderr)
+                debugLog.pipelineError("")
             }
-            print("❌ Failed to finish the shell command.")
+            debugLog.pipelineError("❌ Failed to finish the shell command.")
         } else {
             if let stdout = result.stdout, stdout.isNotEmpty {
-                print(stdout)
-                print("")
+                debugLog.pipelineProgress(stdout)
+                debugLog.pipelineProgress("")
             }
 
-            print("✅ Finished the shell command...")
+            debugLog.pipelineProgress("✅ Finished the shell command...")
         }
         #else
-        print("⚠️ Shell commands are not supported on this platform.")
-        print("❌ Command not executed: \(CommandToRun)")
+        debugLog.pipelineError("⚠️ Shell commands are not supported on this platform.")
+        debugLog.pipelineError("❌ Command not executed: \(CommandToRun)")
         #endif
 
         return nil

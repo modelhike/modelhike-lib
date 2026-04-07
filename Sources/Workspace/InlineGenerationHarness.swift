@@ -85,6 +85,8 @@ public enum InlineGenerationHarness {
         pipelineConfig.blueprints = [finder]
         pipelineConfig.blueprintName = bpName
         pipelineConfig.output = LocalFolder(path: tempRoot)
+        pipelineConfig.flags.printDiagnosticsToStdout = false
+        pipelineConfig.flags.pipelineProgressToStdout = false
         if !containersToOutput.isEmpty {
             pipelineConfig.containersToOutput = containersToOutput
         }

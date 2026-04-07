@@ -21,7 +21,7 @@ public struct LoadModelsPass: LoadingPass {
                 let domainTypesCount = await ws.model.containers.types.count
                 let commonTypesCount = await ws.model.commonModel.types.count
                 let containerCount = await ws.model.containers.snapshot().count
-                print(
+                ws.debugLog.pipelineProgress(
                     "💡 Loaded domain types: \(domainTypesCount), common types: \(commonTypesCount)")
 
                 // Emit modelLoaded debug event
@@ -37,7 +37,7 @@ public struct LoadModelsPass: LoadingPass {
 
             } else {
                 await ws.isModelsLoaded(false)
-                print("❌ No model found.")
+                ws.debugLog.pipelineError("❌ No model found.")
                 return false
             }
         } catch let err {
@@ -45,7 +45,7 @@ public struct LoadModelsPass: LoadingPass {
             if let recorder = await ws.config.debugRecorder, let errWithPInfo = err as? ErrorWithMessageAndParsedInfo {
                 await recorder.recordErrorWithStackAndMemory(errWithPInfo, category: errorCategory(for: err))
             }
-            print("❌❌ ERROR IN LOADING MODELS ❌❌")
+            ws.debugLog.pipelineError("❌❌ ERROR IN LOADING MODELS ❌❌")
             return false
         }
     }

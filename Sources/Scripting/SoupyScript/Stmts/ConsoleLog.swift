@@ -38,6 +38,7 @@ public struct ConsoleLogStmt: LineTemplateStmt, CustomDebugStringConvertible {
     
     public func execute(with ctx: Context) async throws -> String? {
         guard Expression.isNotEmpty else { return nil }
+        let debugLog = await ctx.debugLog
         
         var logValue = "🏷️🎈[Line no: \(lineNo)] - nothing to show"
         
@@ -56,9 +57,9 @@ public struct ConsoleLogStmt: LineTemplateStmt, CustomDebugStringConvertible {
             logValue = "🏷️ [Line \(lineNo)] \(expn)"
         }
         
-        print(logValue)
+        debugLog.pipelineProgress(logValue)
         // Emit to debug console so console-log output appears in the event timeline
-        await ctx.debugLog.recordEvent(.consoleLog(
+        await debugLog.recordEvent(.consoleLog(
             value: logValue,
             source: SourceLocation(fileIdentifier: pInfo.identifier, lineNo: pInfo.lineNo,
                                    lineContent: pInfo.line, level: pInfo.level)

@@ -30,7 +30,8 @@ public struct GenerateOutputFoldersPass : PersistancePass {
             await totalFoldersGenerated += sandbox.context.generatedFolders.count
         }
         
-        print("✅ Generated \(totalFilesGenerated) files, \(totalFoldersGenerated) folders ...")
+        pipeline.debugLog.pipelineProgress(
+            "✅ Generated \(totalFilesGenerated) files, \(totalFoldersGenerated) folders ...")
         return true
     }
 }

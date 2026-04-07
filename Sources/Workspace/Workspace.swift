@@ -8,6 +8,10 @@ import Foundation
 
 public actor Workspace {
     public let context: LoadContext
+
+    /// Same instance as ``LoadContext/debugLog`` on ``context``; nonisolated so call sites can log without `await`.
+    public nonisolated let debugLog: ContextDebugLog
+
     public var config: OutputConfig { get async { await self.context.config }}
     
     public func config(_ value: OutputConfig) async {
@@ -49,7 +53,9 @@ public actor Workspace {
 
     internal init() {
         let config = PipelineConfig()
-        self.context = LoadContext(config: config)
+        let log = ContextDebugLog(flags: config.flags, recorder: config.debugRecorder)
+        self.debugLog = log
+        self.context = LoadContext(config: config, debugLog: log)
     }
 }
 

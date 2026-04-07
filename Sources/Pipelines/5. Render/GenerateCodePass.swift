@@ -41,9 +41,10 @@ public struct GenerateCodePass : RenderingPass {
         let outputFolderSuffix = await outputFolderSuffix(for: container)
         let output = await sandbox.config.output
         let outputPath = output.path / outputFolderSuffix
+        let debugLog = await sandbox.context.debugLog
 
-        print("🛠️ Container used: \(containerName)")
-        print("🛠️ Output folder: \(outputPath.string)")
+        debugLog.pipelineProgress("🛠️ Container used: \(containerName)")
+        debugLog.pipelineProgress("🛠️ Output folder: \(outputPath.string)")
 
         return try await sandbox.generateFilesFor(container: containerName, usingBlueprint: blueprint, outputFolderSuffix: outputFolderSuffix)
     }

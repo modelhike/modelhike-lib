@@ -20,7 +20,7 @@ public struct DiscoverModelsPass : DiscoveringPass {
         }
         
         if !repo.probeForModelFiles() {
-            print("❌ No model files found.")
+            ws.debugLog.pipelineError("❌ No model files found.")
             return false
         }
         

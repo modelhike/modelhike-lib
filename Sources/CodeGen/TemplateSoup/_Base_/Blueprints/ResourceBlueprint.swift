@@ -198,7 +198,7 @@ public actor ResourceBlueprint: Blueprint {
                 }
             }
         } catch {
-            print(error)
+            context.debugLog.pipelineError(String(describing: error))
             throw ResourceDoesNotExist(resName: resUrl.absoluteString, pInfo: pInfo)
         }
     }
@@ -267,7 +267,7 @@ public actor ResourceBlueprint: Blueprint {
                 }
             }
         } catch {
-            print(error)
+            context.debugLog.pipelineError(String(describing: error))
             throw ResourceDoesNotExist(resName: resourceURL.absoluteString, pInfo: pInfo)
         }
 

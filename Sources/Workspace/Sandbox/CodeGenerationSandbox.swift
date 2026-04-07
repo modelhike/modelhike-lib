@@ -100,7 +100,8 @@ public actor CodeGenerationSandbox : GenerationSandbox {
             let blueprintModifiers = try await blueprint.modifiers(templateSoup: templateSoup, with: pInfo)
             if blueprintModifiers.isNotEmpty {
                 await context.symbols.addTemplate(modifiers: blueprintModifiers)
-                print("ℹ️ Loaded \(blueprintModifiers.count) blueprint modifier(s) from \(SpecialFolderNames.modifiers)/")
+                context.debugLog.pipelineProgress(
+                    "ℹ️ Loaded \(blueprintModifiers.count) blueprint modifier(s) from \(SpecialFolderNames.modifiers)/")
             }
         }
 
@@ -115,7 +116,7 @@ public actor CodeGenerationSandbox : GenerationSandbox {
             await context.popCallStack()
 
         } else {
-            print("⚠️ Blueprint does not contain the expected root folder.")
+            context.debugLog.pipelineError("⚠️ Blueprint does not contain the expected root folder.")
         }
 
         return try await templateSoup.startMainScript(with: pInfo)
@@ -137,7 +138,7 @@ public actor CodeGenerationSandbox : GenerationSandbox {
     @discardableResult
     private func renderSpecialFolder(_ fromFolder: String, to toFolder: String, msg: String = "", pInfo: ParsedInfo) async throws -> RenderedFolder {
         if msg.isNotEmpty {
-            print(msg)
+            context.debugLog.pipelineProgress(msg)
         }
         
         context.debugLog.renderingFolder(fromFolder, to: toFolder)
