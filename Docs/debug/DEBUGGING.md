@@ -585,7 +585,7 @@ When a model parsing issue is hard to isolate in a large `.modelhike` file, you 
 ```swift
 private static func inlineModel(_ ws: Workspace) async -> InlineModelLoader {
     return await InlineModelLoader(with: ws.context) {
-        InlineModel {
+        InlineModel(identifier: "scratch.modelhike") {
             """
             ===
             APIs #blueprint(api-springboot-monorepo)
@@ -605,6 +605,8 @@ private static func inlineModel(_ ws: Workspace) async -> InlineModelLoader {
     }
 }
 ```
+
+Passing `identifier:` is optional, but recommended when you want parse/config diagnostics to report a meaningful source filename instead of a generic inline label.
 
 To use it, you would switch the pipeline's model loading to use the inline loader instead of `LocalFileModelLoader`. This is useful when you want to:
 

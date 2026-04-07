@@ -6,31 +6,31 @@
 
 import Foundation
 
+private enum InlineModelDefaults {
+    static let domainIdentifier = "InlineDomain"
+    static let commonIdentifier = "InlineCommons"
+    static let configIdentifier = "config"
+}
+
 public struct InlineModelLoader : ModelRepository, Sendable {
     let ctx: LoadContext
     public let items: [any InlineModelProtocol]
     
     public func loadModel(to model: AppModel) async throws {
-        //first parse the common types
-        var commonParts: [String] = []
         for item in items {
             if let commonsItem = item as? InlineCommonTypes {
-                commonParts.append(commonsItem.string)
+                let commons = try await ModelFileParser(with: ctx)
+                                .parse(string: commonsItem.string, identifier: commonsItem.identifier)
+                
+                await model.appendToCommonModel(contentsOf: commons)
             }
         }
-        let commonsString = commonParts.joined()
-        
-        //common models
-        let commons = try await ModelFileParser( with: ctx)
-                        .parse(string: commonsString, identifier: "InlineCommons")
-        
-        await model.appendToCommonModel(contentsOf: commons)
         
         //parse rest of the models
         for item in items {
             if let modelItem = item as? InlineModel {
                 let modelSpace = try await ModelFileParser(with: ctx)
-                    .parse(string: modelItem.string, identifier: "InlineDomain")
+                    .parse(string: modelItem.string, identifier: modelItem.identifier)
                 
                 await model.append(contentsOf: modelSpace)
             }
@@ -73,7 +73,7 @@ public struct InlineModelLoader : ModelRepository, Sendable {
         for item in items {
             if let modelConfig = item as? InlineConfig {
                 try await ConfigFileParser(with: ctx)
-                    .parse(string: modelConfig.string, identifier: "config")
+                    .parse(string: modelConfig.string, identifier: modelConfig.identifier)
                 
             }
         }
@@ -86,25 +86,43 @@ public struct InlineModelLoader : ModelRepository, Sendable {
 }
 
 public struct InlineModel : InlineModelProtocol {
+    public let identifier: String
     public var items: [StringConvertible] = []
 
     public init(@StringConvertibleBuilder _ builder : () -> [StringConvertible]) {
+        self.init(identifier: InlineModelDefaults.domainIdentifier, builder)
+    }
+
+    public init(identifier: String, @StringConvertibleBuilder _ builder : () -> [StringConvertible]) {
+        self.identifier = identifier
         items = builder()
     }
 }
 
 public struct InlineCommonTypes : InlineModelProtocol {
+    public let identifier: String
     public var items: [StringConvertible] = []
 
     public init(@StringConvertibleBuilder _ builder : () -> [StringConvertible]) {
+        self.init(identifier: InlineModelDefaults.commonIdentifier, builder)
+    }
+
+    public init(identifier: String, @StringConvertibleBuilder _ builder : () -> [StringConvertible]) {
+        self.identifier = identifier
         items = builder()
     }
 }
     
 public struct InlineConfig : InlineModelProtocol {
+    public let identifier: String
     public var items: [StringConvertible] = []
     
     public init(@StringConvertibleBuilder _ builder : () -> [StringConvertible]) {
+        self.init(identifier: InlineModelDefaults.configIdentifier, builder)
+    }
+
+    public init(identifier: String, @StringConvertibleBuilder _ builder : () -> [StringConvertible]) {
+        self.identifier = identifier
         items = builder()
     }
 }
