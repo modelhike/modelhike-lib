@@ -42,6 +42,9 @@ public struct LoadModelsPass: LoadingPass {
             }
         } catch let err {
             await printError(err, workspace: ws)
+            if let recorder = await ws.config.debugRecorder, let errWithPInfo = err as? ErrorWithMessageAndParsedInfo {
+                await recorder.recordErrorWithStackAndMemory(errWithPInfo, category: errorCategory(for: err))
+            }
             print("❌❌ ERROR IN LOADING MODELS ❌❌")
             return false
         }
@@ -50,6 +53,17 @@ public struct LoadModelsPass: LoadingPass {
     fileprivate func printError(_ err: Error, workspace: Workspace) async {
         let printer = PipelineErrorPrinter()
         await printer.printError(err, context: workspace.context)
+    }
+
+    fileprivate func errorCategory(for err: Error) -> String {
+        switch err {
+        case is ParsingError: return "parsing"
+        case is Model_ParsingError: return "model-parsing"
+        case is EvaluationError: return "evaluation"
+        case is TemplateSoup_ParsingError: return "template-syntax"
+        case is TemplateSoup_EvaluationError: return "template-evaluation"
+        default: return "unknown"
+        }
     }
 
     public init() {

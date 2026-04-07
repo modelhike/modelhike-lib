@@ -10,6 +10,7 @@ public enum TemplateConstants {
     public static let TemplateExtension = "teso"
     public static let ScriptExtension = "ss"
     public static let MainScriptFile = "main"
+    public static let CommonModelFile = "common"
 
     public static let templateFunction_start = "func"
     public static let templateFunction_end = "end-func"

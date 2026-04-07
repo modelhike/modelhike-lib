@@ -97,6 +97,11 @@ public struct GenerateCodePass : RenderingPass {
     }
 
     func blueprintName(for container: C4Container, sandbox: GenerationSandbox, pInfo: ParsedInfo) async -> String? {
+        if let configuredBlueprintName = await sandbox.config.blueprintName?.trim(),
+           configuredBlueprintName.isNotEmpty {
+            return configuredBlueprintName
+        }
+
         if let blueprintTag = await container.tags[TagConstants.blueprint],
            let blueprintName = blueprintTag.arg?.trim(),
            blueprintName.isNotEmpty {

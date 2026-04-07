@@ -7,7 +7,7 @@
 import Foundation
 
 public struct Pipeline: Sendable {
-    var ws: Workspace
+    public private(set) var ws: Workspace
             
     let discover: DiscoverPhase
     let load: LoadPhase

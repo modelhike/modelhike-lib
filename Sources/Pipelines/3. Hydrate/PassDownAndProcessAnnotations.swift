@@ -34,4 +34,7 @@ public struct PassDownAndProcessAnnotationsPass: LoadingPass {
         
         return true
     }
+    
+    public init() {}
+
 }

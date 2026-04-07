@@ -184,7 +184,7 @@ Modelling/
 │   ├── C4Component/            # C4Component + C4ComponentList (actors)
 │   ├── C4Container/            # C4Container + C4ContainerList (actors)
 │   ├── CodeElement/            # CodeMember, CodeObject, MethodObject, Property, TypeInfo
-│   ├── Loader/                 # InlineModelLoader, LocalFileModelLoader, ModelRepository
+│   ├── Loader/                 # InlineModelLoader (supports per-item identifiers), LocalFileModelLoader, ModelRepository
 │   ├── RegEx/                  # ModelRegEX — DSL-specific regex patterns
 │   ├── System/                 # C4System, C4SystemList, SystemParser, InfraNode, InfraNodeParser, VirtualGroup, VirtualGroupParser
 │   ├── Artifact.swift          # Artifact protocol + ArtifactKind enum
@@ -449,7 +449,7 @@ Each phase is a `PipelinePhase` that holds a list of `PipelinePass` implementati
 
 ### Phase 3.5 — Validate
 
-- `ValidateModelsPass` — semantic validation pass run after hydration, before rendering. Emits structured `diagnostic` debug events (never throws) so warnings appear in the Problems panel without halting the pipeline.
+- `ValidateModelsPass` — semantic validation pass run after hydration, before rendering. Emits structured `diagnostic` debug events (never throws) so warnings appear in the Problems panel without halting the pipeline. `W301`-`W306` now point at the parsed model line that triggered the warning when source metadata is available.
   - **W301** — Unresolved custom type reference (property refers to a type not found in `ParsedTypesCache`).
   - **W302** — Unresolved `@identifier` on a property line (constraint/expression reference not found in module/class `namedConstraints`/`expressions` or `common.modelhike`).
   - **W303** — Unresolved module reference on a container (references a `+module` that was never defined).
@@ -465,7 +465,7 @@ Each phase is a `PipelinePhase` that holds a list of `PipelinePass` implementati
 ### Phase 5 — Render
 
 - `GenerateCodePass` — the main code generation pass:
-  1. Resolves a blueprint per target container from that container's `#blueprint(name)` tag (for example `#blueprint(api-springboot-monorepo)` or `#blueprint(api-nestjs-monorepo)`).
+  1. Resolves a blueprint per target container from either `config.blueprintName` (override) or that container's `#blueprint(name)` tag (for example `#blueprint(api-springboot-monorepo)` or `#blueprint(api-nestjs-monorepo)`).
   2. Loads language-specific modifier symbols (Java for Spring Boot; TypeScript + MongoDB for NestJS).
   3. Creates a `CodeGenerationSandbox`.
   4. Calls `sandbox.generateFilesFor(container:)` which:
@@ -614,7 +614,7 @@ A **Blueprint** is a named folder inside `localBlueprintsPath` containing `.teso
 
 ### Current Blueprints
 
-Two blueprints live in `modelhike-blueprints/Sources/Resources/blueprints/`. `GenerateCodePass` now resolves the active one from each container's `#blueprint(name)` tag, and can optionally override the container's output subfolder via `#output-folder(name)`, for example:
+Two blueprints live in `modelhike-blueprints/Sources/Resources/blueprints/`. `GenerateCodePass` resolves the active one from either `config.blueprintName` or each container's `#blueprint(name)` tag, and can optionally override the container's output subfolder via `#output-folder(name)`, for example:
 
 ```text
 ===
@@ -706,7 +706,7 @@ The public API facade. Entry point for:
 
 Holds state during the Load phase:
 - `AppModel` — the growing in-memory model
-- `OutputConfig` — pipeline configuration
+- `OutputConfig` — pipeline configuration (output roots, target selection, optional `blueprintName` override)
 - `variables` — config variables from `.tconfig` files
 
 ### `GenerationContext` (actor)
@@ -792,6 +792,7 @@ The `DevTester` target is the **development harness** — an executable that imp
 **`inlineModel()`** (unused helper):
 - Shows how to define models inline in Swift code (as an alternative to file-based loading)
 - Demonstrates the `InlineModelLoader` / `InlineModel` / `InlineCommonTypes` API
+- `InlineModel`, `InlineCommonTypes`, and `InlineConfig` accept optional `identifier:` values so parse/config errors can retain a meaningful source filename instead of a generic inline label
 
 ### `Environment.swift`
 
@@ -944,7 +945,7 @@ Used by `DevTester` (via `Environment.debug`) to run the full pipeline against r
 - ✅ Spring Boot monorepo blueprint (`api-springboot-monorepo`) with Java symbols when that blueprint is active
 - ✅ GraphQL + gRPC API scaffolding support in the DSL and modifier libraries
 - ✅ Annotation cascade system
-- ✅ Semantic validation phase (`Validate.models()`) — emits W301–W307 diagnostics for unresolved types and `@` references, duplicate names, missing modules, and missing blueprint tags
+- ✅ Semantic validation phase (`Validate.models()`) — emits W301–W307 diagnostics for unresolved types and `@` references, duplicate names, missing modules, and missing blueprint tags, with parsed file/line locations preserved for W301–W306 when available
 - ✅ World-class error messages — modifier/operator errors include structured `DiagnosticSuggestion` hints generated via `Suggestions` utility (Levenshtein distance + available-options metadata); nil-condition and nil-variable-clear warnings (W201/W202); blueprint preflight check (E101)
 - ✅ Structured diagnostics in debug UI — `/api/diagnostics` endpoint; Problems panel in debug console
 - ✅ Type inference and hydration (entity/dto/cache/apiInput/embeddedType classification)

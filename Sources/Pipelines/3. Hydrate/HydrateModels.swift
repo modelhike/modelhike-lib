@@ -64,4 +64,7 @@ public struct HydrateModelsPass: LoadingPass {
         
         return hasIdProp || hasIdProp2
     }
+
+    public init() {}
+
 }
