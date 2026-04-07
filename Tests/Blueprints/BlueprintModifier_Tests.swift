@@ -398,6 +398,22 @@ import Testing
         #expect(json == "{\"a\":1}")
     }
 
+    @Test func copyFiles_visitsNestedStaticFilesUnderEmptyParentFolder() async throws {
+        let bp = InlineBlueprint(name: "nested-static") {
+            InlineFolder("_root_") {
+                InlineFolder("assets") {
+                    InlineStaticFile("config.json", contents: "{\"a\":1}")
+                }
+            }
+            InlineScript("main", contents: " ")
+        }
+        let pInfo = await makePInfo()
+        let output = OutputFolder("inline-copy-test")
+        try await bp.copyFiles(foldername: "_root_", to: output, with: pInfo)
+        let files = await output.snapshot()
+        #expect(files["assets/config.json"] == "{\"a\":1}")
+    }
+
     // MARK: InlineGenerationHarness
 
     @Test func harness_generate_rootTemplate() async throws {

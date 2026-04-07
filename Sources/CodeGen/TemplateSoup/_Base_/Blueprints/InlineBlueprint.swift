@@ -79,11 +79,12 @@ public actor InlineBlueprint: Blueprint {
     }
 
     public func copyFiles(foldername: String, to folder: OutputFolder, with pInfo: ParsedInfo) async throws {
-        guard let files = folderMap[foldername] else { return }
-        for (filename, contents) in files {
-            guard !filename.hasSuffix(".\(TemplateConstants.TemplateExtension)") else { continue }
-            let outFile = TemplateRenderedFile(filename: filename, contents: contents, pInfo: pInfo)
-            await folder.add(outFile)
+        if let files = folderMap[foldername] {
+            for (filename, contents) in files {
+                guard !filename.hasSuffix(".\(TemplateConstants.TemplateExtension)") else { continue }
+                let outFile = StaticFile(filename: filename, contents: contents, pInfo: pInfo)
+                await folder.add(outFile)
+            }
         }
         for childName in Self.directChildSubfolderNames(of: foldername, in: folderMap) {
             let fullChildKey = Self.childFolderKey(parent: foldername, childName: childName)
@@ -115,6 +116,36 @@ public actor InlineBlueprint: Blueprint {
         self.folderMap = map
     }
 
+    /// Raw-map initializer for deserialization / JSON round-trips without going through the result builder.
+    public init(name: String, folderMap: [String: [String: String]]) {
+        self.blueprintName = name
+        self.folderMap = folderMap
+    }
+
+    public func toSnapshot() -> InlineBlueprintSnapshot {
+        InlineBlueprintSnapshot(name: blueprintName, files: folderMap)
+    }
+
+    public func toJSON(prettyPrinted: Bool = true) throws -> String {
+        let encoder = JSONEncoder()
+        if prettyPrinted {
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        } else {
+            encoder.outputFormatting = [.sortedKeys]
+        }
+        let data = try encoder.encode(toSnapshot())
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    public static func fromJSON(_ json: String) throws -> InlineBlueprint {
+        try fromJSON(Data(json.utf8))
+    }
+
+    public static func fromJSON(_ data: Data) throws -> InlineBlueprint {
+        let snapshot = try JSONDecoder().decode(InlineBlueprintSnapshot.self, from: data)
+        return snapshot.toInlineBlueprint()
+    }
+
     // MARK: Private — parity with LocalFileBlueprint folder rendering
 
     private func renderFileset(
@@ -124,7 +155,10 @@ public actor InlineBlueprint: Blueprint {
         with pInfo: ParsedInfo
     ) async throws {
         if let files = folderMap[foldername] {
-            var staticCount = 0
+            let hasStaticFiles = files.keys.contains { !$0.hasSuffix(".\(TemplateConstants.TemplateExtension)") }
+            if hasStaticFiles {
+                try await outputFolder.ensureExists()
+            }
             for (filename, contents) in files {
                 if filename.hasSuffix(".\(TemplateConstants.TemplateExtension)") {
                     let templateName = String(filename.dropLast(".\(TemplateConstants.TemplateExtension)".count))
@@ -143,17 +177,10 @@ public actor InlineBlueprint: Blueprint {
                         with: pInfo
                     )
                 } else {
-                    staticCount += 1
+                    await templateSoup.context.debugLog.copyingFileInFolder(filename, folder: outputFolder.folder)
+                    let outFile = StaticFile(filename: filename, contents: contents, pInfo: pInfo)
+                    await outputFolder.add(outFile)
                 }
-            }
-            if staticCount > 0 {
-                try await outputFolder.ensureExists()
-            }
-            for (filename, contents) in files {
-                guard !filename.hasSuffix(".\(TemplateConstants.TemplateExtension)") else { continue }
-                await templateSoup.context.debugLog.copyingFileInFolder(filename, folder: outputFolder.folder)
-                let outFile = TemplateRenderedFile(filename: filename, contents: contents, pInfo: pInfo)
-                await outputFolder.add(outFile)
             }
         }
 

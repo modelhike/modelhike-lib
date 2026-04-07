@@ -709,6 +709,11 @@ The public API facade. Entry point for:
 
 `InlineGenerationHarness` (`Sources/Workspace/InlineGenerationHarness.swift`) runs the **standard codegen pipeline** against an in-memory model and blueprint—no `.modelhike` files on disk and no `modelhike-blueprints` checkout. It wires `PipelineConfig.modelSource` to `InlineModelLoader` (from `InlineModel`, optional `InlineCommonTypes`, optional `InlineConfig`) and `PipelineConfig.blueprints` to a single `InlineBlueprintFinder` for the supplied `InlineBlueprint`. The active blueprint name comes from `blueprint.blueprintName` and is set on `pipelineConfig.blueprintName`.
 
+The inline APIs now also support JSON round-trips:
+- `InlineBlueprintSnapshot` (`Sources/CodeGen/TemplateSoup/_Base_/Blueprints/InlineBlueprint+Codable.swift`) is the Codable bridge for `InlineBlueprint`
+- `InlineModelSnapshot` (`Sources/Modelling/_Base_/Loader/InlineModelLoader+Codable.swift`) is the Codable bridge for `InlineModel`, `InlineCommonTypes`, and `InlineConfig`
+- `InlineBlueprint.toJSON()` / `InlineBlueprint.fromJSON(...)` and `InlineModelSnapshot.toJSON()` / `.fromJSON(...)` support serialization for test harnesses and higher-level tooling
+
 | API | Pipeline | Result |
 |---|---|---|
 | `generate(...)` | Discover → Load → Hydrate → Validate → Render (**no Persist**) | `[String: String]` — merged `OutputFolder.snapshot()` from every `CodeGenerationSandbox` (logical paths → file body text; includes rendered templates, static copy outputs, and placeholders where applicable) |
