@@ -30,27 +30,7 @@ public actor CodeGenerationSandbox : GenerationSandbox {
     
     //MARK: Generation code
     public func generateFilesFor(container: String, usingBlueprint blueprint: Blueprint, outputFolderSuffix: String = "") async throws -> String? {
-
-        if outputFolderSuffix.isNotEmpty {
-            let rebased = await base_generation_dir.relativeFolder(outputFolderSuffix)
-            base_generation_dir = rebased
-            generation_dir = rebased
-        }
-
-        if !isSymbolsLoaded {
-            try await loadSymbols()
-        }
-        
-        if try await !blueprint.exists() {
-            let pInfo = await ParsedInfo.dummyForAppState(with: context)
-            let blueprintName = await blueprint.blueprintName
-            throw EvaluationError.invalidInput(
-                "Blueprint '\(blueprintName)' could not be loaded from the configured blueprint roots.",
-                pInfo
-            )
-        }
-        
-        guard let container = await model.container(named: container) else {
+        guard let resolved = await model.container(named: container) else {
             let pInfo = await ParsedInfo.dummyForAppState(with: context)
             var candidates: [String] = []
             for existingContainer in await model.containers.snapshot() {
@@ -67,17 +47,46 @@ public actor CodeGenerationSandbox : GenerationSandbox {
                 pInfo
             )
         }
+        return try await generateFilesFor(resolvedContainer: resolved, usingBlueprint: blueprint, outputFolderSuffix: outputFolderSuffix)
+    }
+
+    public func generateFilesFor(resolvedContainer: C4Container, usingBlueprint blueprint: Blueprint, outputFolderSuffix: String = "") async throws -> String? {
+
+        if outputFolderSuffix.isNotEmpty {
+            let rebased = await base_generation_dir.relativeFolder(outputFolderSuffix)
+            base_generation_dir = rebased
+            generation_dir = rebased
+        }
+
+        if !isSymbolsLoaded {
+            try await loadSymbols()
+        }
+
+        if try await !blueprint.exists() {
+            let pInfo = await ParsedInfo.dummyForAppState(with: context)
+            let blueprintName = await blueprint.blueprintName
+            throw EvaluationError.invalidInput(
+                "Blueprint '\(blueprintName)' could not be loaded from the configured blueprint roots.",
+                pInfo
+            )
+        }
 
         // Tag all subsequent debug events with this container name
         if let recorder = await context.debugRecorder {
-            await recorder.setContainerName(await container.name)
+            await recorder.setContainerName(await resolvedContainer.name)
         }
-                
-        let variables : [String: Sendable] = [
-            "@container" : C4Container_Wrap(container, model: model),
-            "@mock" : Mocking_Wrap()
+
+
+        var containerVariableName = "@container"
+        if await CompositeContainer.isCompositeContainer(resolvedContainer) {
+            containerVariableName = "@composite-container"
+        }
+
+        let variables: [String: Sendable] = [
+            containerVariableName: C4Container_Wrap(resolvedContainer, model: model),
+            "@mock": Mocking_Wrap()
         ]
-        
+
         await self.context.append(variables: variables)
 
         await self.templateSoup.blueprint( blueprint )

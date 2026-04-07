@@ -8,6 +8,9 @@ import Foundation
 
 public protocol GenerationSandbox : Sandbox, FileGeneratorProtocol {
     func generateFilesFor(container: String, usingBlueprint blueprint: Blueprint, outputFolderSuffix: String) async throws -> String?
+
+    /// Runs generation for an arbitrary `C4Container` instance (including synthetic slices not registered on `AppModel`).
+    func generateFilesFor(resolvedContainer: C4Container, usingBlueprint blueprint: Blueprint, outputFolderSuffix: String) async throws -> String?
 }
 
 public protocol Sandbox: Actor {
