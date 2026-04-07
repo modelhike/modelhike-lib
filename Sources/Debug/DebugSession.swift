@@ -12,6 +12,8 @@ import Foundation
 public struct GeneratedFileRecord: Codable, Sendable {
     /// Final output path recorded for the generated file.
     public let outputPath: String
+    /// Canonical relative output path from the pipeline output root.
+    public let relativeOutputPath: String
     /// Template or script-level file name that initiated generation, if known.
     public let templateName: String?
     /// Model object name associated with this output, when generation is object-driven.
@@ -21,8 +23,9 @@ public struct GeneratedFileRecord: Codable, Sendable {
     /// Zero-based index into `DebugSession.events` for the file-generation event.
     public let eventIndex: Int
 
-    public init(outputPath: String, templateName: String?, objectName: String?, workingDir: String, eventIndex: Int) {
+    public init(outputPath: String, relativeOutputPath: String? = nil, templateName: String?, objectName: String?, workingDir: String, eventIndex: Int) {
         self.outputPath = outputPath
+        self.relativeOutputPath = relativeOutputPath ?? outputPath
         self.templateName = templateName
         self.objectName = objectName
         self.workingDir = workingDir

@@ -170,7 +170,7 @@ Foundation-level utilities shared across all other modules.
 
 ### `Sources/Debug/`
 
-Debugging infrastructure. Includes `Suggestions.swift` — a pure utility (Levenshtein-distance "did you mean?" helper) plus all debug recorder, event, and session types. `Suggestions` is used by expression evaluation warnings and validation diagnostics to offer actionable hints in error messages.
+Debugging infrastructure. Includes `Suggestions.swift` — a pure utility (Levenshtein-distance "did you mean?" helper) plus all debug recorder, event, and session types. `Suggestions` is used by expression evaluation warnings and validation diagnostics to offer actionable hints in error messages. `GeneratedFileRecord` now carries both the raw `outputPath` emitted during render and a normalized `relativeOutputPath` computed against the pipeline output root when the `DebugSession` is assembled; use `relativeOutputPath` when a consumer needs the canonical persisted file location.
 
 ### `Sources/Modelling/`
 

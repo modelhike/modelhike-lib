@@ -251,6 +251,7 @@ public actor DefaultDebugRecorder: DebugRecorder {
             outputPath: config.output.path.string,
             containersToOutput: config.containersToOutput
         )
+        let outputRoot = config.output.path.string
         return DebugSession(
             timestamp: Date(),
             config: configSnapshot,
@@ -258,7 +259,7 @@ public actor DefaultDebugRecorder: DebugRecorder {
             model: modelSnapshot ?? ModelSnapshot(containers: []),
             events: events,
             sourceFiles: await sourceFileMap.allFiles(),
-            files: generatedFiles,
+            files: generatedFiles.map { normalizeGeneratedFileRecord($0, outputRoot: outputRoot) },
             errors: errors,
             baseSnapshots: baseSnapshots,
             deltaSnapshots: deltaSnapshots
@@ -267,6 +268,36 @@ public actor DefaultDebugRecorder: DebugRecorder {
 
     func sourceLocation(from pInfo: ParsedInfo) -> SourceLocation {
         SourceLocation(fileIdentifier: pInfo.identifier, lineNo: pInfo.lineNo, lineContent: pInfo.line, level: pInfo.level)
+    }
+
+    private func normalizeGeneratedFileRecord(_ record: GeneratedFileRecord, outputRoot: String) -> GeneratedFileRecord {
+        GeneratedFileRecord(
+            outputPath: record.outputPath,
+            relativeOutputPath: relativeOutputPath(for: record, outputRoot: outputRoot),
+            templateName: record.templateName,
+            objectName: record.objectName,
+            workingDir: record.workingDir,
+            eventIndex: record.eventIndex
+        )
+    }
+
+    private func relativeOutputPath(for record: GeneratedFileRecord, outputRoot: String) -> String {
+        let root = LocalPath(outputRoot)
+        let candidates = [
+            record.outputPath.hasPrefix("/") ? record.outputPath : nil,
+            record.workingDir.hasPrefix("/") ? record.workingDir + "/" + record.outputPath : nil,
+        ].compactMap { $0.map { LocalPath($0) } }
+
+        for candidate in candidates {
+            if let relative = candidate.relativePath(from: root) {
+                return relative
+            }
+        }
+
+        return [record.workingDir, record.outputPath]
+            .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: "/")) }
+            .filter { !$0.isEmpty }
+            .joined(separator: "/")
     }
 
     private func buildContainerSnapshots(from model: AppModel) async -> [ContainerSnapshot] {

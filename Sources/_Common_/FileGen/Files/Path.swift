@@ -169,6 +169,27 @@ public struct WebPath : Path, CustomDebugStringConvertible, Sendable {
 }
 
 public extension LocalPath {
+    /// Returns the path segment of `self` that is relative to `root`.
+    ///
+    /// If `self` is not a descendant of `root`, returns `nil`.
+    /// If `self` equals `root`, returns an empty string.
+    ///
+    /// ```swift
+    /// let root = LocalPath("/tmp/output")
+    /// let file = LocalPath("/tmp/output/APIs/package.json")
+    /// file.relativePath(from: root) // "APIs/package.json"
+    /// ```
+    func relativePath(from root: LocalPath) -> String? {
+        let normalizedSelf = url.standardizedFileURL.path
+        let normalizedRoot = root.url.standardizedFileURL.path
+
+        if normalizedSelf == normalizedRoot { return "" }
+
+        let rootPrefix = normalizedRoot.hasSuffix("/") ? normalizedRoot : normalizedRoot + "/"
+        guard normalizedSelf.hasPrefix(rootPrefix) else { return nil }
+        return String(normalizedSelf.dropFirst(rootPrefix.count))
+    }
+
     @inlinable
     static func +(lhs: LocalPath, rhs: LocalPath) -> LocalPath {
         let url = lhs.url.appending(path: rhs.string)
