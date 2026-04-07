@@ -18,7 +18,17 @@ let package = Package(
     ],
     targets: [
         .target(
+            name: "ModelHikeDSL",
+            path: "DSL",
+            resources: [
+                .copy("modelHike.dsl.md"),
+                .copy("codelogic.dsl.md"),
+                .copy("templatesoup.dsl.md"),
+            ]
+        ),
+        .target(
             name: "ModelHike",
+            dependencies: ["ModelHikeDSL"],
             path: "Sources",
             exclude: [
                 "_Common_/ThirdParty/Codextended/LICENSE",

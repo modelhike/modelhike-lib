@@ -64,6 +64,11 @@ modelhike/
 │   ├── Workspace/              # Context, Sandbox, expression evaluator
 │   └── Pipelines/              # 6-phase pipeline orchestrator
 │
+├── DSL/                        # Canonical DSL markdown specs — own SPM target (ModelHikeDSL); bundled as package resources
+│   ├── modelHike.dsl.md        # Full DSL specification (Beginner → Pro guide)
+│   ├── codelogic.dsl.md        # Fenced method-body logic block syntax reference
+│   └── templatesoup.dsl.md     # TemplateSoup + SoupyScript syntax reference
+│
 ├── DevTester/                  # Executable target for development runs
 │   ├── DevMain.swift           # Entry point; runs codegen pipeline (or debug mode with --debug / --debug-stepping)
 │   ├── Environment.swift       # Hardcoded dev/prod path configs
@@ -72,10 +77,6 @@ modelhike/
 │       └── debug-console/      # Modular browser UI (Lit web components)
 │
 ├── Tests/                      # Test suites
-│
-├── DSL/
-│   ├── modelHike.dsl.md        # Full DSL specification (Beginner → Pro guide)
-│   └── codelogic.dsl.md        # Fenced method-body logic block syntax reference
 │
 ├── Docs/
 │   ├── documentation.md        # Product documentation outline (partially written)
