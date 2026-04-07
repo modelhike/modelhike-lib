@@ -29,7 +29,7 @@ public enum UIViewParser {
 
         let (_, className, attributeString, tagString) = match.output
 
-        guard let pctx = await parser.currentParsedInfo(level : 0) else { await parser.skipLine(); continue }
+        guard let pctx = await parser.currentParsedInfo(level : 0) else { await parser.skipLine(); return nil }
 
         let item = UIView(name: className.trim(), sourceLocation: SourceLocation(from: pctx))
         await ParserUtil.appendDescription(pending?.description, to: item)

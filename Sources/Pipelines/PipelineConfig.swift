@@ -15,8 +15,8 @@ public struct PipelineConfig : OutputConfig {
     public var outputItemType : OutputArtifactType = .container
     
     public var containersToOutput: [String] = []
-    public var containerGroupsToOutput: [String] = []
-    public var systemViewsToOutput: [String] = []
+    /// Names of ``C4System`` blocks to generate (see `OutputArtifactType.system`).
+    public var systemsToOutput: [String] = []
 
     public var modelSource: ModelSource = .localFileSystem
     
@@ -56,8 +56,10 @@ public enum ModelSource: Sendable {
     case inline(InlineModelLoader)
 }
 
-public enum OutputArtifactType : Sendable{
-    case container, containerGroup, systemView
+public enum OutputArtifactType : Sendable {
+    /// Renders ``C4Container`` targets: leaf containers once; composite `(container-group)` / `(microservices)` containers expand to one target per top-level module.
+    case container
+    case system
 }
 
 public protocol OutputConfig: Sendable {
@@ -65,8 +67,7 @@ public protocol OutputConfig: Sendable {
     
     var outputItemType : OutputArtifactType {get set}
     var containersToOutput: [String] {get set}
-    var containerGroupsToOutput: [String] {get set}
-    var systemViewsToOutput: [String] {get set}
+    var systemsToOutput: [String] {get set}
     
     var output : LocalFolder {get set}
 

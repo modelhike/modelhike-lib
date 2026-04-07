@@ -94,6 +94,28 @@ public actor AppModel {
         return await containers.first(where: {await $0.name == name})
     }
 
+    /// Returns the first ``C4System`` whose normalised ``C4System/name`` matches `name.normalizeForVariableName()`,
+    /// or whose ``C4System/givenname`` equals `name` exactly.
+    public func system(named name: String) async -> C4System? {
+        let key = name.normalizeForVariableName()
+        for s in await systems.snapshot() {
+            let n = await s.name
+            let g = await s.givenname
+            if n == key || g == name { return s }
+        }
+        return nil
+    }
+
+    /// ``C4System/givenname`` values for every loaded system (useful for diagnostics / “did you mean?”).
+    public func systemGivenNames() async -> [String] {
+        var list: [String] = []
+        list.reserveCapacity(await systems.count)
+        for s in await systems.snapshot() {
+            list.append(await s.givenname)
+        }
+        return list
+    }
+
     public func module(named name: String) async -> C4Component? {
         return await modules.first(where: {
             let itemname = await $0.name
