@@ -187,6 +187,113 @@ public actor OutputFolder : SendableDebugStringConvertible {
         return newSubFolder
     }
 
+    /// Collects text contents for output files in this folder (recursively), without persisting to disk.
+    ///
+    /// Includes ``TemplateRenderedFile``, in-memory ``StaticFile`` (string or UTF-8 data), repo-backed ``StaticFile`` (after a best-effort ``StaticFile/render()``),
+    /// ``FileToCopy`` (reads source file as UTF-8, or base64 if not valid UTF-8), and ``PlaceHolderFile`` (after ``PlaceHolderFile/render()`` if needed).
+    /// Keys are relative paths using `/` (e.g. `Subdir/file.txt`).
+    /// Includes subtrees under ``PersistableFolder`` entries (``RenderedFolder``, ``StaticFolder``).
+    public func snapshot(prefix: String = "") async -> [String: String] {
+        var result: [String: String] = [:]
+        for item in items {
+            guard let pair = await Self.snapshotStringPair(for: item) else { continue }
+            let key: String
+            if prefix.isEmpty {
+                key = pair.name
+            } else {
+                key = "\(prefix)/\(pair.name)"
+            }
+            result[key] = pair.text
+        }
+        for folderItem in folderItems {
+            let nestedOut: OutputFolder?
+            let newName: String
+            if let rendered = folderItem as? RenderedFolder {
+                nestedOut = await rendered.outputFolder
+                newName = rendered.newFoldername
+            } else if let staticFolder = folderItem as? StaticFolder {
+                nestedOut = await staticFolder.outputFolder
+                newName = staticFolder.newFoldername
+            } else {
+                continue
+            }
+            guard let nestedOut else { continue }
+            let nextPrefix: String
+            if newName == "/" || newName.isEmpty {
+                nextPrefix = prefix
+            } else if prefix.isEmpty {
+                nextPrefix = newName
+            } else {
+                nextPrefix = "\(prefix)/\(newName)"
+            }
+            let nested = await nestedOut.snapshot(prefix: nextPrefix)
+            for (k, v) in nested {
+                result[k] = v
+            }
+        }
+        for sub in subFolders {
+            let subName = await sub.foldername
+            let nextPrefix = prefix.isEmpty ? subName : "\(prefix)/\(subName)"
+            let nested = await sub.snapshot(prefix: nextPrefix)
+            for (k, v) in nested {
+                result[k] = v
+            }
+        }
+        return result
+    }
+
+    /// Best-effort string payload for snapshot dictionaries (UTF-8 text, or base64 for opaque/binary when needed).
+    private static func snapshotStringPair(for item: OutputFile) async -> (name: String, text: String)? {
+        if let rendered = item as? TemplateRenderedFile {
+            guard let contents = await rendered.contents else { return nil }
+            let name = rendered.filename
+            return (name, contents)
+        }
+        if let staticFile = item as? StaticFile {
+            var text = await staticFile.contents
+            if text == nil, let data = await staticFile.data {
+                text = String(data: data, encoding: .utf8)
+                if text == nil {
+                    text = data.base64EncodedString()
+                }
+            }
+            if text == nil {
+                try? await staticFile.render()
+                text = await staticFile.contents
+            }
+            if text == nil, let data = await staticFile.data {
+                text = String(data: data, encoding: .utf8) ?? data.base64EncodedString()
+            }
+            guard let text else { return nil }
+            let name = staticFile.filename
+            return (name, text)
+        }
+        if let copy = item as? FileToCopy {
+            let out = copy.outFile
+            let name = await copy.filename
+            let text: String
+            if let s = try? out.readTextContents() {
+                text = s
+            } else if let data = try? Data(contentsOf: out.url) {
+                text = String(data: data, encoding: .utf8) ?? data.base64EncodedString()
+            } else {
+                return nil
+            }
+            return (name, text)
+        }
+        if let ph = item as? PlaceHolderFile {
+            var text = await ph.contents
+            if text == nil {
+                try? await ph.render()
+                text = await ph.contents
+            }
+            guard let text else { return nil }
+            let name = ph.filename
+            return (name, text)
+        }
+        return nil
+    }
+
     public var debugDescription: String { get async {
         return folder.pathString
     }}

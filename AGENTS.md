@@ -297,7 +297,7 @@ CodeGen/
 │   ├── TemplateSoupParser.swift
 │   ├── TemplateEvaluator.swift     # Evaluates a Template object against Context
 │   ├── _Base_/
-│   │   ├── Blueprints/             # Blueprint protocol; LocalFile/Resource finders & loaders; BlueprintAggregator
+│   │   ├── Blueprints/             # Blueprint protocol; LocalFile/Resource/Inline blueprints; finders & loaders; BlueprintAggregator
 │   │   ├── Templates/              # Template protocol; LocalFileTemplate, LocalFilesetTemplate, StringTemplate
 │   │   └── SpecialFolderNames.swift / TemplateConstants.swift
 │   └── ContentLine/
@@ -394,6 +394,7 @@ The execution context and sandbox.
 ```
 Workspace/
 ├── Workspace.swift             # Public facade (actor): config, model, sandboxes, render
+├── InlineGenerationHarness.swift # End-to-end codegen with InlineModel + InlineBlueprint (tests / no on-disk model or blueprint repo)
 ├── Config/
 │   └── ConfigFileParser.swift  # Parses .tconfig files (key=value pairs)
 ├── Context/
@@ -611,6 +612,7 @@ A **Blueprint** is a named folder inside `localBlueprintsPath` containing `.teso
 |---|---|---|
 | Local filesystem | `LocalFileBlueprint` | Loads from an absolute path (the external `modelhike-blueprints` repo) |
 | Swift resources | `ResourceBlueprint` | Loads from embedded Swift package resources |
+| In-memory (Swift) | `InlineBlueprint` | Builds the same virtual tree as a disk blueprint (`main.ss`, `.teso`, static files, nested folders); resolved via `InlineBlueprintFinder` |
 | Aggregated | `BlueprintAggregator` | Merges multiple blueprint sources |
 
 ### Current Blueprints
@@ -703,6 +705,17 @@ The public API facade. Entry point for:
 - `newStringSandbox()` — create a sandbox for string-only rendering
 - `render(string:data:)` — render a template string directly
 
+### `InlineGenerationHarness`
+
+`InlineGenerationHarness` (`Sources/Workspace/InlineGenerationHarness.swift`) runs the **standard codegen pipeline** against an in-memory model and blueprint—no `.modelhike` files on disk and no `modelhike-blueprints` checkout. It wires `PipelineConfig.modelSource` to `InlineModelLoader` (from `InlineModel`, optional `InlineCommonTypes`, optional `InlineConfig`) and `PipelineConfig.blueprints` to a single `InlineBlueprintFinder` for the supplied `InlineBlueprint`. The active blueprint name comes from `blueprint.blueprintName` and is set on `pipelineConfig.blueprintName`.
+
+| API | Pipeline | Result |
+|---|---|---|
+| `generate(...)` | Discover → Load → Hydrate → Validate → Render (**no Persist**) | `[String: String]` — merged `OutputFolder.snapshot()` from every `CodeGenerationSandbox` (logical paths → file body text; includes rendered templates, static copy outputs, and placeholders where applicable) |
+| `generateToTempFolder(...)` | Same phases **plus** Persist | `(path: LocalPath, files: [String: String])` — files written under a unique temp directory **and** the same in-memory map as `generate` |
+
+Optional `containersToOutput` limits which containers are generated (same semantics as `PipelineConfig.containersToOutput`). For ad-hoc checks and tests, prefer `generate` to avoid disk I/O; use `generateToTempFolder` when you need real files (e.g. shelling out to a compiler).
+
 ### `LoadContext` (actor)
 
 Holds state during the Load phase:
@@ -794,6 +807,7 @@ The `DevTester` target is the **development harness** — an executable that imp
 - Shows how to define models inline in Swift code (as an alternative to file-based loading)
 - Demonstrates the `InlineModelLoader` / `InlineModel` / `InlineCommonTypes` API
 - `InlineModel`, `InlineCommonTypes`, and `InlineConfig` accept optional `identifier:` values so parse/config errors can retain a meaningful source filename instead of a generic inline label
+- For **full pipeline** runs against inline models and blueprints (tests, CI), use **`InlineGenerationHarness`** — see [§10 Workspace](#10-workspace-context-and-sandbox)
 
 ### `Environment.swift`
 
@@ -925,6 +939,10 @@ Tests end-to-end template string rendering:
 
 > **Note:** The test suite uses a synchronous `ws.render()` call which appears to be from an older synchronous API. The current production API is fully `async`. This may cause compilation issues; verify these tests compile and pass with current codebase.
 
+### `BlueprintModifier_Tests` — `InlineBlueprint` suite
+
+The **`@Suite("InlineBlueprint")`** block in `BlueprintModifier_Tests.swift` exercises **`InlineBlueprint`** (nested folders, static files, front matter) and **`InlineGenerationHarness`** end-to-end (`generate` / snapshot assertions). Modifier registration and blueprint `_modifiers_/` behaviour are covered in the same file under related suites.
+
 ---
 
 ## 14. Playground
@@ -995,12 +1013,13 @@ Test files (`Tests/`):
 | `PropertyParser_Tests` | `Property` parsing: defaults, valid value sets (`[String]`), constraints, attributes |
 | `MethodParameterMetadata_Tests` | `>>>` parameter metadata parsing: required/optional markers, `#output` tag, `defaultValue`, constraints, attributes, valid value set, multi-param methods, setext methods |
 | `FlatLogicLineData_Tests` | `FlatLogicLineData.flatten` — empty logic, single return, if/else chaining (no spurious close), `isChainedAfter` |
+| `BlueprintModifier_Tests` | Blueprint-defined modifiers; **`InlineBlueprint`** (folders, static files, harness); **`InlineGenerationHarness`** smoke tests |
 
 No tests yet for:
-- Pipeline phases
+- Pipeline phases (aside from inline harness coverage in `BlueprintModifier_Tests`)
 - Hydration logic
-- Blueprint loading
-- File generation
+- Disk-based blueprint discovery (`LocalFileBlueprint`) as an integration suite
+- Full file-generation regression suite beyond inline/harness cases
 
 ---
 
