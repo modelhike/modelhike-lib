@@ -7,6 +7,7 @@
 import Foundation
 
 public actor ContainerModuleMember : Artifact {
+    let sourceLocation: SourceLocation
     public var attribs = Attributes()
     public var tags = Tags()
     public var annotations = Annotations()
@@ -37,7 +38,7 @@ public actor ContainerModuleMember : Artifact {
         let (_, moduleName, attributeString, tagString) = match.output
         let modulename = moduleName.trim()
 
-        let module = ContainerModuleMember(named: modulename)
+        let module = ContainerModuleMember(named: modulename, sourceLocation: SourceLocation(from: pctx))
         
         //check if has attributes
         if let attributeString = attributeString {
@@ -72,8 +73,9 @@ public actor ContainerModuleMember : Artifact {
             return str
         }
     }
-    
-    public init(named name: String) {
+
+    init(named name: String, sourceLocation: SourceLocation) {
+        self.sourceLocation = sourceLocation
         self.name = name.normalizeForVariableName()
         self.givenname = name
     }

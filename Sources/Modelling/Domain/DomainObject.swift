@@ -7,6 +7,7 @@
 import Foundation
 
 public actor DomainObject : CodeObject {
+    let sourceLocation: SourceLocation
     public var givenname: String
     public var name: String
     public var members : [CodeMember] = []
@@ -75,12 +76,14 @@ public actor DomainObject : CodeObject {
     }}
     
     public init(name: String, @CodeMemberBuilder _ builder: () -> [CodeMember]) {
+        self.sourceLocation = SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)
         self.givenname = name.trim()
         self.name = name.normalizeForVariableName()
         self.members = builder()
     }
-    
-    public init(name: String) {
+
+    init(name: String, sourceLocation: SourceLocation) {
+        self.sourceLocation = sourceLocation
         self.givenname = name.trim()
         self.name = name.normalizeForVariableName()
     }

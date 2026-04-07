@@ -30,7 +30,7 @@ public enum DtoObjectParser {
         
         try await pInfo.ctx.events.onParse(objectName: className, with: pInfo)
 
-        let item = DtoObject(name: className.trim())
+        let item = DtoObject(name: className.trim(), sourceLocation: SourceLocation(from: pInfo))
         await ParserUtil.appendDescription(pending?.description, to: item)
         await ParserUtil.appendDescription(inlineDesc, to: item)
 

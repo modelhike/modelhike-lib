@@ -53,6 +53,7 @@ public struct ValidateModelsPass: LoadingPass {
             let unresolved = await container.unresolvedMembers
             let containerName = await container.name
             for member in unresolved {
+                let source = await sourceLocation(for: member, fallbackLineContent: member.name)
                 count += 1
                 ctx.debugLog.recordLookupDiagnostic(
                     .warning,
@@ -61,7 +62,7 @@ public struct ValidateModelsPass: LoadingPass {
                     lookup: member.name,
                     in: allNames,
                     availableOptionsLabel: "known modules",
-                    source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: member.name, level: 0)
+                    source: source
                 )
             }
         }
@@ -79,12 +80,13 @@ public struct ValidateModelsPass: LoadingPass {
             let name = await type_.name
             let displayName = await type_.givenname
             if let existing = seen[name] {
+                let source = await sourceLocation(for: type_, fallbackLineContent: name)
                 count += 1
                 ctx.debugLog.recordDiagnostic(
                     .warning,
                     code: "W304",
                     "Duplicate type name '\(name)'. First occurrence: \(existing).",
-                    source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: name, level: 0)
+                    source: source
                 )
             } else {
                 seen[name] = displayName
@@ -104,12 +106,13 @@ public struct ValidateModelsPass: LoadingPass {
             for prop in await type_.properties {
                 let pName = await prop.name
                 if seenProps[pName] != nil {
+                    let source = SourceLocation(from: prop.pInfo)
                     count += 1
                     ctx.debugLog.recordDiagnostic(
                         .warning,
                         code: "W305",
                         "Duplicate property '\(pName)' in type '\(typeName)'.",
-                        source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: pName, level: 0)
+                        source: source
                     )
                 } else {
                     seenProps[pName] = true
@@ -119,12 +122,13 @@ public struct ValidateModelsPass: LoadingPass {
             for method in await type_.methods {
                 let mName = await method.name
                 if seenMethods[mName] != nil {
+                    let source = SourceLocation(from: method.pInfo)
                     count += 1
                     ctx.debugLog.recordDiagnostic(
                         .warning,
                         code: "W306",
                         "Duplicate method '\(mName)' in type '\(typeName)'.",
-                        source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: mName, level: 0)
+                        source: source
                     )
                 } else {
                     seenMethods[mName] = true
@@ -152,6 +156,7 @@ public struct ValidateModelsPass: LoadingPass {
                 }
 
                 if !knownTypeNamesSet.contains(typeName) {
+                    let source = SourceLocation(from: prop.pInfo)
                     count += 1
                     ctx.debugLog.recordLookupDiagnostic(
                         .warning,
@@ -160,7 +165,7 @@ public struct ValidateModelsPass: LoadingPass {
                         lookup: typeName,
                         in: knownTypeNamesSorted,
                         availableOptionsLabel: "known types",
-                        source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: propName, level: 0)
+                        source: source
                     )
                 }
             }
@@ -277,6 +282,7 @@ public struct ValidateModelsPass: LoadingPass {
         // a default-value expression reference rather than a predicate applied from `{ ... }`.
         if let ref = await prop.appliedDefaultExpression {
             if !knownLower.contains(ref.lowercased()) {
+                let source = SourceLocation(from: prop.pInfo)
                 count += 1
                 ctx.debugLog.recordLookupDiagnostic(
                     .warning,
@@ -285,13 +291,14 @@ public struct ValidateModelsPass: LoadingPass {
                     lookup: ref,
                     in: allNames,
                     availableOptionsLabel: "known expressions/constraints",
-                    source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: await prop.name, level: 0)
+                    source: source
                 )
             }
         }
         // Constraint refs come from `@Name` entries inside the property's `{ ... }` block.
         for ac in await prop.appliedConstraints {
             if !knownLower.contains(ac.lowercased()) {
+                let source = SourceLocation(from: prop.pInfo)
                 count += 1
                 ctx.debugLog.recordLookupDiagnostic(
                     .warning,
@@ -300,11 +307,29 @@ public struct ValidateModelsPass: LoadingPass {
                     lookup: ac,
                     in: allNames,
                     availableOptionsLabel: "known expressions/constraints",
-                    source: SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: await prop.name, level: 0)
+                    source: source
                 )
             }
         }
         return count
+    }
+
+    private func sourceLocation(for type_: CodeObject, fallbackLineContent: String) async -> SourceLocation {
+        if let domain = type_ as? DomainObject {
+            return domain.sourceLocation
+        }
+        if let dto = type_ as? DtoObject {
+            return dto.sourceLocation
+        }
+        return SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: fallbackLineContent, level: 0)
+    }
+
+    private func sourceLocation(for member: ContainerModuleMember, fallbackLineContent: String) async -> SourceLocation {
+        let source = member.sourceLocation
+        if source.fileIdentifier.isNotEmpty || source.lineNo > 0 {
+            return source
+        }
+        return SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: fallbackLineContent, level: 0)
     }
 
     public init() {}

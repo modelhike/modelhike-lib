@@ -7,6 +7,8 @@
 import Foundation
 
 public actor UIView : UIObject {
+    let sourceLocation: SourceLocation
+
     public var givenname: String
     public var name: String
     public var members : [CodeMember] = []
@@ -43,12 +45,14 @@ public actor UIView : UIObject {
     }}
     
     public init(name: String, @CodeMemberBuilder _ builder: () -> [CodeMember]) {
+        self.sourceLocation = SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)
         self.givenname = name
         self.name = name.normalizeForVariableName()
         self.members = builder()
     }
     
-    public init(name: String) {
+    public init(name: String, sourceLocation: SourceLocation) {
+        self.sourceLocation = sourceLocation
         self.givenname = name
         self.name = name.normalizeForVariableName()
     }

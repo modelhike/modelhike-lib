@@ -30,7 +30,7 @@ public enum DomainObjectParser {
 
         try await pInfo.ctx.events.onParse(objectName: className, with: pInfo)
 
-        let item = DomainObject(name: className.trim())
+        let item = DomainObject(name: className.trim(), sourceLocation: SourceLocation(from: pInfo))
         await ParserUtil.appendDescription(pending?.description, to: item)
         await ParserUtil.appendDescription(inlineClassDesc, to: item)
 

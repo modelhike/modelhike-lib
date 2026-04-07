@@ -28,7 +28,10 @@ public enum UIViewParser {
         guard let match = line.wholeMatch(of: ModelRegEx.uiviewName_Capturing)                                                                                  else { return nil }
 
         let (_, className, attributeString, tagString) = match.output
-        let item = UIView(name: className.trim())
+
+        guard let pctx = await parser.currentParsedInfo(level : 0) else { await parser.skipLine(); continue }
+
+        let item = UIView(name: className.trim(), sourceLocation: SourceLocation(from: pctx))
         await ParserUtil.appendDescription(pending?.description, to: item)
         await ParserUtil.appendDescription(inlineDesc, to: item)
 
