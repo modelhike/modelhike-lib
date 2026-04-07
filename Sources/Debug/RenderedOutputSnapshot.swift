@@ -36,67 +36,100 @@ extension PipelineState {
     }
 }
 
+// MARK: - OutputFolder in-memory content (debug UI + tests)
+
 extension OutputFolder {
+
+    /// Collects text contents for output files in this folder (recursively), without persisting to disk.
+    ///
+    /// Includes ``TemplateRenderedFile``, ``StaticFile``, ``PlaceHolderFile``, and ``OutputDocumentFile``
+    /// when those files already hold in-memory output content.
+    /// Keys are relative paths using `/` (e.g. `Subdir/file.txt`).
+    /// Includes subtrees under ``PersistableFolder`` entries (``RenderedFolder``, ``StaticFolder``).
+    public func snapshot(prefix: String = "") async -> [String: String] {
+        var result: [String: String] = [:]
+        for item in items {
+            guard let pair = await Self.inMemoryContentPair(for: item) else { continue }
+            let key: String
+            if prefix.isEmpty {
+                key = pair.name
+            } else {
+                key = "\(prefix)/\(pair.name)"
+            }
+            result[key] = pair.text
+        }
+        for folderItem in folderItems {
+            let nestedOut: OutputFolder?
+            let newName: String
+            if let rendered = folderItem as? RenderedFolder {
+                nestedOut = await rendered.outputFolder
+                newName = rendered.newFoldername
+            } else if let staticFolder = folderItem as? StaticFolder {
+                nestedOut = await staticFolder.outputFolder
+                newName = staticFolder.newFoldername
+            } else {
+                continue
+            }
+            guard let nestedOut else { continue }
+            let nextPrefix: String
+            if newName == "/" || newName.isEmpty {
+                nextPrefix = prefix
+            } else if prefix.isEmpty {
+                nextPrefix = newName
+            } else {
+                nextPrefix = "\(prefix)/\(newName)"
+            }
+            let nested = await nestedOut.snapshot(prefix: nextPrefix)
+            for (k, v) in nested {
+                result[k] = v
+            }
+        }
+        for sub in subFolders {
+            let subName = await sub.foldername
+            let nextPrefix = prefix.isEmpty ? subName : "\(prefix)/\(subName)"
+            let nested = await sub.snapshot(prefix: nextPrefix)
+            for (k, v) in nested {
+                result[k] = v
+            }
+        }
+        return result
+    }
+
     /// Recursively walks this output folder and all nested output folders, extracting
     /// any generated file contents that are still available in memory.
     public func renderedOutputRecords() async -> [RenderedOutputRecord] {
+        let rootPath = path
         var records: [RenderedOutputRecord] = []
-
-        for item in items {
-            if let record = await renderedOutputRecord(for: item) {
-                records.append(record)
-            }
+        for (relativePath, content) in await snapshot() {
+            records.append(RenderedOutputRecord(path: (rootPath / relativePath).string, content: content))
         }
-
-        for folder in subFolders {
-            records.append(contentsOf: await folder.renderedOutputRecords())
-        }
-
-        for folderItem in folderItems {
-            if let nestedOutputFolder = await folderItem.outputFolder {
-                records.append(contentsOf: await nestedOutputFolder.renderedOutputRecords())
-            }
-        }
-
         return records
     }
 
-    /// Converts one concrete `OutputFile` into a plain debug record when that file type
-    /// exposes renderable in-memory content. File types that only reference external
-    /// disk files and do not keep contents in memory are skipped here.
-    private func renderedOutputRecord(for item: any OutputFile) async -> RenderedOutputRecord? {
-        guard let outputPath = await item.outputPath else {
-            return nil
+    /// Shared payload reader for ``snapshot(prefix:)`` and ``renderedOutputRecords()``.
+    /// Assumes output files were already materialized into memory before being added.
+    private static func inMemoryContentPair(for item: OutputFile) async -> (name: String, text: String)? {
+        if let rendered = item as? TemplateRenderedFile {
+            guard let contents = await rendered.contents else { return nil }
+            return (rendered.filename, contents)
         }
-
-        let filename = await item.filename
-        let fullPath = (outputPath / filename).string
-
-        if let file = item as? TemplateRenderedFile,
-           let content = await file.contents {
-            return RenderedOutputRecord(path: fullPath, content: content)
+        if let staticFile = item as? StaticFile {
+            let contents = await staticFile.contents
+            let data = await staticFile.data
+            let text = contents ?? data.map { String(data: $0, encoding: .utf8) ?? $0.base64EncodedString() }
+            guard let text else { return nil }
+            return (staticFile.filename, text)
         }
-
-        if let file = item as? StaticFile {
-            if let content = await file.contents {
-                return RenderedOutputRecord(path: fullPath, content: content)
-            }
-            if let data = await file.data {
-                return RenderedOutputRecord(path: fullPath, content: String(decoding: data, as: UTF8.self))
-            }
-            return nil
+        if let ph = item as? PlaceHolderFile {
+            let text = await ph.contents
+            guard let text else { return nil }
+            return (ph.filename, text)
         }
-
-        if let file = item as? PlaceHolderFile,
-           let content = await file.contents {
-            return RenderedOutputRecord(path: fullPath, content: content)
+        if let doc = item as? OutputDocumentFile {
+            let text = await doc.contents
+            guard let text else { return nil }
+            return (doc.filename, text)
         }
-
-        if let file = item as? OutputDocumentFile,
-           let content = await file.contents {
-            return RenderedOutputRecord(path: fullPath, content: content)
-        }
-
         return nil
     }
 }

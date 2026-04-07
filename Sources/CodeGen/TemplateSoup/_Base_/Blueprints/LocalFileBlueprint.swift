@@ -151,12 +151,17 @@ public actor LocalFileBlueprint: Blueprint {
         }
     }
 
+    private func materializeLocalFile(_ file: LocalFile, to outputFolder: OutputFolder, with pInfo: ParsedInfo) async throws {
+        let data = try Data(contentsOf: file.url)
+        let staticFile = StaticFile(filename: file.filename, data: data, pInfo: pInfo)
+        await outputFolder.add(staticFile)
+    }
+
     private func copyLocalFiles(from inFolder: LocalFolder, to outputFolder: OutputFolder, with pInfo: ParsedInfo) async throws
     {
 
         for file in inFolder.files {
-            let copyFile = FileToCopy(file: file, pInfo: pInfo)
-            await outputFolder.add(copyFile)
+            try await materializeLocalFile(file, to: outputFolder, with: pInfo)
         }
         
         //copy files from subfolders also
@@ -264,8 +269,7 @@ public actor LocalFileBlueprint: Blueprint {
         
         for file in fileset.staticFiles {
             await templateSoup.context.debugLog.copyingFileInFolder(file.name, folder: outputFolder.folder)
-            let copyFile = FileToCopy(file: file, pInfo: pInfo)
-            await outputFolder.add(copyFile)
+            try await materializeLocalFile(file, to: outputFolder, with: pInfo)
         }
 
         //copy files from subfolders also
