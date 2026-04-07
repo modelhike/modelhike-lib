@@ -34,69 +34,69 @@ public actor InlineBlueprint: Blueprint {
 
     // MARK: Blueprint
 
-    public func exists() -> Bool { true }
+    public func exists() async throws -> Bool { true }
 
-    public func loadTemplate(fileName: String, with pInfo: ParsedInfo) throws -> Template {
-        let fullName = "\(fileName).\(TemplateConstants.TemplateExtension)"
-        guard let contents = folderMap[""]?[fullName] else {
+    public func loadTemplate(fileName: String, with pInfo: ParsedInfo) async throws -> Template {
+        let (folder, fname) = Self.resolveLogicalPath(fileName, extension: TemplateConstants.TemplateExtension)
+        guard let contents = folderMap[folder]?[fname] else {
             throw TemplateSoup_EvaluationError.templateDoesNotExist(fileName, pInfo)
         }
-        return StringTemplate(contents: contents, name: fileName)
+        let baseName = (fname as NSString).deletingPathExtension
+        return StringTemplate(contents: contents, name: baseName)
     }
 
-    public func loadScriptFile(fileName: String, with pInfo: ParsedInfo) throws -> any Script {
-        let fullName = "\(fileName).\(TemplateConstants.ScriptExtension)"
-        guard let contents = folderMap[""]?[fullName] else {
+    public func loadScriptFile(fileName: String, with pInfo: ParsedInfo) async throws -> any Script {
+        let (folder, fname) = Self.resolveLogicalPath(fileName, extension: TemplateConstants.ScriptExtension)
+        guard let contents = folderMap[folder]?[fname] else {
             throw TemplateSoup_EvaluationError.scriptFileDoesNotExist(fileName, pInfo)
         }
-        return StringTemplate(contents: contents, name: fileName)
+        let baseName = (fname as NSString).deletingPathExtension
+        return StringTemplate(contents: contents, name: baseName)
     }
 
     // MARK: InputFileRepository
 
-    public func readTextContents(filename: String, with pInfo: ParsedInfo) throws -> String {
-        let (folder, file) = splitPath(filename)
+    public func readTextContents(filename: String, with pInfo: ParsedInfo) async throws -> String {
+        let (folder, file) = Self.splitPathLast(filename)
         guard let contents = folderMap[folder]?[file] else {
             throw TemplateSoup_EvaluationError.templateReadingError(filename, pInfo)
         }
         return contents
     }
 
-    public func hasFolder(_ foldername: String) -> Bool {
+    public func hasFolder(_ foldername: String) async -> Bool {
         folderMap[foldername] != nil
     }
 
     public func hasFile(_ filename: String) -> Bool {
-        let (folder, file) = splitPath(filename)
+        let (folder, file) = Self.splitPathLast(filename)
         return folderMap[folder]?[file] != nil
     }
 
-    public func listFiles(inFolder foldername: String) -> [String] {
+    public func listFiles(inFolder foldername: String) async -> [String] {
         guard let files = folderMap[foldername] else { return [] }
         return Array(files.keys)
     }
 
     public func copyFiles(foldername: String, to folder: OutputFolder, with pInfo: ParsedInfo) async throws {
-        // No real bytes to copy for in-memory blueprints — intentional no-op.
+        guard let files = folderMap[foldername] else { return }
+        for (filename, contents) in files {
+            guard !filename.hasSuffix(".\(TemplateConstants.TemplateExtension)") else { continue }
+            let outFile = TemplateRenderedFile(filename: filename, contents: contents, pInfo: pInfo)
+            await folder.add(outFile)
+        }
+        for childName in Self.directChildSubfolderNames(of: foldername, in: folderMap) {
+            let fullChildKey = Self.childFolderKey(parent: foldername, childName: childName)
+            let newFolder = await folder.subFolder(childName)
+            try await copyFiles(foldername: fullChildKey, to: newFolder, with: pInfo)
+        }
     }
 
     public func renderFiles(
         foldername: String, to outputFolder: OutputFolder,
         using templateSoup: TemplateSoup, with pInfo: ParsedInfo
     ) async throws {
-        guard let files = folderMap[foldername] else { return }
-
-        for (filename, contents) in files {
-            guard filename.hasSuffix(".\(TemplateConstants.TemplateExtension)") else { continue }
-
-            let actualName = String(filename.dropLast(".\(TemplateConstants.TemplateExtension)".count))
-            if let rendered = try await templateSoup.renderTemplate(
-                string: contents, identifier: actualName, with: pInfo)
-            {
-                let outFile = TemplateRenderedFile(filename: actualName, contents: rendered, pInfo: pInfo)
-                await outputFolder.add(outFile)
-            }
-        }
+        try await renderFileset(foldername: foldername, to: outputFolder, using: templateSoup, with: pInfo)
     }
 
     // MARK: Init
@@ -115,13 +115,170 @@ public actor InlineBlueprint: Blueprint {
         self.folderMap = map
     }
 
-    // MARK: Private helpers
+    // MARK: Private — parity with LocalFileBlueprint folder rendering
 
-    /// Splits `"_modifiers_/javaType.teso"` → `("_modifiers_", "javaType.teso")`.
-    /// Files without a path separator are treated as root-level → `("", filename)`.
-    private func splitPath(_ path: String) -> (folder: String, file: String) {
-        guard let slashIndex = path.firstIndex(of: "/") else { return ("", path) }
-        return (String(path[..<slashIndex]), String(path[path.index(after: slashIndex)...]))
+    private func renderFileset(
+        foldername: String,
+        to outputFolder: OutputFolder,
+        using templateSoup: TemplateSoup,
+        with pInfo: ParsedInfo
+    ) async throws {
+        if let files = folderMap[foldername] {
+            var staticCount = 0
+            for (filename, contents) in files {
+                if filename.hasSuffix(".\(TemplateConstants.TemplateExtension)") {
+                    let templateName = String(filename.dropLast(".\(TemplateConstants.TemplateExtension)".count))
+                    let templateIdentifier = foldername.isEmpty ? templateName : "\(foldername)/\(templateName)"
+                    let templateSource = TemplateExecutionSource.parse(
+                        contents: contents,
+                        identifier: templateIdentifier,
+                        parseFrontMatter: true
+                    )
+                    try await renderInlineTemplateFile(
+                        templateName: templateName,
+                        outputNameTemplate: templateName,
+                        templateSource: templateSource,
+                        to: outputFolder,
+                        using: templateSoup,
+                        with: pInfo
+                    )
+                } else {
+                    staticCount += 1
+                }
+            }
+            if staticCount > 0 {
+                try await outputFolder.ensureExists()
+            }
+            for (filename, contents) in files {
+                guard !filename.hasSuffix(".\(TemplateConstants.TemplateExtension)") else { continue }
+                await templateSoup.context.debugLog.copyingFileInFolder(filename, folder: outputFolder.folder)
+                let outFile = TemplateRenderedFile(filename: filename, contents: contents, pInfo: pInfo)
+                await outputFolder.add(outFile)
+            }
+        }
+
+        for childName in Self.directChildSubfolderNames(of: foldername, in: folderMap) {
+            let fullChildKey = Self.childFolderKey(parent: foldername, childName: childName)
+            let subfoldername = try await ContentHandler.evalIfNeeded(expression: childName, with: templateSoup.context)
+                ?? childName
+            let newFolder = await outputFolder.subFolder(subfoldername)
+            try await renderFileset(foldername: fullChildKey, to: newFolder, using: templateSoup, with: pInfo)
+        }
+    }
+
+    /// Mirrors ``LocalFileBlueprint/renderTemplateFile`` using ``TemplateSoup``’s internal `renderTemplate(source:…)`.
+    private func renderInlineTemplateFile(
+        templateName: String,
+        outputNameTemplate: String,
+        templateSource: TemplateExecutionSource,
+        to outputFolder: OutputFolder,
+        using templateSoup: TemplateSoup,
+        with pInfo: ParsedInfo
+    ) async throws {
+        let ctx = templateSoup.context
+        let filename = try await ContentHandler.evalIfNeeded(expression: outputNameTemplate, with: ctx)
+            ?? outputNameTemplate
+        let parsingIdentifier = templateName
+        let parsingFrontMatter = templateSource.frontMatter?.withIdentifier(parsingIdentifier)
+        let includeForInfo: ParsedInfo? = if let parsingFrontMatter {
+            await FrontMatter.hasDirective(ParserDirective.includeFor, in: parsingFrontMatter, with: ctx)
+        } else {
+            nil
+        }
+        let hasOutputFilename = if let parsingFrontMatter {
+            await FrontMatter.hasDirective(ParserDirective.outputFilename, in: parsingFrontMatter, with: ctx) != nil
+        } else {
+            false
+        }
+
+        let renderClosure: RenderClosure = { outputname, renderPInfo in
+            do {
+                let outputFilename = outputname.isNotEmpty ? outputname : filename
+                if try await !ctx.events.canRender(filename: outputFilename, templatename: templateName, with: renderPInfo) {
+                    return
+                }
+                if let renderedString = try await templateSoup.renderTemplate(
+                    source: templateSource,
+                    with: renderPInfo,
+                    frontMatterIdentifier: filename
+                ) {
+                    await ctx.debugLog.generatingFileInFolder(
+                        filename,
+                        with: templateName,
+                        folder: outputFolder.folder,
+                        pInfo: renderPInfo
+                    )
+                    let outFile = TemplateRenderedFile(filename: outputFilename, contents: renderedString, pInfo: renderPInfo)
+                    await outputFolder.add(outFile)
+                }
+            } catch let err {
+                if let directive = err as? ParserDirective {
+                    if case let .excludeFile(filename) = directive {
+                        await renderPInfo.ctx.debugLog.excludingFile(filename)
+                        return
+                    } else if case let .stopRenderingCurrentFile(filename, pInfo) = directive {
+                        await renderPInfo.ctx.debugLog.stopRenderingCurrentFile(filename, pInfo: pInfo)
+                        return
+                    } else if case let .throwErrorFromCurrentFile(filename, errMsg, pInfo) = directive {
+                        await renderPInfo.ctx.debugLog.throwErrorFromCurrentFile(filename, err: errMsg, pInfo: pInfo)
+                        throw EvaluationError.templateRenderingError(pInfo, directive)
+                    }
+                } else {
+                    throw err
+                }
+            }
+        }
+
+        if let includeForInfo, let parsingFrontMatter {
+            try await templateSoup.forEach(forInExpression: includeForInfo.line, with: includeForInfo) {
+                if hasOutputFilename {
+                    if let outputFilename = try await FrontMatter.evalDirective(ParserDirective.outputFilename, in: parsingFrontMatter, pInfo: includeForInfo) as? String {
+                        try await renderClosure(outputFilename, includeForInfo)
+                    }
+                } else {
+                    try await renderClosure("", includeForInfo)
+                }
+            }
+        } else {
+            let renderPInfo = await ParsedInfo.dummyForFrontMatterError(identifier: parsingIdentifier, with: ctx)
+            try await renderClosure("", renderPInfo)
+        }
+    }
+
+    /// `"folder/path"` → `("folder", "path")` using the last path separator (supports nested folders).
+    private static func splitPathLast(_ path: String) -> (folder: String, file: String) {
+        guard let idx = path.lastIndex(of: "/") else { return ("", path) }
+        return (String(path[..<idx]), String(path[path.index(after: idx)...]))
+    }
+
+    private static func resolveLogicalPath(_ logicalPath: String, extension ext: String) -> (folder: String, filename: String) {
+        let ns = logicalPath as NSString
+        let dir = ns.deletingLastPathComponent
+        let base = ns.lastPathComponent
+        let folder = dir == "." ? "" : dir
+        let filename: String
+        if (base as NSString).pathExtension.isEmpty {
+            filename = "\(base).\(ext)"
+        } else {
+            filename = base
+        }
+        return (folder, filename)
+    }
+
+    private static func directChildSubfolderNames(of parent: String, in folderMap: [String: [String: String]]) -> [String] {
+        let prefix = parent.isEmpty ? "" : parent + "/"
+        var names = Set<String>()
+        for key in folderMap.keys {
+            guard key != parent, key.hasPrefix(prefix) else { continue }
+            let remainder = String(key.dropFirst(prefix.count))
+            guard !remainder.contains("/") else { continue }
+            names.insert(remainder)
+        }
+        return names.sorted()
+    }
+
+    private static func childFolderKey(parent: String, childName: String) -> String {
+        parent.isEmpty ? childName : "\(parent)/\(childName)"
     }
 }
 
@@ -190,6 +347,19 @@ public struct InlineModifier: InlineBlueprintItem {
     }
 }
 
+/// An in-memory static (non-template) file — full filename including extension.
+public struct InlineStaticFile: InlineBlueprintItem {
+    public let foldername: String
+    public let filename: String
+    public let contents: String
+
+    public init(_ name: String, in folder: String = "", contents: String) {
+        self.foldername = folder
+        self.filename = name
+        self.contents = contents
+    }
+}
+
 /// Groups multiple inline items under a named sub-folder of the blueprint.
 ///
 /// Example:
@@ -213,9 +383,13 @@ private struct FolderScopedItem: InlineBlueprintItem {
     let contents: String
 
     init(foldername: String, from item: any InlineBlueprintItem) {
-        self.foldername = foldername
-        self.filename   = item.filename
-        self.contents   = item.contents
+        if item.foldername.isEmpty {
+            self.foldername = foldername
+        } else {
+            self.foldername = "\(foldername)/\(item.foldername)"
+        }
+        self.filename = item.filename
+        self.contents = item.contents
     }
 }
 

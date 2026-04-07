@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import ModelHike
 
@@ -243,7 +244,7 @@ import Testing
     }
 
     @Test func blueprintExistsAlwaysTrue() async throws {
-        let exists = await loader.exists()
+        let exists = try await loader.exists()
         #expect(exists)
     }
 
@@ -356,6 +357,113 @@ import Testing
     @Test func inlineModifier_landsInModifiersFolder() async {
         let modFiles = await loader.listFiles(inFolder: SpecialFolderNames.modifiers)
         #expect(modFiles == ["shout.teso"])
+    }
+
+    // MARK: Nested folder path composition
+
+    @Test func nestedInlineFolder_composesPathKeys() async throws {
+        let bp = InlineBlueprint(name: "nest") {
+            InlineFolder("_root_") {
+                InlineTemplate("Top", contents: "top")
+                InlineFolder("sub") {
+                    InlineTemplate("Nested", contents: "nested-body")
+                }
+            }
+            InlineScript("main", contents: " ")
+        }
+        let pInfo = await makePInfo()
+        let top = try await bp.readTextContents(filename: "_root_/Top.teso", with: pInfo)
+        #expect(top == "top")
+        let nested = try await bp.readTextContents(filename: "_root_/sub/Nested.teso", with: pInfo)
+        #expect(nested == "nested-body")
+    }
+
+    @Test func loadTemplate_nestedPath() async throws {
+        let pInfo = await makePInfo()
+        let util = try await loader.loadTemplate(fileName: "helpers/Util", with: pInfo)
+        #expect(util.toString() == "// util")
+    }
+
+    // MARK: Static file
+
+    @Test func inlineStaticFile_isReadable() async throws {
+        let bp = InlineBlueprint(name: "static") {
+            InlineFolder("_root_") {
+                InlineStaticFile("config.json", contents: "{\"a\":1}")
+            }
+            InlineScript("main", contents: " ")
+        }
+        let pInfo = await makePInfo()
+        let json = try await bp.readTextContents(filename: "_root_/config.json", with: pInfo)
+        #expect(json == "{\"a\":1}")
+    }
+
+    // MARK: InlineGenerationHarness
+
+    @Test func harness_generate_rootTemplate() async throws {
+        let model = InlineModel {
+            """
+            ===
+            APIs
+            ===
+            + Mod
+
+            === Mod ===
+
+            Alpha
+            =====
+            * id: String
+
+            Beta
+            ====
+            * id: String
+            """
+        }
+        let bp = InlineBlueprint(name: "harness-bp") {
+            InlineFolder("_root_") {
+                InlineTemplate("Readme", contents: "Hello from blueprint")
+            }
+            InlineScript("main", contents: " ")
+        }
+        let files = try await InlineGenerationHarness.generate(
+            model: model,
+            blueprint: bp,
+            containersToOutput: ["APIs"]
+        )
+        let text = files.values.joined()
+        #expect(text.contains("Hello from blueprint"))
+    }
+
+    @Test func harness_generateToTempFolder_writesDisk() async throws {
+        let model = InlineModel {
+            """
+            ===
+            APIs
+            ===
+            + Mod
+
+            === Mod ===
+
+            Alpha
+            =====
+            * id: String
+            """
+        }
+        let bp = InlineBlueprint(name: "disk-bp") {
+            InlineFolder("_root_") {
+                InlineTemplate("Note", contents: "on-disk")
+            }
+            InlineScript("main", contents: " ")
+        }
+        let (path, files) = try await InlineGenerationHarness.generateToTempFolder(
+            model: model,
+            blueprint: bp,
+            containersToOutput: ["APIs"]
+        )
+        #expect(files.values.joined().contains("on-disk"))
+        let noteURL = path.url.appendingPathComponent("APIs", isDirectory: true).appendingPathComponent("Note")
+        #expect(FileManager.default.fileExists(atPath: noteURL.path))
+        try? FileManager.default.removeItem(at: path.url)
     }
 
     // MARK: Helpers

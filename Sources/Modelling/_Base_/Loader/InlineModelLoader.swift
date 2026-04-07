@@ -83,6 +83,12 @@ public struct InlineModelLoader : ModelRepository, Sendable {
         self.ctx = ctx
         self.items = builder()
     }
+
+    /// Assembles an inline model from explicit pieces (commons, domain model, config) without a result builder.
+    public init(with ctx: LoadContext, items: [any InlineModelProtocol]) {
+        self.ctx = ctx
+        self.items = items
+    }
 }
 
 public struct InlineModel : InlineModelProtocol {
