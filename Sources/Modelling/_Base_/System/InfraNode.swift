@@ -1,7 +1,7 @@
 //
 //  InfraNode.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 //  An infrastructure element declared inside a system body using a setext header.
 //  Used for databases, message brokers, caches, and other infra that don't
@@ -52,7 +52,10 @@ public struct InfraNode: Sendable {
     /// Configuration key-value properties declared on lines below the underline.
     public var properties: [InfraProperty]
 
-    public init(givenname: String, infraType: String? = nil, description: String? = nil, tags: [Tag] = [], properties: [InfraProperty] = []) {
+    public init(
+        givenname: String, infraType: String? = nil, description: String? = nil, tags: [Tag] = [],
+        properties: [InfraProperty] = []
+    ) {
         let trimmed = givenname.trim()
         self.givenname = trimmed
         self.name = trimmed.normalizeForVariableName()

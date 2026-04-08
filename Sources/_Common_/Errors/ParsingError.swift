@@ -1,7 +1,7 @@
 //
 //  ParsingError.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
@@ -15,18 +15,18 @@ public enum ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeProviding {
     case featureNotImplementedYet(ParsedInfo)
 
     public var info: String {
-        switch (self) {
-        case .invalidLine(_, let err) :
+        switch self {
+        case .invalidLine(_, let err):
             return err.info
-//            case .invalidLineWithInfo_HavingLineno(let pInfo, let err) :
-//            return "🐞🐞 \(pInfo.identifier) >> \(err.info)"
-        case .invalidLineWithoutErr(let info, _) :
+        //            case .invalidLineWithInfo_HavingLineno(let pInfo, let err) :
+        //            return "🐞🐞 \(pInfo.identifier) >> \(err.info)"
+        case .invalidLineWithoutErr(let info, _):
             return info
-        case .unrecognisedParsingDirective(let directiveName, _) :
+        case .unrecognisedParsingDirective(let directiveName, _):
             return "Unrecognised Parsing Directive '\(directiveName)'"
-        case .invalidParsingDirective(let pInfo) :
+        case .invalidParsingDirective(let pInfo):
             return "invalid Parsing Directive '\(pInfo.line)"
-        case .featureNotImplementedYet(let pInfo) :
+        case .featureNotImplementedYet(let pInfo):
             return "Feature not implemented yet: \(pInfo.line)"
         }
     }
@@ -45,15 +45,15 @@ public enum ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeProviding {
             return "E405"
         }
     }
-    
+
     public var pInfo: ParsedInfo {
-        return switch (self) {
-        case .invalidLine(let pInfo, _) : pInfo
+        return switch self {
+        case .invalidLine(let pInfo, _): pInfo
         //case .invalidLineWithInfo_HavingLineno(let pInfo, let err) : pInfo
-        case .invalidLineWithoutErr(_, let pInfo) : pInfo
-        case .unrecognisedParsingDirective(_, let pInfo) : pInfo
-        case .invalidParsingDirective(let pInfo) : pInfo
-        case .featureNotImplementedYet(let pInfo) : pInfo
+        case .invalidLineWithoutErr(_, let pInfo): pInfo
+        case .unrecognisedParsingDirective(_, let pInfo): pInfo
+        case .invalidParsingDirective(let pInfo): pInfo
+        case .featureNotImplementedYet(let pInfo): pInfo
         }
     }
 

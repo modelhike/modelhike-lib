@@ -1,7 +1,7 @@
 //
 //  PipelinePerformance.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
@@ -10,8 +10,11 @@ public protocol PipelinePerformanceRecorder: Actor, Sendable {
     func recordPipelineStarted() async
     func recordPipelineCompleted(durationMs: Double, success: Bool, errorMessage: String?) async
     func recordPhaseStarted(name: String) async
-    func recordPhaseCompleted(name: String, durationMs: Double, success: Bool, errorMessage: String?) async
-    func recordPassCompleted(phaseName: String, passName: String, durationMs: Double, success: Bool, errorMessage: String?) async
+    func recordPhaseCompleted(
+        name: String, durationMs: Double, success: Bool, errorMessage: String?) async
+    func recordPassCompleted(
+        phaseName: String, passName: String, durationMs: Double, success: Bool,
+        errorMessage: String?) async
     func report() async -> PipelinePerformanceReport?
     func textReport() async -> String
 }
@@ -23,7 +26,10 @@ public struct PipelinePerformancePassRecord: Sendable {
     public let success: Bool
     public let errorMessage: String?
 
-    public init(phaseName: String, passName: String, durationMs: Double, success: Bool, errorMessage: String?) {
+    public init(
+        phaseName: String, passName: String, durationMs: Double, success: Bool,
+        errorMessage: String?
+    ) {
         self.phaseName = phaseName
         self.passName = passName
         self.durationMs = durationMs
@@ -39,7 +45,10 @@ public struct PipelinePerformancePhaseRecord: Sendable {
     public let errorMessage: String?
     public let passes: [PipelinePerformancePassRecord]
 
-    public init(name: String, durationMs: Double?, success: Bool?, errorMessage: String?, passes: [PipelinePerformancePassRecord]) {
+    public init(
+        name: String, durationMs: Double?, success: Bool?, errorMessage: String?,
+        passes: [PipelinePerformancePassRecord]
+    ) {
         self.name = name
         self.durationMs = durationMs
         self.success = success
@@ -100,7 +109,9 @@ public actor DefaultPipelinePerformanceRecorder: PipelinePerformanceRecorder {
         phaseRecords = []
     }
 
-    public func recordPipelineCompleted(durationMs: Double, success: Bool, errorMessage: String?) async {
+    public func recordPipelineCompleted(durationMs: Double, success: Bool, errorMessage: String?)
+        async
+    {
         completedAt = Date()
         totalDurationMs = durationMs
         self.success = success
@@ -111,10 +122,14 @@ public actor DefaultPipelinePerformanceRecorder: PipelinePerformanceRecorder {
         for phase in phaseRecords where phase.name == name {
             return
         }
-        phaseRecords.append(MutablePhaseRecord(name: name, durationMs: nil, success: nil, errorMessage: nil, passes: []))
+        phaseRecords.append(
+            MutablePhaseRecord(
+                name: name, durationMs: nil, success: nil, errorMessage: nil, passes: []))
     }
 
-    public func recordPhaseCompleted(name: String, durationMs: Double, success: Bool, errorMessage: String?) async {
+    public func recordPhaseCompleted(
+        name: String, durationMs: Double, success: Bool, errorMessage: String?
+    ) async {
         upsertPhase(named: name) { phase in
             phase.durationMs = durationMs
             phase.success = success
@@ -123,7 +138,8 @@ public actor DefaultPipelinePerformanceRecorder: PipelinePerformanceRecorder {
     }
 
     public func recordPassCompleted(
-        phaseName: String, passName: String, durationMs: Double, success: Bool, errorMessage: String?
+        phaseName: String, passName: String, durationMs: Double, success: Bool,
+        errorMessage: String?
     ) async {
         upsertPhase(named: phaseName) { phase in
             phase.passes.append(
@@ -180,7 +196,8 @@ public actor DefaultPipelinePerformanceRecorder: PipelinePerformanceRecorder {
         if let index = phaseRecords.firstIndex(where: { $0.name == name }) {
             update(&phaseRecords[index])
         } else {
-            var record = MutablePhaseRecord(name: name, durationMs: nil, success: nil, errorMessage: nil, passes: [])
+            var record = MutablePhaseRecord(
+                name: name, durationMs: nil, success: nil, errorMessage: nil, passes: [])
             update(&record)
             phaseRecords.append(record)
         }
@@ -195,6 +212,7 @@ public actor DefaultPipelinePerformanceRecorder: PipelinePerformanceRecorder {
 enum PipelinePerformanceTime {
     static func milliseconds(from duration: Duration) -> Double {
         let components = duration.components
-        return (Double(components.seconds) * 1000.0) + (Double(components.attoseconds) / 1_000_000_000_000_000.0)
+        return (Double(components.seconds) * 1000.0)
+            + (Double(components.attoseconds) / 1_000_000_000_000_000.0)
     }
 }

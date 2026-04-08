@@ -1,7 +1,7 @@
 //
 //  LocalFilesetTemplate.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
@@ -26,17 +26,17 @@ struct CachedLocalFilesetSubfolder: Sendable {
 /// In-memory representation of a local blueprint folder used by `render-folder`
 /// caching. The raw `files` list is preserved, while templates/static files and
 /// subfolders are also split into cache-friendly buckets for fast reuse.
-public struct LocalFilesetTemplate : ScriptedTemplate {
+public struct LocalFilesetTemplate: ScriptedTemplate {
     public private(set) var name: String
     public let files: [LocalFile]
     let templateFiles: [CachedLocalTemplateFile]
     let staticFiles: [LocalFile]
     let subfolders: [CachedLocalFilesetSubfolder]
-    
+
     public func toString() -> String {
         name
     }
-    
+
     public init(folderPath: String) {
         let folder = LocalFolder(path: folderPath)
 
@@ -47,7 +47,10 @@ public struct LocalFilesetTemplate : ScriptedTemplate {
         self.subfolders = []
     }
 
-    init(name: String, files: [LocalFile], templateFiles: [CachedLocalTemplateFile], staticFiles: [LocalFile], subfolders: [CachedLocalFilesetSubfolder]) {
+    init(
+        name: String, files: [LocalFile], templateFiles: [CachedLocalTemplateFile],
+        staticFiles: [LocalFile], subfolders: [CachedLocalFilesetSubfolder]
+    ) {
         self.name = name
         self.files = files
         self.templateFiles = templateFiles

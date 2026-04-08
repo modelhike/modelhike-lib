@@ -1,18 +1,18 @@
 //
 //  RenderedFolder.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
 
-public actor RenderedFolder : PersistableFolder {
+public actor RenderedFolder: PersistableFolder {
     private let templateSoup: TemplateSoup
     public let foldername: String
     public let newFoldername: String
     public private(set) var outputFolder: OutputFolder?
     let pInfo: ParsedInfo
-    
+
     public func persist() async throws {
         if let ctx = pInfo.ctx as? GenerationContext {
             if let outputFolder {
@@ -24,41 +24,46 @@ public actor RenderedFolder : PersistableFolder {
             fatalError(#function + ": ctx is not GenerationContext")
         }
     }
-    
+
     public func renderFiles() async throws {
         if let outputFolder {
-            try await templateSoup.blueprint.renderFiles(foldername: foldername, to: outputFolder, using: templateSoup, with: pInfo)
+            try await templateSoup.blueprint.renderFiles(
+                foldername: foldername, to: outputFolder, using: templateSoup, with: pInfo)
         } else {
             fatalError(#function + ": output path not set!")
         }
     }
-    
+
     public func outputFolder(baseFolder: LocalFolder) {
         outputFolder = OutputFolder(baseFolder / self.newFoldername)
     }
-    
-    public var debugDescription: String { get async {
-        if let outputFolder {
-            return await outputFolder.debugDescription + " : \(foldername) -> \(newFoldername)"
-        } else {
-            return "RenderedFolder: \(foldername) -> \(newFoldername)"
+
+    public var debugDescription: String {
+        get async {
+            if let outputFolder {
+                return await outputFolder.debugDescription + " : \(foldername) -> \(newFoldername)"
+            } else {
+                return "RenderedFolder: \(foldername) -> \(newFoldername)"
+            }
         }
-    }}
-    
-    public init(foldername: String, templateSoup: TemplateSoup, to newFoldername: String, pInfo: ParsedInfo) {
+    }
+
+    public init(
+        foldername: String, templateSoup: TemplateSoup, to newFoldername: String, pInfo: ParsedInfo
+    ) {
         self.templateSoup = templateSoup
         self.foldername = foldername
         self.newFoldername = newFoldername
         self.pInfo = pInfo
         self.outputFolder = nil
     }
-    
-//    public init(foldername: String, templateSoup: TemplateSoup, to newFoldername:String, path outFilePath: LocalPath, pInfo: ParsedInfo) {
-//        self.templateSoup = templateSoup
-//        self.foldername = foldername
-//        self.newFoldername = newFoldername
-//        self.pInfo = pInfo
-//        self.outputFolder = OutputFolder(outFilePath / newFoldername)
-//    }
-    
+
+    //    public init(foldername: String, templateSoup: TemplateSoup, to newFoldername:String, path outFilePath: LocalPath, pInfo: ParsedInfo) {
+    //        self.templateSoup = templateSoup
+    //        self.foldername = foldername
+    //        self.newFoldername = newFoldername
+    //        self.pInfo = pInfo
+    //        self.outputFolder = OutputFolder(outFilePath / newFoldername)
+    //    }
+
 }

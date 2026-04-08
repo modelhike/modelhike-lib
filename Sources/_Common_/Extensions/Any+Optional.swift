@@ -1,23 +1,23 @@
 //
 //  Any+Optional.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
 
-fileprivate protocol FlattenableOptional {
-  func flattened() -> Any?
+private protocol FlattenableOptional {
+    func flattened() -> Any?
 }
 
 extension Optional: FlattenableOptional {
-  func flattened() -> Any? {
-    switch self {
-    case .some(let x as FlattenableOptional): return x.flattened()
-    case .some(let x): return x
-    case .none: return nil
+    func flattened() -> Any? {
+        switch self {
+        case .some(let x as FlattenableOptional): return x.flattened()
+        case .some(let x): return x
+        case .none: return nil
+        }
     }
-  }
 }
 
 internal func deepUnwrap(_ any: Any) -> Any? {

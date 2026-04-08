@@ -1,7 +1,7 @@
 //
 //  Annotations.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
@@ -38,7 +38,7 @@ public actor Annotations {
         let keyToFind = key.lowercased()
         return items[keyToFind]
     }
-    
+
     public func set(_ key: String, value newValue: (any Annotation)?) {
         let keyToFind = key.lowercased()
         items[keyToFind] = newValue
@@ -49,7 +49,7 @@ public actor Annotations {
         items[keyToFind] = item
     }
 
-    public func append(contentsOf annotations: Annotations) async  {
+    public func append(contentsOf annotations: Annotations) async {
         let items = await annotations.items
         for (key, value) in items {
             self.set(key, value: value)

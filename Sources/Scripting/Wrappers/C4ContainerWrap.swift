@@ -1,14 +1,14 @@
 //
 //  C4Container_Wrap.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
 
-public actor C4Container_Wrap : ObjectWrapper {
+public actor C4Container_Wrap: ObjectWrapper {
     public let item: C4Container
-    var appModel : AppModel
+    var appModel: AppModel
 
     private var _cachedTypes: [CodeObject_Wrap]?
     private var _cachedApis: [API_Wrap]?
@@ -35,24 +35,27 @@ public actor C4Container_Wrap : ObjectWrapper {
             return result
         }
     }
-    
-    public func getValueOf(property propname: String, with pInfo: ParsedInfo) async throws -> Sendable? {
+
+    public func getValueOf(property propname: String, with pInfo: ParsedInfo) async throws
+        -> Sendable?
+    {
         guard let key = C4ContainerProperty(rawValue: propname) else {
             //nothing found; so check in module attributes
             return try await resolveFallbackProperty(propname: propname, pInfo: pInfo)
         }
-        let value: Sendable = switch key {
-        case .name: await item.name
-        case .modules: await item.components(item.components, appModel: appModel)
-        case .commons: await item.components(appModel.commonModel, appModel: appModel)
-        case .defaultModule: await item.getFirstModule(appModel: appModel)
-        
-        case .types: await types
-        case .hasAnyApis: (await apis).isNotEmpty
-        case .description: await item.description ?? ""
-        case .hasDescription:
-            (await item.description).map { $0.isNotEmpty } ?? false
-        }
+        let value: Sendable =
+            switch key {
+            case .name: await item.name
+            case .modules: await item.components(item.components, appModel: appModel)
+            case .commons: await item.components(appModel.commonModel, appModel: appModel)
+            case .defaultModule: await item.getFirstModule(appModel: appModel)
+
+            case .types: await types
+            case .hasAnyApis: (await apis).isNotEmpty
+            case .description: await item.description ?? ""
+            case .hasDescription:
+                (await item.description).map { $0.isNotEmpty } ?? false
+            }
         return value
     }
 
@@ -61,8 +64,10 @@ public actor C4Container_Wrap : ObjectWrapper {
         let attributeNames = attributes.map { $0.givenKey }
         return C4ContainerProperty.allCases.map(\.rawValue) + attributeNames
     }
-    
-    private func resolveFallbackProperty(propname: String, pInfo: ParsedInfo) async throws -> Sendable {
+
+    private func resolveFallbackProperty(propname: String, pInfo: ParsedInfo) async throws
+        -> Sendable
+    {
         let attribs = item.attribs
         if await attribs.has(propname) {
             return await attribs[propname]
@@ -74,10 +79,10 @@ public actor C4Container_Wrap : ObjectWrapper {
             )
         }
     }
-    
-    public var debugDescription: String { get async { await item.debugDescription }}
 
-    public init(_ item: C4Container, model: AppModel ) {
+    public var debugDescription: String { get async { await item.debugDescription } }
+
+    public init(_ item: C4Container, model: AppModel) {
         self.item = item
         self.appModel = model
     }
@@ -95,4 +100,3 @@ private enum C4ContainerProperty: String, CaseIterable {
     case description
     case hasDescription = "has-description"
 }
-

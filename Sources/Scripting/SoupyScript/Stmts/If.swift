@@ -1,7 +1,7 @@
 //
 //  IfStmt.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
@@ -9,7 +9,7 @@ import RegexBuilder
 
 public struct IfStmt: MultiBlockTemplateStmt {
     public var state: MutipleBlockTemplateStmtState
-    
+
     static let START_KEYWORD = "if"
     static let ELSE_IF_KEYWORD = "else-if"
     static let ELSE_KEYWORD = "else"
@@ -26,10 +26,10 @@ public struct IfStmt: MultiBlockTemplateStmt {
             CommonRegEx.anything
         } transform: { String($0) }
         ZeroOrMore(.whitespace)
-        
+
         CommonRegEx.comments
     }
-    
+
     nonisolated(unsafe)
     static let elseIfRegex = Regex {
         ELSE_IF_KEYWORD
@@ -38,15 +38,15 @@ public struct IfStmt: MultiBlockTemplateStmt {
             CommonRegEx.anything
         } transform: { String($0) }
         ZeroOrMore(.whitespace)
-        
+
         CommonRegEx.comments
     }
-    
-    
+
+
     public mutating func checkIfSupportedAndGetBlock(blockLime: UnIdentifiedStmt) async throws -> PartOfMultiBlockContainer? {
-        
+
         var keyWord = ""
-        
+
          if await blockLime.pInfo.parser.isStatementsPrefixedWithKeyword {
             keyWord =  blockLime.pInfo.secondWord ?? ""
         } else {
@@ -56,25 +56,25 @@ public struct IfStmt: MultiBlockTemplateStmt {
         let line = blockLime.pInfo.line.lineWithoutStmtKeyword()
 
         if keyWord == Self.ELSE_IF_KEYWORD {
-            
+
             //check for 'Else if" stmt
             if let match = line.wholeMatch(of: Self.elseIfRegex) {
                 let (_, ELSEIFCondition) = match.output
-                
+
                 let block = ElseIfBlock(condition: ELSEIFCondition, pInfo: blockLime.pInfo)
-                
+
                 self.elseIfBlocks.append(block)
                 return block
             }
         }
         else if keyWord == Self.ELSE_KEYWORD {
-            
+
             //check for 'Else" stmt
             let actualStmt = line.stmtPartOnly()
             let elseMatches = actualStmt == Self.ELSE_KEYWORD
             if elseMatches {
                 let block = Generic_PartOfMultiBlockContainer(firstWord: Self.ELSE_KEYWORD, pInfo: blockLime.pInfo)
-                
+
                 self.elseBlock = block
                 return block
             }
@@ -82,22 +82,22 @@ public struct IfStmt: MultiBlockTemplateStmt {
             //nothing matches the syntax
             throw TemplateSoup_ParsingError.invalidMultiBlockStmt(blockLime.pInfo)
         }
-            
+
         return nil
     }
-    
+
     public mutating func matchLine(line: String) throws -> Bool {
         guard let match = line.wholeMatch(of: Self.ifRegex) else { return false }
 
         let (_, IFCondition) = match.output
         self.IFCondition = IFCondition
-        
+
         return true
     }
-    
+
     public func execute(with ctx: Context) async throws -> String? {
         guard IFCondition.isNotEmpty else { return nil }
-        
+
         if try await ctx.evaluateCondition(expression: IFCondition, with: pInfo) {
             await ctx.debugLog.ifConditionSatisfied(condition: IFCondition, pInfo: self.pInfo)
             return try await children.execute(with: ctx)
@@ -121,52 +121,52 @@ public struct IfStmt: MultiBlockTemplateStmt {
 
         return nil
     }
-    
+
     public var debugDescription: String {
         get async {
             var str =  """
         IF stmt (level: \(pInfo.level))
         - condn: \(self.IFCondition)
         - children:
-        
+
         """
-            
+
             await str += debugStringForChildren()
-            
+
             for elseIfBlock in elseIfBlocks {
                 if await elseIfBlock.isNotEmpty {
                     str +=  """
-                
+
                 ELSE IF stmt (level: \(pInfo.level))
                 - condn: \(elseIfBlock.condition)
                 - children:
-                
+
                 """
-                    
+
                     await str += elseIfBlock.debugStringForChildren()
                 }
             }
-            
+
             if let elseBlock = self.elseBlock {
                 str +=  """
-            
+
             ELSE stmt (level: \(pInfo.level))
             - children:
-            
+
             """
-                
+
                 str += await elseBlock.debugStringForChildren()
             }
-            
+
             return str
         }
     }
-    
-    
+
+
     public init(parseTill endKeyWord: String, pInfo: ParsedInfo) {
         state = MutipleBlockTemplateStmtState(keyword: Self.START_KEYWORD, endKeyword: endKeyWord, pInfo: pInfo)
     }
-    
+
     static let register = MultiBlockTemplateStmtConfig(keyword: START_KEYWORD) { endKeyWord, pInfo in
         IfStmt(parseTill: endKeyWord, pInfo: pInfo)
     }
@@ -182,15 +182,15 @@ public struct ElseIfBlock: PartOfMultiBlockContainer {
 
     public var firstWord: String { wrap.firstWord }
     public var container: GenericStmtsContainer { get async { await wrap.container }}
-    
+
     public func execute(with ctx: Context) async throws -> String? {
         return try await wrap.execute(with: ctx)
     }
-    
+
     public func debugStringForChildren() async -> String {
         return await wrap.debugStringForChildren()
     }
-    
+
     public init(condition: String, pInfo: ParsedInfo) {
         wrap = Generic_PartOfMultiBlockContainer(firstWord: pInfo.firstWord, pInfo: pInfo)
         self.condition = condition

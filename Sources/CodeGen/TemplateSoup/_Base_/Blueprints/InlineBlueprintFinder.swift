@@ -1,7 +1,7 @@
 //
 //  InlineBlueprintFinder.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 /// A `BlueprintFinder` backed entirely by in-memory `InlineBlueprint`s.

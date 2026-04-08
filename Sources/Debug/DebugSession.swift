@@ -1,7 +1,7 @@
 //
 //  DebugSession.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
@@ -23,7 +23,10 @@ public struct GeneratedFileRecord: Codable, Sendable {
     /// Zero-based index into `DebugSession.events` for the file-generation event.
     public let eventIndex: Int
 
-    public init(outputPath: String, relativeOutputPath: String? = nil, templateName: String?, objectName: String?, workingDir: String, eventIndex: Int) {
+    public init(
+        outputPath: String, relativeOutputPath: String? = nil, templateName: String?,
+        objectName: String?, workingDir: String, eventIndex: Int
+    ) {
         self.outputPath = outputPath
         self.relativeOutputPath = relativeOutputPath ?? outputPath
         self.templateName = templateName
@@ -47,7 +50,10 @@ public struct ErrorRecord: Codable, Sendable {
     /// Optional flattened variable state captured when the error occurred.
     public let memoryDump: [String: String]?
 
-    public init(category: String, message: String, source: SourceLocation, callStack: [SourceLocation], memoryDump: [String: String]?) {
+    public init(
+        category: String, message: String, source: SourceLocation, callStack: [SourceLocation],
+        memoryDump: [String: String]?
+    ) {
         self.category = category
         self.message = message
         self.source = source
@@ -71,7 +77,10 @@ public struct PhaseRecord: Codable, Sendable {
     /// Error text for a failed phase, if one was recorded.
     public let errorMessage: String?
 
-    public init(name: String, startedAt: Date, completedAt: Date?, duration: Double?, success: Bool, errorMessage: String?) {
+    public init(
+        name: String, startedAt: Date, completedAt: Date?, duration: Double?, success: Bool,
+        errorMessage: String?
+    ) {
         self.name = name
         self.startedAt = startedAt
         self.completedAt = completedAt
@@ -124,7 +133,11 @@ public struct DebugSession: Codable, Sendable {
     /// Incremental variable changes applied on top of base snapshots.
     public let deltaSnapshots: [DeltaSnapshot]
 
-    public init(timestamp: Date, config: ConfigSnapshot, phases: [PhaseRecord], model: ModelSnapshot, events: [DebugEventEnvelope], sourceFiles: [SourceFile], files: [GeneratedFileRecord], errors: [ErrorRecord], baseSnapshots: [MemorySnapshot], deltaSnapshots: [DeltaSnapshot]) {
+    public init(
+        timestamp: Date, config: ConfigSnapshot, phases: [PhaseRecord], model: ModelSnapshot,
+        events: [DebugEventEnvelope], sourceFiles: [SourceFile], files: [GeneratedFileRecord],
+        errors: [ErrorRecord], baseSnapshots: [MemorySnapshot], deltaSnapshots: [DeltaSnapshot]
+    ) {
         self.timestamp = timestamp
         self.config = config
         self.phases = phases

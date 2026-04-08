@@ -1,26 +1,27 @@
 //
 //  LoadContext.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
-public actor LoadContext : Context {
+public actor LoadContext: Context {
     public let model: AppModel
     public let debugLog: ContextDebugLog
     public var events = CodeGenerationEvents()
-    
+
     public internal(set) var symbols = ContextSymbols()
     public private(set) var objManager = ObjectAttributeManager()
 
     public var currentState = ContextState()
-    public private(set) var config : OutputConfig
-    
+    public private(set) var config: OutputConfig
+
     public private(set) var blueprints: BlueprintAggregator
-    
-    public func blueprint(named name: String, with pInfo: ParsedInfo) async throws -> any Blueprint {
+
+    public func blueprint(named name: String, with pInfo: ParsedInfo) async throws -> any Blueprint
+    {
         return try await blueprints.blueprint(named: name, with: pInfo)
     }
-    
+
     //Expression Evaluation
     public private(set) var evaluator = ExpressionEvaluator()
 
@@ -29,28 +30,29 @@ public actor LoadContext : Context {
     /// If `pushSnapshot` is called, it saves a snapshot of the current context state to a stack
     /// When `popSnapshot` is called, it discards any  changes after the last snapshot, by restoring latst snapshot
     public private(set) var snapshotStack = SnapshotStack()
-    
+
     public func config(_ value: OutputConfig) {
         self.config = value
         self.events = value.events
         self.debugLog.configure(flags: value.flags, recorder: value.debugRecorder)
         self.blueprints = BlueprintAggregator(config: value)
     }
-    
+
     public init(config: OutputConfig, debugLog: ContextDebugLog? = nil) {
         self.config = config
-        self.debugLog = debugLog ?? ContextDebugLog(flags: config.flags, recorder: config.debugRecorder)
+        self.debugLog =
+            debugLog ?? ContextDebugLog(flags: config.flags, recorder: config.debugRecorder)
         self.model = AppModel()
         self.blueprints = BlueprintAggregator(config: config)
     }
-    
+
     public init(model: AppModel, config: OutputConfig) {
         self.config = config
         self.debugLog = ContextDebugLog(flags: config.flags, recorder: config.debugRecorder)
         self.model = model
         self.blueprints = BlueprintAggregator(config: config)
     }
-    
+
     public init(model: AppModel, config: OutputConfig, data: StringDictionary) async {
         self.init(model: model, config: config)
         await self.replace(variables: data)

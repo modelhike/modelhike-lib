@@ -1,22 +1,30 @@
 //
 //  CodeGenerationEvents.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
 
-public typealias BeforeRenderFileHandler = @Sendable (_ fileName: String, _ pInfo: ParsedInfo) throws -> Bool
-public typealias BeforeRenderTemplateFileHandler = (_ fileName: String, _ templateName: String, _ pInfo: ParsedInfo) throws -> Bool
-public typealias StartParseObjectHandler = @Sendable (_ objectName: String, _ pInfo: ParsedInfo) throws ->
+public typealias BeforeRenderFileHandler =
+    @Sendable (_ fileName: String, _ pInfo: ParsedInfo) throws -> Bool
+public typealias BeforeRenderTemplateFileHandler = (
+    _ fileName: String, _ templateName: String, _ pInfo: ParsedInfo
+) throws -> Bool
+public typealias StartParseObjectHandler =
+    @Sendable (_ objectName: String, _ pInfo: ParsedInfo) throws ->
     Void
-public typealias BeforeParseTemplateHandler = @Sendable (_ templateName: String, _ ctx: GenerationContext)
+public typealias BeforeParseTemplateHandler =
+    @Sendable (_ templateName: String, _ ctx: GenerationContext)
     throws -> Void
-public typealias BeforeExecuteTemplateHandler = @Sendable (_ templateName: String, _ ctx: GenerationContext)
+public typealias BeforeExecuteTemplateHandler =
+    @Sendable (_ templateName: String, _ ctx: GenerationContext)
     throws -> Void
-public typealias BeforeParseScriptFileHandler = @Sendable (_ templateName: String, _ ctx: GenerationContext)
+public typealias BeforeParseScriptFileHandler =
+    @Sendable (_ templateName: String, _ ctx: GenerationContext)
     throws -> Void
-public typealias BeforeExecuteScriptFileHandler = @Sendable (_ templateName: String, _ ctx: GenerationContext)
+public typealias BeforeExecuteScriptFileHandler =
+    @Sendable (_ templateName: String, _ ctx: GenerationContext)
     throws -> Void
 
 public actor CodeGenerationEvents: Sendable {
@@ -30,7 +38,9 @@ public actor CodeGenerationEvents: Sendable {
 
     public var onStartParseObject: StartParseObjectHandler?
 
-    public func canRender(filename: String, templatename: String, with pInfo: ParsedInfo) throws -> Bool {
+    public func canRender(filename: String, templatename: String, with pInfo: ParsedInfo) throws
+        -> Bool
+    {
         if let onBeforeRenderTemplateFile {
             return try onBeforeRenderTemplateFile(filename, templatename, pInfo)  //if handler returns false, dont render file
         } else {
@@ -45,7 +55,7 @@ public actor CodeGenerationEvents: Sendable {
             return true
         }
     }
-    
+
     public func onParse(objectName: String, with pInfo: ParsedInfo) throws {
         if let onStartParse = onStartParseObject {
             try onStartParse(objectName, pInfo)  //if handler returns false, dont render file

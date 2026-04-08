@@ -1,12 +1,12 @@
 //
 //  C4Component.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
 
-public actor C4Component : ArtifactHolder {
+public actor C4Component: ArtifactHolder {
     public let attribs = Attributes()
     public let tags = Tags()
     public let annotations = Annotations()
@@ -22,7 +22,7 @@ public actor C4Component : ArtifactHolder {
     /// Module-level named constraints (`= name : { ... }`).
     public let namedConstraints = Constraints()
 
-    public internal(set) var items : [Artifact] = []
+    public internal(set) var items: [Artifact] = []
 
     public func setDescription(_ value: String?) {
         self.description = value
@@ -35,12 +35,12 @@ public actor C4Component : ArtifactHolder {
     public func append(function item: MethodObject) {
         functions.append(item)
     }
-    
+
     public func forEachEntity(by process: (CodeObject) throws -> Void) async throws {
         for item in await types {
             if await item.dataType == .entity { try process(item) }
         }
-     }
+    }
 
     private var _cachedTypes: [CodeObject]?
 
@@ -78,59 +78,59 @@ public actor C4Component : ArtifactHolder {
         items.append(item)
         invalidateTypesCache()
     }
-    
+
     public var isEmpty: Bool { items.count == 0 }
-    
+
     public var debugDescription: String {
         get async {
             let name = self.name
             let count = self.items.count
-            
-            var str =  """
-                    \(name)
-                    | items \(count):
-                    """
+
+            var str = """
+                \(name)
+                | items \(count):
+                """
             str += .newLine
-            
+
             for item in items {
                 let givenname = await item.givenname
                 str += "| " + givenname + .newLine
-                
+
             }
-            
+
             return str
         }
     }
-    
+
     public init(name: String = "", @ArtifactHolderBuilder _ builder: () -> [ArtifactHolder]) {
         self.name = name.trim().normalizeForVariableName()
         self.givenname = self.name
         self.items = builder()
     }
-    
+
     public init(name: String = "", _ items: ArtifactHolder...) {
         self.name = name.trim().normalizeForVariableName()
         self.givenname = self.name
         self.items = items
     }
-    
+
     public init(name: String = "", _ items: [ArtifactHolder]) {
         self.name = name.trim().normalizeForVariableName()
         self.givenname = self.name
         self.items = items
     }
-    
+
     public init(name: String) {
         self.name = name.trim().normalizeForVariableName()
         self.givenname = self.name
         self.items = []
     }
-    
+
     public init(name: Substring) {
         self.name = String(name).trim().normalizeForVariableName()
         self.givenname = self.name
         self.items = []
     }
-    
+
     public init() {}
 }

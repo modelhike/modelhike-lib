@@ -1,7 +1,7 @@
 //
 //  ContextState + Symbol.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
@@ -12,22 +12,22 @@ public final class ContextState: Sendable {
     public let templateFunctions = TemplateFunctionMap()
 }
 
-public actor DebugDictionary{
+public actor DebugDictionary {
     var debugInfo: [String: Sendable] = [:]
     var title: String = ""
-    
+
     public var hasAny: Bool {
         return self.debugInfo.isNotEmpty
     }
-    
+
     public func set(_ key: String, value: TemplateSoupExpressionDebugInfo) {
         self.debugInfo[key] = value
     }
-    
+
     public func set(_ key: String, value: Sendable) {
         self.debugInfo[key] = value
     }
-    
+
     //when a title is set, all existing items are removed from debug info
     public func title(_ title: String) {
         self.title = title
@@ -38,15 +38,15 @@ public actor DebugDictionary{
 public actor ContextSymbols {
     public internal(set) var template = TemplateSoupSymbols()
     public internal(set) var models = ModelSymbols()
-    
+
     public func addTemplate(modifiers modifiersList: [Modifier]) {
         template.add(modifiers: modifiersList)
     }
-    
+
     public func addTemplate(stmts stmtsList: [any FileTemplateStmtConfig]) {
         template.add(stmts: stmtsList)
     }
-    
+
     public func addTemplate(infixOperators operatorsList: [InfixOperatorProtocol]) {
         template.add(infixOperators: operatorsList)
     }
@@ -57,4 +57,3 @@ public struct TemplateSoupExpressionDebugInfo: Sendable {
     var expression: String
     var variables: StringDictionary
 }
-

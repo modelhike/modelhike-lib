@@ -1,7 +1,7 @@
 //
 //  VirtualGroupParser.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 //  Parses a virtual-group block inside a system body:
 //

@@ -1,7 +1,7 @@
 //
 //  PipelinePhase.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
@@ -9,13 +9,13 @@ import Foundation
 public struct DiscoverPhase: PipelinePhase {
     public let name: String = "Discover"
     public let context: LoadContext
-    public var config: OutputConfig { get async { await context.config }}
+    public var config: OutputConfig { get async { await context.config } }
 
     public var passes: [DiscoveringPass] = []
 
     @discardableResult
     public func runIn(pipeline: Pipeline) async throws -> Bool {
-        return try await runIn(pipeline: pipeline, passes: passes) {pass, phase in
+        return try await runIn(pipeline: pipeline, passes: passes) { pass, phase in
 
             if try await pass.canRunIn(phase: phase) {
                 return try await pass.runIn(pipeline.ws, phase: phase)
@@ -29,14 +29,14 @@ public struct DiscoverPhase: PipelinePhase {
     public mutating func append(passes phase: DiscoverPhase) {
         passes.append(contentsOf: phase.passes)
     }
-    
+
     public init(context: LoadContext) { self.context = context }
 }
 
 public struct LoadPhase: PipelinePhase {
     public let name: String = "Load"
     public let context: LoadContext
-    public var config: OutputConfig { get async { await context.config }}
+    public var config: OutputConfig { get async { await context.config } }
 
     public var passes: [LoadingPass] = []
     public var hasPasses: Bool { passes.count > 0 }
@@ -57,14 +57,14 @@ public struct LoadPhase: PipelinePhase {
     public mutating func append(passes phase: LoadPhase) {
         passes.append(contentsOf: phase.passes)
     }
-    
+
     public init(context: LoadContext) { self.context = context }
 }
 
 public struct HydratePhase: PipelinePhase {
     public let name: String = "Hydrate"
     public let context: LoadContext
-    public var config: OutputConfig { get async { await context.config }}
+    public var config: OutputConfig { get async { await context.config } }
 
     public var passes: [HydrationPass] = []
 
@@ -84,14 +84,14 @@ public struct HydratePhase: PipelinePhase {
     public mutating func append(passes phase: HydratePhase) {
         passes.append(contentsOf: phase.passes)
     }
-    
+
     public init(context: LoadContext) { self.context = context }
 }
 
 public struct TransformPhase: PipelinePhase {
     public let name: String = "Transform"
     public let context: LoadContext
-    public var config: OutputConfig { get async { await context.config }}
+    public var config: OutputConfig { get async { await context.config } }
 
     public var passes: [TransformationPass] = []
 
@@ -113,7 +113,7 @@ public struct TransformPhase: PipelinePhase {
     public mutating func append(passes phase: TransformPhase) {
         passes.append(contentsOf: phase.passes)
     }
-    
+
     public init(context: LoadContext) {
         self.context = context
         passes.append(pluginsPass)
@@ -123,7 +123,7 @@ public struct TransformPhase: PipelinePhase {
 public struct RenderPhase: PipelinePhase {
     public let name: String = "Render"
     public let context: LoadContext
-    public var config: OutputConfig { get async { await context.config }}
+    public var config: OutputConfig { get async { await context.config } }
 
     public var passes: [RenderingPass] = []
 
@@ -143,14 +143,14 @@ public struct RenderPhase: PipelinePhase {
     public mutating func append(passes phase: RenderPhase) {
         passes.append(contentsOf: phase.passes)
     }
-    
+
     public init(context: LoadContext) { self.context = context }
 }
 
 public struct PersistPhase: PipelinePhase {
     public let name: String = "Persist"
     public let context: LoadContext
-    public var config: OutputConfig { get async { await context.config }}
+    public var config: OutputConfig { get async { await context.config } }
 
     public var passes: [PersistancePass] = []
 
@@ -170,13 +170,13 @@ public struct PersistPhase: PipelinePhase {
     public mutating func append(passes phase: PersistPhase) {
         passes.append(contentsOf: phase.passes)
     }
-    
+
     public init(context: LoadContext) { self.context = context }
 }
 
 public protocol PipelinePhase: Sendable {
     associatedtype Pass: Sendable
-    
+
     var name: String { get }
     var context: LoadContext { get }
     var config: OutputConfig { get async }
@@ -189,7 +189,7 @@ public protocol PipelinePhase: Sendable {
 
     @discardableResult
     func runIn(pipeline: Pipeline) async throws -> Bool
-    
+
     func canRunIn(pipeline: Pipeline) -> Bool
 }
 
@@ -223,7 +223,8 @@ extension PipelinePhase {
 
             do {
                 let success = try await runPass(pass, self)
-                let passDurationMs = PipelinePerformanceTime.milliseconds(from: passStart.duration(to: clock.now))
+                let passDurationMs = PipelinePerformanceTime.milliseconds(
+                    from: passStart.duration(to: clock.now))
                 await performanceRecorder?.recordPassCompleted(
                     phaseName: name,
                     passName: passName,
@@ -236,7 +237,8 @@ extension PipelinePhase {
                     break
                 }
             } catch let err {
-                let passDurationMs = PipelinePerformanceTime.milliseconds(from: passStart.duration(to: clock.now))
+                let passDurationMs = PipelinePerformanceTime.milliseconds(
+                    from: passStart.duration(to: clock.now))
                 await performanceRecorder?.recordPassCompleted(
                     phaseName: name,
                     passName: passName,

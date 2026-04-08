@@ -1,7 +1,7 @@
 //
 //  DebugEvent.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
@@ -18,7 +18,8 @@ public enum DebugEvent: Codable, Sendable {
     case modelLoaded(containerCount: Int, typeCount: Int, commonTypeCount: Int)
 
     // File generation
-    case fileGenerated(outputPath: String, templateName: String?, objectName: String?, source: SourceLocation)
+    case fileGenerated(
+        outputPath: String, templateName: String?, objectName: String?, source: SourceLocation)
     case fileCopied(sourcePath: String, outputPath: String, source: SourceLocation)
     case fileExcluded(path: String, reason: String, source: SourceLocation)
     case fileRenderStopped(path: String, source: SourceLocation)
@@ -62,10 +63,14 @@ public enum DebugEvent: Codable, Sendable {
     case parsedTreeDumped(treeName: String, treeDescription: String)
 
     // Errors
-    case error(category: String, code: String?, message: String, source: SourceLocation, callStack: [SourceLocation])
+    case error(
+        category: String, code: String?, message: String, source: SourceLocation,
+        callStack: [SourceLocation])
 
     // Non-fatal diagnostics (warnings, hints, info)
-    case diagnostic(severity: DiagnosticSeverity, code: String?, message: String, source: SourceLocation, suggestions: [DiagnosticSuggestion])
+    case diagnostic(
+        severity: DiagnosticSeverity, code: String?, message: String, source: SourceLocation,
+        suggestions: [DiagnosticSuggestion])
 }
 
 /// Severity level for non-fatal diagnostics emitted during pipeline execution.
@@ -77,10 +82,10 @@ public enum DiagnosticSeverity: String, Codable, Sendable, CaseIterable {
 
     public var icon: String {
         switch self {
-        case .error:   return "❌"
+        case .error: return "❌"
         case .warning: return "⚠️"
-        case .info:    return "ℹ️"
-        case .hint:    return "💡"
+        case .info: return "ℹ️"
+        case .hint: return "💡"
         }
     }
 }

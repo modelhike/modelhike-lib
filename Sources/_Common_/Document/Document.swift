@@ -1,25 +1,23 @@
 //
 //  Document.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
 
 public protocol Document: Sendable {
-    
+
 }
 
-public protocol RenderableDocument : RenderableRoot {
-    
+public protocol RenderableDocument: RenderableRoot {
+
 }
 
-public protocol ContentDocument : Document {
-    
+public protocol ContentDocument: Document {
+
 }
 
-public protocol MarkupDocument : Document {
-    
+public protocol MarkupDocument: Document {
+
 }
-
-

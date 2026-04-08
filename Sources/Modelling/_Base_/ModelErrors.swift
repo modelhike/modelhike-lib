@@ -1,7 +1,7 @@
 //
 //  Model_ParsingError.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
@@ -37,7 +37,8 @@ public enum Model_ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeProvidin
         case .invalidPropertyLine(let pInfo): return "invalid property: \(pInfo.line)"
         case .propertyConstraintReferenceOutsideBlock(let refs, _):
             let list = refs.map { "@\($0)" }.joined(separator: ", ")
-            return "Named constraint reference(s) \(list) must appear inside the { } constraint block, not outside. Move \(list) into { ... }."
+            return
+                "Named constraint reference(s) \(list) must appear inside the { } constraint block, not outside. Move \(list) into { ... }."
         case .invalidDerivedProperty(let msg, _): return "invalid derived property: \(msg)"
         case .invalidMethodLine(let pInfo): return "invalid method: \(pInfo.line)"
 

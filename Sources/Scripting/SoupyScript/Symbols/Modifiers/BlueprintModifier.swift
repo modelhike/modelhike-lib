@@ -1,7 +1,7 @@
 //
 //  BlueprintModifier.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
@@ -15,10 +15,10 @@ import Foundation
 public enum BlueprintModifierInputType: String, Sendable {
     case string = "String"
     case double = "Double"
-    case bool   = "Bool"
-    case array  = "Array"
+    case bool = "Bool"
+    case array = "Array"
     case object = "Object"
-    case any    = "Any"
+    case any = "Any"
 
     /// Parses a type name from the front-matter `type:` value.
     /// Falls back to `.any` when the string is nil or unrecognised.
@@ -30,8 +30,8 @@ public enum BlueprintModifierInputType: String, Sendable {
         switch self {
         case .string: return value is String
         case .double: return value is Double
-        case .bool:   return value is Bool
-        case .array:  return value is [Sendable]
+        case .bool: return value is Bool
+        case .array: return value is [Sendable]
         case .object, .any: return true
         }
     }
@@ -42,8 +42,8 @@ public enum BlueprintModifierInputType: String, Sendable {
         switch self {
         case .string: return String.self
         case .double: return Double.self
-        case .bool:   return Bool.self
-        case .array:  return [Sendable].self
+        case .bool: return Bool.self
+        case .array: return [Sendable].self
         case .object, .any: return (any Sendable).self
         }
     }
@@ -54,7 +54,9 @@ public enum BlueprintModifierInputType: String, Sendable {
 /// A modifier whose logic is a `.teso` template file in the blueprint's `_modifiers_/` folder.
 /// Conforms to both `ModifierWithoutArgsProtocol` (registration) and
 /// `ModifierInstanceWithoutArgsProtocol` (execution) — `instance()` returns `self`.
-public struct BlueprintModifierWithoutParams: ModifierWithoutArgsProtocol, ModifierInstanceWithoutArgsProtocol {
+public struct BlueprintModifierWithoutParams: ModifierWithoutArgsProtocol,
+    ModifierInstanceWithoutArgsProtocol
+{
     public let name: String
     public var inputType: any Any.Type { _blueprintInputType.metatype }
     private let templateSource: TemplateExecutionSource
@@ -76,7 +78,10 @@ public struct BlueprintModifierWithoutParams: ModifierWithoutArgsProtocol, Modif
         )
     }
 
-    public init(name: String, templateContents: String, inputVarName: String, inputType: BlueprintModifierInputType, templateSoup: TemplateSoup) {
+    public init(
+        name: String, templateContents: String, inputVarName: String,
+        inputType: BlueprintModifierInputType, templateSoup: TemplateSoup
+    ) {
         self.name = name
         self.templateSource = TemplateExecutionSource.parse(
             contents: templateContents,
@@ -91,14 +96,15 @@ public struct BlueprintModifierWithoutParams: ModifierWithoutArgsProtocol, Modif
 
 // MARK: - With-params blueprint modifier
 
-
 /// A modifier defined by a `.teso` template file that also accepts positional arguments.
 /// Parameter names are declared in the front matter `params:` key (comma-separated).
 /// Conforms to both `ModifierWithUnNamedArgsProtocol` (registration) and
 /// `ModifierInstanceWithUnNamedArgsProtocol` (execution).
 /// `instance()` returns a value-copy; `setArgsGiven` mutates that copy — Swift value
 /// semantics ensure each call site gets independent argument state.
-public struct BlueprintModifierWithParams: ModifierWithUnNamedArgsProtocol, ModifierInstanceWithUnNamedArgsProtocol {
+public struct BlueprintModifierWithParams: ModifierWithUnNamedArgsProtocol,
+    ModifierInstanceWithUnNamedArgsProtocol
+{
     public let name: String
     public var inputType: any Any.Type { _blueprintInputType.metatype }
     private let templateSource: TemplateExecutionSource
@@ -137,7 +143,10 @@ public struct BlueprintModifierWithParams: ModifierWithUnNamedArgsProtocol, Modi
         )
     }
 
-    public init(name: String, templateContents: String, inputVarName: String, inputType: BlueprintModifierInputType, paramNames: [String], templateSoup: TemplateSoup) {
+    public init(
+        name: String, templateContents: String, inputVarName: String,
+        inputType: BlueprintModifierInputType, paramNames: [String], templateSoup: TemplateSoup
+    ) {
         self.name = name
         self.templateSource = TemplateExecutionSource.parse(
             contents: templateContents,

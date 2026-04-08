@@ -1,7 +1,7 @@
 //
 //  TemplateFunctionContainer.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
@@ -13,7 +13,8 @@ public actor TemplateFunction: SoupyScriptStmtContainer {
     let name: String
     let pInfo: ParsedInfo
 
-    public func execute(args: [ArgumentDeclaration], pInfo: ParsedInfo, with ctx: Context) async throws
+    public func execute(args: [ArgumentDeclaration], pInfo: ParsedInfo, with ctx: Context)
+        async throws
         -> String?
     {
         var rendering: String? = nil
@@ -40,7 +41,8 @@ public actor TemplateFunction: SoupyScriptStmtContainer {
                 await ctx.variables.set(arg.name, value: eval)
             } else {
                 let candidates = await ctx.variables.keySnapshot
-                throw Suggestions.variableOrPropertyNotFound(arg.value, candidates: candidates, pInfo: pInfo)
+                throw Suggestions.variableOrPropertyNotFound(
+                    arg.value, candidates: candidates, pInfo: pInfo)
             }
         }
 
@@ -53,7 +55,7 @@ public actor TemplateFunction: SoupyScriptStmtContainer {
                 await ctx.debugInfo.set(arg.name, value: "nil")
             }
         }
-            
+
         rendering = try await container.execute(with: ctx)
 
         //remove the arvs from affecting rest of the context
@@ -79,18 +81,20 @@ public actor TemplateFunction: SoupyScriptStmtContainer {
         await container.append(item)
     }
 
-    public var debugDescription: String { get async {
-        var str = """
-            container: Macro Function Defn - \(await container.items.count) items
-            - macro name: \(self.name)
-            - params: \(self.params)
-            
-            """
-        
-        await str += container.debugStringForChildren()
-        
-        return str
-    }}
+    public var debugDescription: String {
+        get async {
+            var str = """
+                container: Macro Function Defn - \(await container.items.count) items
+                - macro name: \(self.name)
+                - params: \(self.params)
+
+                """
+
+            await str += container.debugStringForChildren()
+
+            return str
+        }
+    }
 
     public init(name: String, params: [String], pInfo: ParsedInfo) {
         self.params = params

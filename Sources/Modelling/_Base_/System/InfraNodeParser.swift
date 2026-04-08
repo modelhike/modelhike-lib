@@ -1,7 +1,7 @@
 //
 //  InfraNodeParser.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 //  Parses an infra-node setext header inside a system body:
 //
@@ -22,40 +22,52 @@ public enum InfraNodeParser {
     /// Captures: (fullMatch, name, optional infraType, optional tagString)
     /// e.g. `Kafka Events [message-broker] #async -- desc`
     nonisolated(unsafe)
-    private static let infraHeader: Regex<(Substring, String, String?, String?)> = Regex {
-        // name (stops before `[`, `(`, `#`, `--`, `//`)
-        Capture {
-            OneOrMore {
-                NegativeLookahead {
-                    ChoiceOf { "["; "#"; "("; "//"; " -- " }
-                }
-                CharacterClass.any
-            }
-        } transform: { String($0).trim() }
-
-        // optional [type]
-        Optionally {
-            ZeroOrMore(.whitespace)
-            "["
+        private static let infraHeader: Regex<(Substring, String, String?, String?)> = Regex {
+            // name (stops before `[`, `(`, `#`, `--`, `//`)
             Capture {
                 OneOrMore {
-                    NegativeLookahead { "]" }
+                    NegativeLookahead {
+                        ChoiceOf {
+                            "["
+                            "#"
+                            "("
+                            "//"
+                            " -- "
+                        }
+                    }
                     CharacterClass.any
                 }
-            } transform: { String($0).trim() }
-            "]"
-        }
+            } transform: {
+                String($0).trim()
+            }
 
-        // optional #tags block
-        Optionally {
-            Capture {
-                ModelRegEx.tags
-            } transform: { String($0) }
-        }
+            // optional [type]
+            Optionally {
+                ZeroOrMore(.whitespace)
+                "["
+                Capture {
+                    OneOrMore {
+                        NegativeLookahead { "]" }
+                        CharacterClass.any
+                    }
+                } transform: {
+                    String($0).trim()
+                }
+                "]"
+            }
 
-        // consume trailing comments silently
-        CommonRegEx.comments
-    }
+            // optional #tags block
+            Optionally {
+                Capture {
+                    ModelRegEx.tags
+                } transform: {
+                    String($0)
+                }
+            }
+
+            // consume trailing comments silently
+            CommonRegEx.comments
+        }
 
     // MARK: - canParse
 
@@ -75,7 +87,9 @@ public enum InfraNodeParser {
 
         // Name must start with a letter or underscore — guards against `[type]`-only lines,
         // `(attr)` lines, and other non-identifier prefixes that would fail the regex.
-        guard let firstChar = trimmed.first, firstChar.isLetter || firstChar == "_" else { return false }
+        guard let firstChar = trimmed.first, firstChar.isLetter || firstChar == "_" else {
+            return false
+        }
 
         let nextLine = await lineParser.lookAheadLine(by: 1)
         let nextTrimmed = nextLine.trimmingCharacters(in: .whitespaces)
@@ -98,10 +112,11 @@ public enum InfraNodeParser {
         let (_, nodeName, infraType, tagString) = match.output
 
         let tags = tagString.map { ParserUtil.parseTags(from: $0) } ?? []
-        var node = InfraNode(givenname: nodeName, infraType: infraType, description: inlineDesc, tags: tags)
+        var node = InfraNode(
+            givenname: nodeName, infraType: infraType, description: inlineDesc, tags: tags)
 
-        await parser.skipLine() // skip name line
-        await parser.skipLine() // skip `++++` underline
+        await parser.skipLine()  // skip name line
+        await parser.skipLine()  // skip `++++` underline
 
         // Read `key = value` property lines
         while await parser.linesRemaining {
@@ -110,7 +125,10 @@ public enum InfraNodeParser {
 
             // Stop at blank lines, asterisms, or the next infra-node header (lookahead)
             if trimmed.isEmpty { break }
-            if trimmed.hasPrefix("//") { await parser.skipLine(); continue }
+            if trimmed.hasPrefix("//") {
+                await parser.skipLine()
+                continue
+            }
             if SystemParser.isAsterismLine(trimmed) { break }
             if trimmed.hasPrefix(ModelConstants.Container_Member) { break }
 

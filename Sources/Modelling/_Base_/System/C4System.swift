@@ -1,7 +1,7 @@
 //
 //  C4System.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
@@ -59,39 +59,41 @@ public actor C4System: ArtifactHolder {
         groups = newGroups
     }
 
-    public var count: Int { get async { await containers.count }}
+    public var count: Int { get async { await containers.count } }
 
     public func removeAll() async {
         await containers.removeAll()
     }
 
-    public var debugDescription: String { get async {
-        var str = """
-            \(self.name)
-            containers \(await self.containers.count):
-            """
-        str += .newLine
+    public var debugDescription: String {
+        get async {
+            var str = """
+                \(self.name)
+                containers \(await self.containers.count):
+                """
+            str += .newLine
 
-        for item in await containers.snapshot() {
-            await str += "  " + item.givenname + .newLine
-        }
-
-        if infraNodes.isNotEmpty {
-            str += "infra \(infraNodes.count):" + .newLine
-            for node in infraNodes {
-                str += "  " + node.givenname + .newLine
+            for item in await containers.snapshot() {
+                await str += "  " + item.givenname + .newLine
             }
-        }
 
-        if groups.isNotEmpty {
-            str += "groups \(groups.count):" + .newLine
-            for g in groups {
-                str += "  +--- " + g.givenname + .newLine
+            if infraNodes.isNotEmpty {
+                str += "infra \(infraNodes.count):" + .newLine
+                for node in infraNodes {
+                    str += "  " + node.givenname + .newLine
+                }
             }
-        }
 
-        return str
-    }}
+            if groups.isNotEmpty {
+                str += "groups \(groups.count):" + .newLine
+                for g in groups {
+                    str += "  +--- " + g.givenname + .newLine
+                }
+            }
+
+            return str
+        }
+    }
 
     public init(name: String) {
         self.givenname = name.trim()

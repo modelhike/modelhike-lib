@@ -1,7 +1,7 @@
 //
 //  AsyncSequence.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 public protocol _DictionaryAsyncSequence: AsyncSequence, Sendable {
@@ -10,8 +10,8 @@ public protocol _DictionaryAsyncSequence: AsyncSequence, Sendable {
     func snapshot() async -> [String: TSendable]
 }
 
-public extension _DictionaryAsyncSequence {
-    func makeAsyncIterator() -> _DictionaryAsyncIterator<Self> {
+extension _DictionaryAsyncSequence {
+    public func makeAsyncIterator() -> _DictionaryAsyncIterator<Self> {
         _DictionaryAsyncIterator(parent: self)
     }
 }
@@ -38,13 +38,13 @@ public protocol _CollectionAsyncSequence: AsyncSequence, Sendable {
     func snapshot() async -> [TSendable]
 }
 
-public extension _CollectionAsyncSequence {
-    func makeAsyncIterator() -> _CollectionAsyncIterator<Self> {
+extension _CollectionAsyncSequence {
+    public func makeAsyncIterator() -> _CollectionAsyncIterator<Self> {
         _CollectionAsyncIterator(parent: self)
     }
 
     @inlinable
-    func first(where predicate: @Sendable (TSendable) async -> Bool) async -> TSendable? {
+    public func first(where predicate: @Sendable (TSendable) async -> Bool) async -> TSendable? {
         for item in await snapshot() {
             if await predicate(item) { return item }
         }
@@ -75,8 +75,8 @@ public protocol _CollectionSequence: Sequence, Sendable {
     func snapshot() -> [TSendable]
 }
 
-public extension _CollectionSequence {
-    func makeIterator() -> _CollectionIterator<Self> {
+extension _CollectionSequence {
+    public func makeIterator() -> _CollectionIterator<Self> {
         _CollectionIterator(parent: self)
     }
 }
@@ -110,7 +110,7 @@ extension AsyncSequence {
         }
         return result
     }
-    
+
     @inlinable
     public func map<T>(
         _ transform: @Sendable @escaping (Element) async -> T?
@@ -122,7 +122,7 @@ extension AsyncSequence {
         }
         return result
     }
-    
+
     @inlinable
     public func flatMap<T>(
         _ transform: @Sendable (Element) async -> [T]
@@ -134,7 +134,7 @@ extension AsyncSequence {
         }
         return result
     }
-    
+
     @inlinable
     public func first(where predicate: (Element) async throws -> Bool) async rethrows -> Element? {
         for try await element in self {
@@ -149,8 +149,8 @@ extension AsyncSequence {
 extension Array {
     @inlinable
     public func compactMap<T>(
-        _ transform: @Sendable @escaping (Element)  async -> T?
-    ) async  -> [T] {
+        _ transform: @Sendable @escaping (Element) async -> T?
+    ) async -> [T] {
         var result: [T] = []
         for element in self {
             if let transformed = await transform(element) {
@@ -159,7 +159,7 @@ extension Array {
         }
         return result
     }
-    
+
     @inlinable
     public func map<T>(
         _ transform: @Sendable @escaping (Element) async -> T?
@@ -171,7 +171,7 @@ extension Array {
         }
         return result
     }
-    
+
     @inlinable
     public func flatMap<T>(
         _ transform: @Sendable (Element) async -> [T]
@@ -183,7 +183,7 @@ extension Array {
         }
         return result
     }
-    
+
     @inlinable
     public func first(where predicate: (Element) async -> Bool) async -> Element? {
         for element in self {
@@ -191,13 +191,13 @@ extension Array {
                 return element
             }
         }
-        
+
         return nil
     }
-    
+
     @inlinable
     public func contains(where predicate: (Element) async -> Bool) async -> Bool {
-        if let _ = await first(where: predicate) {
+        if await first(where: predicate) != nil {
             return true
         } else {
             return false
@@ -214,7 +214,7 @@ extension Array {
         }
         return list
     }
-    
+
     @inlinable
     public func asyncThrowingMap<T>(
         _ transform: @Sendable @escaping (Element) async throws -> T
@@ -227,5 +227,3 @@ extension Array {
         return result
     }
 }
-
-

@@ -1,30 +1,30 @@
 //
 //  Pipelines.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
 
 public enum Pipelines: Sendable {
-    
+
     public static let codegen = Pipeline {
-            Discover.models()
-            Load.models()
-            Hydrate.models()
-            Hydrate.annotations()
-            Validate.models()
-            Render.code()
-            Persist.toOutputFolder()
-        }
-    
+        Discover.models()
+        Load.models()
+        Hydrate.models()
+        Hydrate.annotations()
+        Validate.models()
+        Render.code()
+        Persist.toOutputFolder()
+    }
+
     public static let content = Pipeline {
-            Load.contentsFrom(folder: "contents")
-            LoadPagesPass(folderName: "localFolder")
-            LoadTemplatesPass(folderName: "localFolder")
-        }
-    
-    public static let empty =  Pipeline {
-        
+        Load.contentsFrom(folder: "contents")
+        LoadPagesPass(folderName: "localFolder")
+        LoadTemplatesPass(folderName: "localFolder")
+    }
+
+    public static let empty = Pipeline {
+
     }
 }

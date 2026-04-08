@@ -1,7 +1,7 @@
 //
 //  LoadModelsPass.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
@@ -26,11 +26,12 @@ public struct LoadModelsPass: LoadingPass {
 
                 // Emit modelLoaded debug event
                 if let recorder = await ws.config.debugRecorder {
-                    await recorder.recordEvent(.modelLoaded(
-                        containerCount: containerCount,
-                        typeCount: domainTypesCount,
-                        commonTypeCount: commonTypesCount
-                    ))
+                    await recorder.recordEvent(
+                        .modelLoaded(
+                            containerCount: containerCount,
+                            typeCount: domainTypesCount,
+                            commonTypeCount: commonTypesCount
+                        ))
                 }
 
                 return true
@@ -42,8 +43,11 @@ public struct LoadModelsPass: LoadingPass {
             }
         } catch let err {
             await printError(err, workspace: ws)
-            if let recorder = await ws.config.debugRecorder, let errWithPInfo = err as? ErrorWithMessageAndParsedInfo {
-                await recorder.recordErrorWithStackAndMemory(errWithPInfo, category: errorCategory(for: err))
+            if let recorder = await ws.config.debugRecorder,
+                let errWithPInfo = err as? ErrorWithMessageAndParsedInfo
+            {
+                await recorder.recordErrorWithStackAndMemory(
+                    errWithPInfo, category: errorCategory(for: err))
             }
             ws.debugLog.pipelineError("❌❌ ERROR IN LOADING MODELS ❌❌")
             return false

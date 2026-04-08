@@ -1,7 +1,7 @@
 //
 //  Context.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
@@ -37,29 +37,30 @@ public actor GenerationContext: Context {
         self.debugLog.configure(flags: value.flags, recorder: value.debugRecorder)
         self.blueprints = BlueprintAggregator(config: value)
     }
-    
+
     public private(set) var blueprints: BlueprintAggregator
-    
-    public func blueprint(named name: String, with pInfo: ParsedInfo) async throws -> any Blueprint {
+
+    public func blueprint(named name: String, with pInfo: ParsedInfo) async throws -> any Blueprint
+    {
         return try await blueprints.blueprint(named: name, with: pInfo)
     }
-    
+
     public func fileGenerator(_ value: FileGeneratorProtocol) {
         self.fileGenerator = value
     }
-    
+
     private func addGenerated(filePath: String) {
-//        print(filePath)
-//        if filePath.hasSuffix(".env.stage") {
-//            var i = 0
-//        }
+        //        print(filePath)
+        //        if filePath.hasSuffix(".env.stage") {
+        //            var i = 0
+        //        }
         self.generatedFiles.append(filePath)
     }
 
     public func addGenerated(file: LocalFile) {
         self.addGenerated(filePath: file.pathString)
     }
-    
+
     public func addGenerated(filePath: LocalPath) {
         self.addGenerated(filePath: filePath.string)
     }
@@ -69,14 +70,14 @@ public actor GenerationContext: Context {
         guard paths.isNotEmpty else { return }
         generatedFiles.append(contentsOf: paths)
     }
-    
+
     public func addGenerated(folderPath: LocalPath, addFileCount: Bool = true) {
         return addGenerated(folderPath: LocalFolder(path: folderPath), addFileCount: addFileCount)
     }
-    
+
     public func addGenerated(folderPath: LocalFolder, addFileCount: Bool = true) {
         self.generatedFolders.append(folderPath.pathString)
-        
+
         let files = folderPath.files
 
         if addFileCount {
@@ -84,14 +85,14 @@ public actor GenerationContext: Context {
                 self.addGenerated(file: file)
             }
         }
-        
+
         //add files in subfolder also
         for folder in folderPath.subFolders {
             self.generatedFolders.append(folder.pathString)
 
             if addFileCount {
                 let files = folder.files
-                
+
                 for file in files {
                     self.addGenerated(file: file)
                 }

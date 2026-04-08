@@ -1,7 +1,7 @@
 //
 //  DefaultOperatorsLibrary.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
@@ -58,7 +58,7 @@ public struct DefaultOperatorsLibrary {
 
             // Logical
             orOperator,
-            andOperator
+            andOperator,
         ]
     }
 
@@ -79,7 +79,8 @@ public struct DefaultOperatorsLibrary {
     public static var matchesOperator: InfixOperatorProtocol {
         CreateOperator.infix("matches") { (lhs: String, rhs: String) in
             if let regex = try? NSRegularExpression(pattern: rhs) {
-                return regex.numberOfMatches(in: lhs, range: NSRange(lhs.startIndex..., in: lhs)) > 0
+                return regex.numberOfMatches(in: lhs, range: NSRange(lhs.startIndex..., in: lhs))
+                    > 0
             }
             return false
         }
@@ -222,6 +223,5 @@ public struct DefaultOperatorsLibrary {
     public static var orOperator: InfixOperatorProtocol {
         CreateOperator.infix("or") { (lhs: Bool, rhs: Bool) in lhs || rhs }
     }
-    
-}
 
+}

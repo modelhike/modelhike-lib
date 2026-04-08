@@ -1,21 +1,21 @@
 //
 //  ModelConstants.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
 
 public enum ModelConstants {
     public static let Member_Optional = "-"
-    public static let Member_Optional2 = "_" //underscore; sometimes mistakenly user gives this
+    public static let Member_Optional2 = "_"  //underscore; sometimes mistakenly user gives this
     public static let Member_Mandatory = "*"
     public static let Member_PrimaryKey = "**"
     public static let Member_Conditional = "*?"
-    
+
     public static let Member_Calculated = "="
     public static let Member_Derived_For_Dto = "."
-    
+
     public static let Member_Method = "~"
     public static let MethodUnderlineChar = "-"
     public static let Member_ParameterMetadata = ">>>"

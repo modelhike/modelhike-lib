@@ -1,26 +1,26 @@
 //
 //  CallStack.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
-public protocol CallStackable : Sendable {
+public protocol CallStackable: Sendable {
     var callStackItem: CallStackItem { get }
 }
 
-public struct SpecialActivityCallStackItem : CallStackable {
+public struct SpecialActivityCallStackItem: CallStackable {
     public let callStackItem: CallStackItem
-    
+
     public init(activityName: String) {
         self.callStackItem = CallStackItem(specialActivityName: activityName)
     }
 }
 
-public struct CallStackItem : Sendable {
-    public let item : FileTemplateStatement?
-    public let pInfo : ParsedInfo?
+public struct CallStackItem: Sendable {
+    public let item: FileTemplateStatement?
+    public let pInfo: ParsedInfo?
     public let specialActivityName: String?
-    
+
     public func renderForDisplay() -> String {
         if let pInfo = pInfo {
             return " \(pInfo.identifier) [\(pInfo.lineNo)] >> \(pInfo.line)"
@@ -30,13 +30,13 @@ public struct CallStackItem : Sendable {
             return ""
         }
     }
-    
+
     public init(_ item: FileTemplateStatement, pInfo: ParsedInfo) {
         self.item = item
         self.pInfo = pInfo
         self.specialActivityName = nil
     }
-    
+
     public init(specialActivityName: String) {
         self.specialActivityName = specialActivityName
         self.pInfo = nil
@@ -46,15 +46,15 @@ public struct CallStackItem : Sendable {
 
 public actor CallStack {
     private var stack: [CallStackable] = []
-    
+
     public func snapshot() -> [CallStackable] {
         return stack
     }
-    
+
     public func push(_ info: CallStackable) {
         stack.append(info)
     }
-    
+
     @discardableResult
     public func popLast() -> CallStackable? {
         return stack.popLast()

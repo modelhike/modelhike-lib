@@ -1,7 +1,7 @@
 //
 //  ContentLine.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
@@ -57,7 +57,7 @@ public struct ContentLine: TemplateItem, CustomDebugStringConvertible {
     }
 }
 
-public protocol ContentLineItem : Sendable, CustomDebugStringConvertible{
-    var pInfo: ParsedInfo {get}
+public protocol ContentLineItem: Sendable, CustomDebugStringConvertible {
+    var pInfo: ParsedInfo { get }
     func execute(with ctx: Context) async throws -> String?
 }

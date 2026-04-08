@@ -1,7 +1,7 @@
 //
 //  ParserUtil.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
@@ -56,9 +56,15 @@ public class ParserUtil {
 
     /// `true` when `token` is a `>>>` line marker (`*`, `-->`, …), not bare description text.
     public static func isParameterMetadataMarkerToken(_ token: String) -> Bool {
-        if token == ModelConstants.Member_Output || token == ModelConstants.Member_InOut { return true }
-        if token == ModelConstants.Member_PrimaryKey || token == ModelConstants.Member_Mandatory { return true }
-        if token == ModelConstants.Member_Optional || token == ModelConstants.Member_Optional2 { return true }
+        if token == ModelConstants.Member_Output || token == ModelConstants.Member_InOut {
+            return true
+        }
+        if token == ModelConstants.Member_PrimaryKey || token == ModelConstants.Member_Mandatory {
+            return true
+        }
+        if token == ModelConstants.Member_Optional || token == ModelConstants.Member_Optional2 {
+            return true
+        }
         if token.starts(with: ModelConstants.Member_Conditional) { return true }
         return false
     }
@@ -72,7 +78,9 @@ public class ParserUtil {
     /// (via `extractInlineDescription`).
     ///
     /// Returns `(name, nil)` when no `#` is present.
-    public static func extractNameAndTagString(from line: String) -> (name: String, tagString: String?) {
+    public static func extractNameAndTagString(from line: String) -> (
+        name: String, tagString: String?
+    ) {
         let trimmed = line.trim()
         if let hashRange = trimmed.range(of: "#") {
             let name = String(trimmed[..<hashRange.lowerBound].trim())
@@ -108,14 +116,17 @@ public class ParserUtil {
     }
 
     /// Consumes consecutive `>>>` lines into `block`, advancing `parser`. Returns `false` if the current line is not `>>>`.
-    public static func consumePendingMetadataBlockLines(from parser: any LineParser, into block: inout PendingMetadataBlock) async -> Bool {
+    public static func consumePendingMetadataBlockLines(
+        from parser: any LineParser, into block: inout PendingMetadataBlock
+    ) async -> Bool {
         guard await parser.linesRemaining else { return false }
         let first = await parser.currentLine()
         guard first.hasPrefix(ModelConstants.Member_ParameterMetadata) else { return false }
         while await parser.linesRemaining {
             let line = await parser.currentLine()
             guard line.hasPrefix(ModelConstants.Member_ParameterMetadata) else { break }
-            let remainder = String(line.dropFirst(ModelConstants.Member_ParameterMetadata.count).trim())
+            let remainder = String(
+                line.dropFirst(ModelConstants.Member_ParameterMetadata.count).trim())
             let firstToken = String(remainder.prefix(while: { !$0.isWhitespace }))
             if Self.isParameterMetadataMarkerToken(firstToken) {
                 block.parameterMetadataLines.append(line)
@@ -131,25 +142,31 @@ public class ParserUtil {
     public static func joinedDescription(_ a: String?, _ b: String?) -> String? {
         switch (a, b) {
         case (nil, nil): return nil
-        case let (x?, nil): return x
-        case let (nil, y?): return y
-        case let (x?, y?): return x + " " + y
+        case (let x?, nil): return x
+        case (nil, let y?): return y
+        case (let x?, let y?): return x + " " + y
         }
     }
 
     /// Appends `more` onto an actor's existing description, preserving any previous text.
-    public static func appendDescription(_ more: String?, to target: any HasDescription_Actor) async {
+    public static func appendDescription(_ more: String?, to target: any HasDescription_Actor) async
+    {
         guard let more, more.isNotEmpty else { return }
         await target.setDescription(joinedDescription(await target.description, more))
     }
 
     /// Consumes following `--` lines and appends them onto `target.description`.
-    public static func appendConsumedDescriptionLines(from parser: any LineParser, to target: any HasDescription_Actor) async {
+    public static func appendConsumedDescriptionLines(
+        from parser: any LineParser, to target: any HasDescription_Actor
+    ) async {
         await appendDescription(await consumeDescriptionLines(from: parser), to: target)
     }
 
     /// Appends description text to the last recognized member when possible; otherwise to the owner when no prior member exists.
-    public static func appendDescription(_ more: String?, toLastRecognizedMember lastMember: CodeMember?, orOwner owner: any HasDescription_Actor) async {
+    public static func appendDescription(
+        _ more: String?, toLastRecognizedMember lastMember: CodeMember?,
+        orOwner owner: any HasDescription_Actor
+    ) async {
         if let method = lastMember as? MethodObject {
             await appendDescription(more, to: method)
         } else if let property = lastMember as? Property {
@@ -160,8 +177,13 @@ public class ParserUtil {
     }
 
     /// Consumes following `--` lines and appends them to the most appropriate target: last recognized member or owner.
-    public static func appendConsumedDescriptionLines(from parser: any LineParser, toLastRecognizedMember lastMember: CodeMember?, orOwner owner: any HasDescription_Actor) async {
-        await appendDescription(await consumeDescriptionLines(from: parser), toLastRecognizedMember: lastMember, orOwner: owner)
+    public static func appendConsumedDescriptionLines(
+        from parser: any LineParser, toLastRecognizedMember lastMember: CodeMember?,
+        orOwner owner: any HasDescription_Actor
+    ) async {
+        await appendDescription(
+            await consumeDescriptionLines(from: parser), toLastRecognizedMember: lastMember,
+            orOwner: owner)
     }
 
     /// `= name : ...` line where the value after `:` begins with `{` (named constraint, not a computed property).
@@ -183,7 +205,9 @@ public class ParserUtil {
     }
 
     /// Splits `= name : { ...` into the named-constraint identifier and the initial brace block text.
-    private static func splitNamedConstraintHeader(from line: String, firstWord: String) -> (name: String, bodyStart: String)? {
+    private static func splitNamedConstraintHeader(from line: String, firstWord: String) -> (
+        name: String, bodyStart: String
+    )? {
         guard firstWord == ModelConstants.Member_Calculated else { return nil }
         let rest = line.remainingLine(after: firstWord).trim()
         guard let colon = rest.firstIndex(of: ":") else { return nil }
@@ -194,7 +218,9 @@ public class ParserUtil {
     }
 
     /// Continues reading lines until the accumulated `{ ... }` block is balanced.
-    private static func collectBalancedBraceBlock(startingWith initial: String, from parser: any LineParser) async -> String {
+    private static func collectBalancedBraceBlock(
+        startingWith initial: String, from parser: any LineParser
+    ) async -> String {
         var parts: [String] = [initial]
         var balance = braceBalance(initial)
         while balance != 0 {
@@ -210,14 +236,18 @@ public class ParserUtil {
     /// Extracts the inner text of the first balanced `{ ... }` block, trimming surrounding whitespace/newlines.
     private static func extractBraceWrappedInnerText(from combined: String) -> String? {
         guard let open = combined.firstIndex(of: "{"),
-              let close = combined[open...].lastIndex(of: "}") else { return nil }
+            let close = combined[open...].lastIndex(of: "}")
+        else { return nil }
         let inner = String(combined[combined.index(after: open)..<close].trim())
         return inner.isEmpty ? nil : inner
     }
 
     /// Parses `= name : { expr }` with optional multi-line body; optional `--` lines after.
-    public static func parseNamedConstraint(from pInfo: ParsedInfo, parser: any LineParser) async throws -> Constraint? {
-        guard let header = splitNamedConstraintHeader(from: pInfo.line, firstWord: pInfo.firstWord) else { return nil }
+    public static func parseNamedConstraint(from pInfo: ParsedInfo, parser: any LineParser)
+        async throws -> Constraint?
+    {
+        guard let header = splitNamedConstraintHeader(from: pInfo.line, firstWord: pInfo.firstWord)
+        else { return nil }
         let combined = await collectBalancedBraceBlock(startingWith: header.bodyStart, from: parser)
         guard let inner = extractBraceWrappedInnerText(from: combined) else { return nil }
 
@@ -242,7 +272,9 @@ public class ParserUtil {
     }
 
     /// Reads the identifier immediately following `@`, returning the parsed name and the index after it.
-    private static func readAtReferenceName(in line: String, startingAt atIndex: String.Index) -> (name: String, nextIndex: String.Index)? {
+    private static func readAtReferenceName(in line: String, startingAt atIndex: String.Index) -> (
+        name: String, nextIndex: String.Index
+    )? {
         let nameStart = line.index(after: atIndex)
         var nameEnd = nameStart
         while nameEnd < line.endIndex, isAtReferenceIdentifierChar(line[nameEnd]) {
@@ -253,13 +285,17 @@ public class ParserUtil {
     }
 
     /// Returns `true` when the parsed `@identifier` is immediately followed by annotation syntax (`::`) rather than a reference.
-    private static func hasAnnotationSplit(in line: String, afterIdentifierEndingAt index: String.Index) -> Bool {
+    private static func hasAnnotationSplit(
+        in line: String, afterIdentifierEndingAt index: String.Index
+    ) -> Bool {
         guard index < line.endIndex else { return false }
         return line[index...].hasPrefix(ModelConstants.Annotation_Split)
     }
 
     /// Returns the range of the first balanced delimiter pair, including nested occurrences.
-    private static func rangeOfFirstBalancedBlock(in line: String, opening: Character, closing: Character) -> Range<String.Index>? {
+    private static func rangeOfFirstBalancedBlock(
+        in line: String, opening: Character, closing: Character
+    ) -> Range<String.Index>? {
         guard let open = line.firstIndex(of: opening) else { return nil }
         var depth = 0
         var i = open
@@ -325,7 +361,10 @@ public class ParserUtil {
     /// - Parameters:
     ///   - outsideConstraintBlock: Property remainder **after** `lineByRemovingFirstBalancedBraceBlock` — scans for stray `@` (E620). Not replaceable by `constraintInner` alone (that is only inside `{ }`).
     ///   - constraintInner: Captured inner text of `{ ... }`; collects `appliedConstraints` names.
-    public static func appliedConstraintNamesFromPropertySignature(outsideConstraintBlock: String, constraintInner: String?, appliedDefaultExpression: String?, pInfo: ParsedInfo) throws -> [String] {
+    public static func appliedConstraintNamesFromPropertySignature(
+        outsideConstraintBlock: String, constraintInner: String?, appliedDefaultExpression: String?,
+        pInfo: ParsedInfo
+    ) throws -> [String] {
         let insideRefs = extractAtReferences(from: constraintInner ?? "")
         let outsideRefs = extractAtReferences(from: outsideConstraintBlock)
         let defaultName = appliedDefaultExpression
@@ -353,13 +392,15 @@ public class ParserUtil {
     }
 
     /// Parses attributes from `attributeString` and applies them directly onto an actor-backed artifact.
-    public static func populateAttributes(for artifact: HasAttributes_Actor, from attributeString: String) async {
+    public static func populateAttributes(
+        for artifact: HasAttributes_Actor, from attributeString: String
+    ) async {
         let attribMatches = attributeString.matches(of: ModelRegEx.attributes_Capturing)
-        
+
         for match in attribMatches {
             let (_, name, value) = match.output
-            
-            if let value = value { // key-value attribute
+
+            if let value = value {  // key-value attribute
                 await artifact.attribs.set(name.trim(), value: value)
             } else {
                 //add the key as value
@@ -376,10 +417,12 @@ public class ParserUtil {
     }
 
     /// Parses inline property constraints and stores them on the target property actor.
-    public static func populateConstraints(for property: Property, from constraintString: String) async {
+    public static func populateConstraints(for property: Property, from constraintString: String)
+        async
+    {
         await property.constraints.set(parseConstraints(from: constraintString))
     }
-    
+
     /// Returns a `[Tag]` array parsed from `tagString` without touching any actor.
     public static func parseTags(from tagString: String) -> [Tag] {
         tagString.matches(of: ModelRegEx.tags_Capturing).map { match in
@@ -391,10 +434,10 @@ public class ParserUtil {
     /// Parses tags from `tagString` and appends them onto an actor-backed artifact.
     public static func populateTags(for artifact: HasTags_Actor, from tagString: String) async {
         let tagMatches = tagString.matches(of: ModelRegEx.tags_Capturing)
-        
+
         for match in tagMatches {
             let (_, tag, arg) = match.output
-            
+
             if let arg = arg {
                 await artifact.tags.append(tag, arg: arg)
             } else {
@@ -402,18 +445,18 @@ public class ParserUtil {
             }
         }
     }
-    
+
     /// Resolves mixin-like references from attributes/tags into actual model types and appends them to `artifact`.
     public static func extractMixins(for artifact: CodeObject, with ctx: LoadContext) async throws {
         let item = artifact
         try await item.attribs.processEach { attrib in
             if let entity = await ctx.model.types.get(for: attrib.name) {
                 await item.append(mixin: entity)
-                return nil //remove from attributes, as it is added to mixins
+                return nil  //remove from attributes, as it is added to mixins
             }
             return attrib
         }
-        
+
         try await item.tags.processEach { tag in
             if tag == TagConstants.savedFrom, let arg = tag.arg {
                 if let entity = await ctx.model.types.get(for: arg) {
@@ -450,4 +493,3 @@ extension C4Component: HasDescription_Actor {}
 extension C4Container: HasDescription_Actor {}
 extension C4System: HasDescription_Actor {}
 extension AttachedSection: HasDescription_Actor {}
-

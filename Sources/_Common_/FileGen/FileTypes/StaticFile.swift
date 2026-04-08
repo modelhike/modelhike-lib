@@ -1,12 +1,12 @@
 //
 //  StaticFile.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
 
-public actor StaticFile : OutputFile {
+public actor StaticFile: OutputFile {
     private let oldFilename: String
     public let filename: String
 
@@ -20,13 +20,13 @@ public actor StaticFile : OutputFile {
     public func outputPath(_ path: LocalPath) {
         self.outputPath = path
     }
-    
+
     public func render() async throws {
         guard let repo = repo else { return }
-        
+
         self.contents = try await repo.readTextContents(filename: self.oldFilename, with: pInfo)
     }
-    
+
     public func persist() throws {
         if let outputPath {
             if let contents = contents {
@@ -40,7 +40,7 @@ public actor StaticFile : OutputFile {
             fatalError(#function + ": output path not set!")
         }
     }
-    
+
     public var debugDescription: String {
         if let outputPath {
             let outFile = LocalFile(path: outputPath / filename)
@@ -49,40 +49,40 @@ public actor StaticFile : OutputFile {
             return "StaticFile: \(filename)"
         }
     }
-    
-//    public init(filename: String, filePath: LocalPath, contents: String, pInfo: ParsedInfo) {
-//        self.oldFilename = filename
-//        self.filename = filename
-//        self.outputPath = filePath
-//        self.contents = contents
-//        self.pInfo = pInfo
-//        
-//        self.data = nil
-//        self.repo = nil
-//    }
-//    
-//    public init(filename: String, filePath: LocalPath, data: Data, pInfo: ParsedInfo) {
-//        self.oldFilename = filename
-//        self.filename = filename
-//        self.outputPath = filePath
-//        self.contents = nil
-//        self.data = data
-//        self.pInfo = pInfo
-//        
-//        self.repo = nil
-//    }
-    
+
+    //    public init(filename: String, filePath: LocalPath, contents: String, pInfo: ParsedInfo) {
+    //        self.oldFilename = filename
+    //        self.filename = filename
+    //        self.outputPath = filePath
+    //        self.contents = contents
+    //        self.pInfo = pInfo
+    //
+    //        self.data = nil
+    //        self.repo = nil
+    //    }
+    //
+    //    public init(filename: String, filePath: LocalPath, data: Data, pInfo: ParsedInfo) {
+    //        self.oldFilename = filename
+    //        self.filename = filename
+    //        self.outputPath = filePath
+    //        self.contents = nil
+    //        self.data = data
+    //        self.pInfo = pInfo
+    //
+    //        self.repo = nil
+    //    }
+
     public init(filename: String, contents: String, pInfo: ParsedInfo) {
         self.oldFilename = filename
         self.filename = filename
         self.outputPath = nil
         self.contents = contents
         self.pInfo = pInfo
-        
+
         self.data = nil
         self.repo = nil
     }
-    
+
     public init(filename: String, data: Data, pInfo: ParsedInfo) {
         self.oldFilename = filename
         self.filename = filename
@@ -90,11 +90,13 @@ public actor StaticFile : OutputFile {
         self.contents = nil
         self.data = data
         self.pInfo = pInfo
-        
+
         self.repo = nil
     }
-    
-    public init(filename: String, repo: InputFileRepository, to newFilename:String, pInfo: ParsedInfo) {
+
+    public init(
+        filename: String, repo: InputFileRepository, to newFilename: String, pInfo: ParsedInfo
+    ) {
         self.oldFilename = filename
         self.filename = newFilename
 
@@ -102,14 +104,14 @@ public actor StaticFile : OutputFile {
         self.outputPath = nil
         self.pInfo = pInfo
     }
-    
-//    public init(filename: String, repo: InputFileRepository, to newFilename:String, path outFilePath: LocalPath, pInfo: ParsedInfo) {
-//        self.oldFilename = filename
-//        self.filename = newFilename
-//
-//        self.repo = repo
-//        self.outputPath = outFilePath
-//        self.pInfo = pInfo
-//    }
-    
+
+    //    public init(filename: String, repo: InputFileRepository, to newFilename:String, path outFilePath: LocalPath, pInfo: ParsedInfo) {
+    //        self.oldFilename = filename
+    //        self.filename = newFilename
+    //
+    //        self.repo = repo
+    //        self.outputPath = outFilePath
+    //        self.pInfo = pInfo
+    //    }
+
 }

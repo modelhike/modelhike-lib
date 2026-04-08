@@ -1,7 +1,7 @@
 //
 //  C4SystemList.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
@@ -25,13 +25,15 @@ public actor C4SystemList {
         return systems
     }
 
-    public var debugDescription: String { get async {
-        var str = "systems \(systems.count):" + String.newLine
-        for item in systems {
-            str += (await item.givenname) + String.newLine
+    public var debugDescription: String {
+        get async {
+            var str = "systems \(systems.count):" + String.newLine
+            for item in systems {
+                str += (await item.givenname) + String.newLine
+            }
+            return str
         }
-        return str
-    }}
+    }
 
     public init() {}
 }

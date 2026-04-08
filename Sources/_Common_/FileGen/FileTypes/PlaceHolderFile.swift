@@ -1,36 +1,38 @@
 //
 //  PlaceHolderFile.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
 
-public actor PlaceHolderFile : OutputFile {
+public actor PlaceHolderFile: OutputFile {
     private let oldFilename: String
     public let filename: String
     private let repo: InputFileRepository
     let renderer: TemplateRenderer
     let pInfo: ParsedInfo
     var contents: String? = nil
-    
+
     public private(set) var outputPath: LocalPath?
 
     public func outputPath(_ path: LocalPath) {
         self.outputPath = path
     }
-    
+
     public func render() async throws {
-        let data : [String: Sendable] = [:]
-        
-        if let contents = try await renderer.renderTemplate(fileName: self.oldFilename, data: data, with: pInfo) {
+        let data: [String: Sendable] = [:]
+
+        if let contents = try await renderer.renderTemplate(
+            fileName: self.oldFilename, data: data, with: pInfo)
+        {
             self.contents = contents
         }
     }
-    
-    public func persist() throws {        
+
+    public func persist() throws {
         if let outputPath {
-            if let contents { //save only if there is a content
+            if let contents {  //save only if there is a content
                 let outFile = LocalFile(path: outputPath / filename)
                 try outFile.write(contents)
             }
@@ -38,7 +40,7 @@ public actor PlaceHolderFile : OutputFile {
             fatalError(#function + ": output path not set!")
         }
     }
-    
+
     public var debugDescription: String {
         if let outputPath {
             let outFile = LocalFile(path: outputPath / filename)
@@ -47,8 +49,11 @@ public actor PlaceHolderFile : OutputFile {
             return "PlaceHolderFile: \(filename)"
         }
     }
-    
-    public init(filename: String, repo: InputFileRepository, to newFileName: String, renderer: TemplateRenderer, pInfo: ParsedInfo) {
+
+    public init(
+        filename: String, repo: InputFileRepository, to newFileName: String,
+        renderer: TemplateRenderer, pInfo: ParsedInfo
+    ) {
         self.oldFilename = filename
         self.filename = newFileName
 
@@ -57,15 +62,15 @@ public actor PlaceHolderFile : OutputFile {
         self.renderer = renderer
         self.pInfo = pInfo
     }
-    
-//    public init(filename: String, repo: InputFileRepository, to newFileName: String, path outFilePath: LocalPath, renderer: TemplateRenderer, pInfo: ParsedInfo) {
-//        self.oldFilename = filename
-//        self.filename = newFileName
-//
-//        self.repo = repo
-//        self.outputPath = outFilePath
-//        self.renderer = renderer
-//        self.pInfo = pInfo
-//    }
-    
+
+    //    public init(filename: String, repo: InputFileRepository, to newFileName: String, path outFilePath: LocalPath, renderer: TemplateRenderer, pInfo: ParsedInfo) {
+    //        self.oldFilename = filename
+    //        self.filename = newFileName
+    //
+    //        self.repo = repo
+    //        self.outputPath = outFilePath
+    //        self.renderer = renderer
+    //        self.pInfo = pInfo
+    //    }
+
 }

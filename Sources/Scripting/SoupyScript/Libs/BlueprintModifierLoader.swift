@@ -1,7 +1,7 @@
 //
 //  BlueprintModifierLoader.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
@@ -51,7 +51,9 @@ public struct BlueprintModifierLoader {
             let contents = try await blueprint.readTextContents(filename: relativePath, with: pInfo)
             let name = String(filename.dropLast(templateFileExtension.count))
 
-            if let modifier = buildModifier(name: name, contents: contents, templateSoup: templateSoup) {
+            if let modifier = buildModifier(
+                name: name, contents: contents, templateSoup: templateSoup)
+            {
                 modifiers.append(modifier)
             }
         }
@@ -66,10 +68,10 @@ public struct BlueprintModifierLoader {
         contents: String,
         templateSoup: TemplateSoup
     ) -> Modifier? {
-        let (fm, body)   = FrontMatter.simpleParse(contents: contents)
+        let (fm, body) = FrontMatter.simpleParse(contents: contents)
         let inputVarName = fm["input"] ?? "value"
-        let inputType    = BlueprintModifierInputType(string: fm["type"])
-        let paramNames   = (fm["params"] ?? "").splitTrimmed(separator: ",")
+        let inputType = BlueprintModifierInputType(string: fm["type"])
+        let paramNames = (fm["params"] ?? "").splitTrimmed(separator: ",")
 
         if paramNames.isEmpty {
             return BlueprintModifierWithoutParams(

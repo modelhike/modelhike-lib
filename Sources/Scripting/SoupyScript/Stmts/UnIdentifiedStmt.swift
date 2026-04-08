@@ -1,7 +1,7 @@
 //
 //  UnIdentifiedStmt.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
@@ -12,16 +12,16 @@ public struct UnIdentifiedStmt: TemplateItem, CustomDebugStringConvertible {
     public func execute(with ctx: Context) throws -> String? {
         throw TemplateSoup_EvaluationError.unIdentifiedStmt(pInfo)
     }
-    
+
     public var debugDescription: String {
-        let str =  """
-        UN-IDENTIFIED stmt (level: \(pInfo.level))
-        - line: \(pInfo.line.stmtPartOnly())
-        
-        """
-       
+        let str = """
+            UN-IDENTIFIED stmt (level: \(pInfo.level))
+            - line: \(pInfo.line.stmtPartOnly())
+
+            """
+
         return str
-        
+
     }
 
     public init(pInfo: ParsedInfo) {

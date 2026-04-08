@@ -1,7 +1,7 @@
 //
 //  SetVarStmt.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
@@ -15,31 +15,31 @@ public struct SetVarStmt: LineTemplateStmt, CustomDebugStringConvertible {
     public private(set) var ModifiersList: [ModifierInstance] = []
 
     public let state: LineTemplateStmtState
-    
+
     nonisolated(unsafe)
-    static let setVarLineRegex = Regex {
-        START_KEYWORD
-        OneOrMore(.whitespace)
-        Capture {
-            CommonRegEx.variableOrObjectProperty
-        } transform: {
-            String($0)
+        static let setVarLineRegex = Regex {
+            START_KEYWORD
+            OneOrMore(.whitespace)
+            Capture {
+                CommonRegEx.variableOrObjectProperty
+            } transform: {
+                String($0)
+            }
+            OneOrMore(.whitespace)
+
+            "="
+
+            OneOrMore(.whitespace)
+            Capture {
+                CommonRegEx.anything
+            } transform: {
+                String($0)
+            }
+
+            CommonRegEx.modifiersForExpression_Capturing
+
+            CommonRegEx.comments
         }
-        OneOrMore(.whitespace)
-
-        "="
-
-        OneOrMore(.whitespace)
-        Capture {
-            CommonRegEx.anything
-        } transform: {
-            String($0)
-        }
-
-        CommonRegEx.modifiersForExpression_Capturing
-
-        CommonRegEx.comments
-    }
 
     public mutating func matchLine(line: String) async throws -> Bool {
         guard let match = line.wholeMatch(of: Self.setVarLineRegex)
@@ -76,7 +76,8 @@ public struct SetVarStmt: LineTemplateStmt, CustomDebugStringConvertible {
                     await ctx.variables.set(variableName, value: str)
                 }
             } else {
-                try await ctx.setValueOf(variableOrObjProp: variableName, value: actualBody, with: pInfo)
+                try await ctx.setValueOf(
+                    variableOrObjProp: variableName, value: actualBody, with: pInfo)
             }
         } else {
 

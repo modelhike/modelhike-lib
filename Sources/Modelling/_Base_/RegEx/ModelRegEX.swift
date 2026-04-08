@@ -1,474 +1,540 @@
 //
 //  ModelRegEx.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
 import RegexBuilder
 
 public enum ModelRegEx {
-    
-    nonisolated(unsafe)
-    public static let whitespace: ZeroOrMore<Substring> = CommonRegEx.whitespace
-    
-    nonisolated(unsafe)
-    public static let variable: Regex<Substring> = CommonRegEx.variable
-    
-    nonisolated(unsafe)
-    public static let nameWithWhitespace: Regex<Substring> = CommonRegEx.nameWithWhitespace
 
     nonisolated(unsafe)
-    public static let variableValue: Regex<Substring> = Regex {
-        ChoiceOf {
-            CommonRegEx.objectPropertyPattern
-            CommonRegEx.variable
-        }
-    }
+        public static let whitespace: ZeroOrMore<Substring> = CommonRegEx.whitespace
 
     nonisolated(unsafe)
-    public static let integer: Regex<Substring> = CommonRegEx.integerPattern
+        public static let variable: Regex<Substring> = CommonRegEx.variable
 
     nonisolated(unsafe)
-    public static let tags: Regex<Substring> = Regex {
-        OneOrMore {
-            whitespace
-            "#"
-            variable
-            
-            Optionally {
-                whitespace
-                "("
-                whitespace
-                CommonRegEx.validValue
-                whitespace
-                ")"
+        public static let nameWithWhitespace: Regex<Substring> = CommonRegEx.nameWithWhitespace
+
+    nonisolated(unsafe)
+        public static let variableValue: Regex<Substring> = Regex {
+            ChoiceOf {
+                CommonRegEx.objectPropertyPattern
+                CommonRegEx.variable
             }
         }
-    }
-    
+
     nonisolated(unsafe)
-    public static let tags_Capturing: Regex<(Substring, String, Optional<String>)> = Regex {
-        OneOrMore {
-            whitespace
-            "#"
-            Capture {
+        public static let integer: Regex<Substring> = CommonRegEx.integerPattern
+
+    nonisolated(unsafe)
+        public static let tags: Regex<Substring> = Regex {
+            OneOrMore {
+                whitespace
+                "#"
                 variable
-            } transform: { String($0) }
-            
-            Optionally {
-                whitespace
-                "("
-                whitespace
-                Capture {
-                    CommonRegEx.validValue
-                } transform: { String($0) }
-                
-                whitespace
-                ")"
-            }
 
+                Optionally {
+                    whitespace
+                    "("
+                    whitespace
+                    CommonRegEx.validValue
+                    whitespace
+                    ")"
+                }
+            }
         }
-    }
-    
+
     nonisolated(unsafe)
-    public static let property_Type: Regex<Substring> = Regex {
-        CharacterClass(
-            ("A"..."Z"),
-            ("a"..."z")
-        )
-        ZeroOrMore {
-            CharacterClass(
-                .anyOf("_-@ .\","),
-                ("A"..."Z"),
-                ("a"..."z"),
-                ("0"..."9")
-            )
+        public static let tags_Capturing: Regex<(Substring, String, String?)> = Regex {
+            OneOrMore {
+                whitespace
+                "#"
+                Capture {
+                    variable
+                } transform: {
+                    String($0)
+                }
+
+                Optionally {
+                    whitespace
+                    "("
+                    whitespace
+                    Capture {
+                        CommonRegEx.validValue
+                    } transform: {
+                        String($0)
+                    }
+
+                    whitespace
+                    ")"
+                }
+
+            }
         }
-    }
+
+    nonisolated(unsafe)
+        public static let property_Type: Regex<Substring> = Regex {
+            CharacterClass(
+                ("A"..."Z"),
+                ("a"..."z")
+            )
+            ZeroOrMore {
+                CharacterClass(
+                    .anyOf("_-@ .\","),
+                    ("A"..."Z"),
+                    ("a"..."z"),
+                    ("0"..."9")
+                )
+            }
+        }
 
     /// Like `property_Type` but excludes comma, so it stops at the `,` separator between
     /// parameters in a method signature (e.g. `func(x: Int, y: String)`).
     nonisolated(unsafe)
-    public static let parameter_Type: Regex<Substring> = Regex {
-        CharacterClass(
-            ("A"..."Z"),
-            ("a"..."z")
-        )
-        ZeroOrMore {
+        public static let parameter_Type: Regex<Substring> = Regex {
             CharacterClass(
-                .anyOf("_-@ .\""),
                 ("A"..."Z"),
-                ("a"..."z"),
-                ("0"..."9")
+                ("a"..."z")
             )
-        }
-    }
-    
-    nonisolated(unsafe)
-    static let attributeSeparator: Regex<Substring> = Regex {
-        ChoiceOf {
-            ":"
-            "="
-        }
-    }
-
-    nonisolated(unsafe)
-    public static let property_ValidValueSet: Regex<(Substring, String)> = Regex {
-        whitespace
-        "<"
-        Capture {
             ZeroOrMore {
-                whitespace
-                CommonRegEx.validValue
-                whitespace
-                Optionally(",")
+                CharacterClass(
+                    .anyOf("_-@ .\""),
+                    ("A"..."Z"),
+                    ("a"..."z"),
+                    ("0"..."9")
+                )
             }
-        } transform: { String($0).trim() }
-        ">"
-    }
+        }
 
     nonisolated(unsafe)
-    public static let property_DefaultValue_Capturing: Regex<(Substring, String)> = Regex {
-        whitespace
-        "="
-        whitespace
-        NegativeLookahead {
-            "<"
+        static let attributeSeparator: Regex<Substring> = Regex {
+            ChoiceOf {
+                ":"
+                "="
+            }
         }
-        Capture {
+
+    nonisolated(unsafe)
+        public static let property_ValidValueSet: Regex<(Substring, String)> = Regex {
+            whitespace
+            "<"
+            Capture {
+                ZeroOrMore {
+                    whitespace
+                    CommonRegEx.validValue
+                    whitespace
+                    Optionally(",")
+                }
+            } transform: {
+                String($0).trim()
+            }
+            ">"
+        }
+
+    nonisolated(unsafe)
+        public static let property_DefaultValue_Capturing: Regex<(Substring, String)> = Regex {
+            whitespace
+            "="
+            whitespace
+            NegativeLookahead {
+                "<"
+            }
+            Capture {
+                OneOrMore {
+                    NegativeLookahead {
+                        whitespace
+                        ChoiceOf {
+                            "<"
+                            "{"
+                            "("
+                            "#"
+                            "//"
+                        }
+                    }
+                    CharacterClass.any
+                }
+            } transform: {
+                String($0).trim()
+            }
+        }
+
+    nonisolated(unsafe)
+        public static let property_Type_Multiplicity: Regex<(Substring, String)> = Regex {
+            "["
+            Capture {
+                Optionally {
+                    integer
+                    ".."
+                }
+                "*"
+            } transform: {
+                String($0)
+            }
+            "]"
+        }
+
+    nonisolated(unsafe)
+        static let attribute: Regex<Substring> = Regex {
+            variable
+            ZeroOrMore(.whitespace)
+
+            Optionally {
+                attributeSeparator
+                ZeroOrMore(.whitespace)
+                variableValue
+            }
+        }
+
+    nonisolated(unsafe)
+        static let attributes: Regex<(Substring, String)> = Regex {
+            whitespace
+            "("
+            Capture {
+                ZeroOrMore {
+                    whitespace
+                    attribute
+                    whitespace
+                    Optionally(",")
+                    whitespace
+                }
+            } transform: {
+                String($0)
+            }
+            ")"
+            whitespace
+        }
+
+    nonisolated(unsafe)
+        static let atribute_Capturing: Regex<(Substring, String, String?)> = Regex {
+            Capture {
+                nameWithWhitespace
+            } transform: {
+                String($0)
+            }
+
+            whitespace
+
+            Optionally {
+                attributeSeparator
+                whitespace
+                Capture {
+                    variableValue
+                } transform: {
+                    String($0)
+                }
+            }
+        }
+
+    nonisolated(unsafe)
+        static let attributes_Capturing: Regex<(Substring, String, String?)> = Regex {
+            whitespace
+            atribute_Capturing
+            whitespace
+            Optionally(",")
+            whitespace
+        }
+
+    nonisolated(unsafe)
+        static let property_ConstraintValue: Regex<Substring> = Regex {
             OneOrMore {
                 NegativeLookahead {
                     whitespace
                     ChoiceOf {
-                        "<"
-                        "{"
-                        "("
-                        "#"
-                        "//"
+                        ","
+                        "}"
                     }
                 }
                 CharacterClass.any
             }
-        } transform: { String($0).trim() }
-    }
+        }
 
     nonisolated(unsafe)
-    public static let property_Type_Multiplicity: Regex<(Substring, String)> = Regex {
-        "["
-        Capture {
-            Optionally {
-                integer
-                ".."
-            }
-            "*"
-        } transform: { String($0) }
-        "]"
-    }
-    
-    nonisolated(unsafe)
-    static let attribute: Regex<Substring> = Regex {
-        variable
-        ZeroOrMore(.whitespace)
-        
-        Optionally {
-            attributeSeparator
-            ZeroOrMore(.whitespace)
-            variableValue
-        }
-    }
-    
-    nonisolated(unsafe)
-    static let attributes: Regex<(Substring, String)> = Regex {
-        whitespace
-        "("
-        Capture {
-            ZeroOrMore {
-                whitespace
-                attribute
-                whitespace
-                Optionally(",")
-                whitespace
-            }
-        } transform: { String($0) }
-        ")"
-        whitespace
-    }
-    
-    nonisolated(unsafe)
-    static let atribute_Capturing: Regex<(Substring, String, Optional<String>)> = Regex {
-        Capture {
+        static let property_Constraint: Regex<Substring> = Regex {
             nameWithWhitespace
-        } transform: { String($0) }
-        
-        whitespace
-        
-        Optionally {
-            attributeSeparator
             whitespace
-            Capture {
-                variableValue
-            } transform: { String($0) }
-        }
-    }
-    
-    nonisolated(unsafe)
-    static let attributes_Capturing: Regex<(Substring, String, Optional<String>)> = Regex {
-        whitespace
-        atribute_Capturing
-        whitespace
-        Optionally(",")
-        whitespace
-    }
-
-    nonisolated(unsafe)
-    static let property_ConstraintValue: Regex<Substring> = Regex {
-        OneOrMore {
-            NegativeLookahead {
-                whitespace
-                ChoiceOf {
-                    ","
-                    "}"
-                }
-            }
-            CharacterClass.any
-        }
-    }
-
-    nonisolated(unsafe)
-    static let property_Constraint: Regex<Substring> = Regex {
-        nameWithWhitespace
-        whitespace
-        "="
-        whitespace
-        property_ConstraintValue
-    }
-
-    nonisolated(unsafe)
-    public static let property_Constraints: Regex<(Substring, String)> = Regex {
-        whitespace
-        "{"
-        Capture {
-            ZeroOrMore {
-                NegativeLookahead {
-                    "}"
-                }
-                CharacterClass.any
-            }
-        } transform: { String($0) }
-        "}"
-        whitespace
-    }
-
-    nonisolated(unsafe)
-    public static let property_Constraint_Capturing: Regex<(Substring, String, String)> = Regex {
-        whitespace
-        Capture {
-            nameWithWhitespace
-        } transform: { String($0) }
-        whitespace
-        "="
-        whitespace
-        Capture {
+            "="
+            whitespace
             property_ConstraintValue
-        } transform: { String($0).trim() }
-        whitespace
-        Optionally(",")
-        whitespace
-    }
-    
+        }
+
     nonisolated(unsafe)
-    public static let property_Capturing: Regex<(Substring, String, String, Optional<String>, Optional<String>, Optional<String>, Optional<String>, Optional<String>, Optional<String>)> = Regex {
-        Capture {
-            nameWithWhitespace
-        } transform: { String($0) }
-        
-        whitespace
-        ":"
-        
-        whitespace
-        Capture {
-            property_Type
-        } transform: { String($0) }
-        whitespace
-        
-        Optionally {
-            property_Type_Multiplicity
-        }
-        
-        Optionally {
-            property_DefaultValue_Capturing
-        }
-
-        Optionally {
-            property_ValidValueSet
-        }
-
-        Optionally {
-            property_Constraints
-        }
-
-        Optionally {
-            attributes
-        }
-        
-        Optionally {
+        public static let property_Constraints: Regex<(Substring, String)> = Regex {
+            whitespace
+            "{"
             Capture {
-                tags
-            } transform: { String($0) }
+                ZeroOrMore {
+                    NegativeLookahead {
+                        "}"
+                    }
+                    CharacterClass.any
+                }
+            } transform: {
+                String($0)
+            }
+            "}"
+            whitespace
         }
-    
-        CommonRegEx.comments
-    }
-    
+
     nonisolated(unsafe)
-    public static let derivedProperty_Capturing: Regex<(Substring, String, Optional<String>, Optional<String>)> = Regex {
-        Capture {
-            nameWithWhitespace
-        } transform: { String($0) }
-        
-        Optionally {
-            attributes
-        }
-        
-        Optionally {
+        public static let property_Constraint_Capturing: Regex<(Substring, String, String)> = Regex
+        {
+            whitespace
             Capture {
-                tags
-            } transform: { String($0) }
+                nameWithWhitespace
+            } transform: {
+                String($0)
+            }
+            whitespace
+            "="
+            whitespace
+            Capture {
+                property_ConstraintValue
+            } transform: {
+                String($0).trim()
+            }
+            whitespace
+            Optionally(",")
+            whitespace
         }
-        
-        CommonRegEx.comments
-    }
-    
+
     nonisolated(unsafe)
-    public static let method_Capturing: Regex<(Substring, String, String, Optional<String>, Optional<String>, Optional<String>)> = Regex {
-        Capture {
-            CommonRegEx.functionName
-        } transform: { String($0) }
-        whitespace
-        "("
-        whitespace
-        Capture {
-            ZeroOrMore(.any, .reluctant)
-        } transform: { String($0) }
-        
-        whitespace
-        ")"
-        
-        Optionally {
+        public static let property_Capturing:
+        Regex<(Substring, String, String, String?, String?, String?, String?, String?, String?)> =
+            Regex {
+                Capture {
+                    nameWithWhitespace
+                } transform: {
+                    String($0)
+                }
+
+                whitespace
+                ":"
+
+                whitespace
+                Capture {
+                    property_Type
+                } transform: {
+                    String($0)
+                }
+                whitespace
+
+                Optionally {
+                    property_Type_Multiplicity
+                }
+
+                Optionally {
+                    property_DefaultValue_Capturing
+                }
+
+                Optionally {
+                    property_ValidValueSet
+                }
+
+                Optionally {
+                    property_Constraints
+                }
+
+                Optionally {
+                    attributes
+                }
+
+                Optionally {
+                    Capture {
+                        tags
+                    } transform: {
+                        String($0)
+                    }
+                }
+
+                CommonRegEx.comments
+            }
+
+    nonisolated(unsafe)
+        public static let derivedProperty_Capturing: Regex<(Substring, String, String?, String?)> =
+            Regex {
+                Capture {
+                    nameWithWhitespace
+                } transform: {
+                    String($0)
+                }
+
+                Optionally {
+                    attributes
+                }
+
+                Optionally {
+                    Capture {
+                        tags
+                    } transform: {
+                        String($0)
+                    }
+                }
+
+                CommonRegEx.comments
+            }
+
+    nonisolated(unsafe)
+        public static let method_Capturing:
+        Regex<(Substring, String, String, String?, String?, String?)> = Regex {
+            Capture {
+                CommonRegEx.functionName
+            } transform: {
+                String($0)
+            }
+            whitespace
+            "("
+            whitespace
+            Capture {
+                ZeroOrMore(.any, .reluctant)
+            } transform: {
+                String($0)
+            }
+
+            whitespace
+            ")"
+
+            Optionally {
+                whitespace
+                ":"
+                whitespace
+                Capture {
+                    property_Type
+                    Optionally("[]")
+                } transform: {
+                    String($0)
+                }
+            }
+
+            whitespace
+
+            Optionally {
+                attributes
+            }
+
+            whitespace
+
+            Optionally {
+                Capture {
+                    tags
+                } transform: {
+                    String($0)
+                }
+            }
+
+            CommonRegEx.comments
+        }
+
+    nonisolated(unsafe)
+        public static let methodParamless_Capturing:
+        Regex<(Substring, String, String?, String?, String?)> = Regex {
+            Capture {
+                CommonRegEx.functionName
+            } transform: {
+                String($0)
+            }
+
+            Optionally {
+                whitespace
+                ":"
+                whitespace
+                Capture {
+                    property_Type
+                    Optionally("[]")
+                } transform: {
+                    String($0)
+                }
+            }
+
+            whitespace
+
+            Optionally {
+                attributes
+            }
+
+            whitespace
+
+            Optionally {
+                Capture {
+                    tags
+                } transform: {
+                    String($0)
+                }
+            }
+
+            CommonRegEx.comments
+        }
+
+    nonisolated(unsafe)
+        static let methodArgument_Capturing: Regex<(Substring, String, String)> = Regex {
+            Capture {
+                variable
+            } transform: {
+                String($0)
+            }
+
             whitespace
             ":"
             whitespace
             Capture {
                 property_Type
-                Optionally("[]")
-            } transform: { String($0) }
+            } transform: {
+                String($0)
+            }
         }
-
-        whitespace
-
-        Optionally {
-            attributes
-        }
-
-        whitespace
-        
-        Optionally {
-            Capture {
-                tags
-            } transform: { String($0) }
-        }
-        
-        CommonRegEx.comments
-    }
 
     nonisolated(unsafe)
-    public static let methodParamless_Capturing: Regex<(Substring, String, Optional<String>, Optional<String>, Optional<String>)> = Regex {
-        Capture {
-            CommonRegEx.functionName
-        } transform: { String($0) }
-
-        Optionally {
+        public static let methodArguments_Capturing: Regex<(Substring, String, String)> = Regex {
             whitespace
-            ":"
+            methodArgument_Capturing
             whitespace
-            Capture {
-                property_Type
-                Optionally("[]")
-            } transform: { String($0) }
+            Optionally(",")
+            whitespace
         }
 
-        whitespace
+    nonisolated(unsafe)
+        public static let container_Member_Capturing: Regex<(Substring, String, String?, String?)> =
+            Regex {
+                Capture {
+                    nameWithWhitespace
+                } transform: {
+                    String($0)
+                }
 
-        Optionally {
-            attributes
-        }
+                Optionally {
+                    attributes
+                }
 
-        whitespace
+                Optionally {
+                    Capture {
+                        tags
+                    } transform: {
+                        String($0)
+                    }
+                }
 
-        Optionally {
-            Capture {
-                tags
-            } transform: { String($0) }
-        }
+                CommonRegEx.comments
+            }
 
-        CommonRegEx.comments
-    }
-    
     nonisolated(unsafe)
-    static let methodArgument_Capturing: Regex<(Substring, String, String)> = Regex {
-        Capture {
-            variable
-        } transform: { String($0) }
-        
-        whitespace
-        ":"
-        whitespace
-        Capture {
-            property_Type
-        } transform: { String($0) }
-    }
-    
+        public static let moduleName_Capturing: Regex<(Substring, String, String?, String?)> =
+            container_Member_Capturing
+
     nonisolated(unsafe)
-    public static let methodArguments_Capturing: Regex<(Substring, String, String)> = Regex {
-        whitespace
-        methodArgument_Capturing
-        whitespace
-        Optionally(",")
-        whitespace
-    }
-    
+        public static let containerName_Capturing: Regex<(Substring, String, String?, String?)> =
+            container_Member_Capturing
+
     nonisolated(unsafe)
-    public static let container_Member_Capturing: Regex<(Substring, String, Optional<String>, Optional<String>)> = Regex {
-        Capture {
-            nameWithWhitespace
-        } transform: { String($0) }
-                
-        Optionally {
-            attributes
-        }
-        
-        Optionally {
-            Capture {
-                tags
-            } transform: { String($0) }
-        }
-    
-        CommonRegEx.comments
-    }
-    
+        public static let className_Capturing: Regex<(Substring, String, String?, String?)> =
+            container_Member_Capturing
+
     nonisolated(unsafe)
-    public static let moduleName_Capturing: Regex<(Substring, String, Optional<String>, Optional<String>)> = container_Member_Capturing
-    
+        public static let uiviewName_Capturing: Regex<(Substring, String, String?, String?)> =
+            container_Member_Capturing
+
     nonisolated(unsafe)
-    public static let containerName_Capturing: Regex<(Substring, String, Optional<String>, Optional<String>)> = container_Member_Capturing
-    
-    nonisolated(unsafe)
-    public static let className_Capturing: Regex<(Substring, String, Optional<String>, Optional<String>)> = container_Member_Capturing
-    
-    nonisolated(unsafe)
-    public static let uiviewName_Capturing: Regex<(Substring, String, Optional<String>, Optional<String>)> = container_Member_Capturing
-    
-    nonisolated(unsafe)
-    public static let attachedSectionName_Capturing: Regex<(Substring, String, Optional<String>, Optional<String>)> = container_Member_Capturing
+        public static let attachedSectionName_Capturing:
+        Regex<(Substring, String, String?, String?)> = container_Member_Capturing
 }

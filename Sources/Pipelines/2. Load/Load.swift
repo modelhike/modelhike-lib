@@ -1,7 +1,7 @@
 //
 //  Load.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 
 import Foundation
@@ -12,12 +12,14 @@ public enum Load {
     }
 }
 
-public extension Load {
-    static func contentsFrom(folder localFolder: String, afterModifiedDate: Date? = nil) -> LoadingPass {
+extension Load {
+    public static func contentsFrom(folder localFolder: String, afterModifiedDate: Date? = nil)
+        -> LoadingPass
+    {
         LoadContentFromFolder(folderName: localFolder, afterModifiedDate: afterModifiedDate)
     }
-    
-    static func contentsFrom(notion localFolder: String) -> LoadingPass {
+
+    public static func contentsFrom(notion localFolder: String) -> LoadingPass {
         LoadContentFromFolder(folderName: localFolder)
     }
 }

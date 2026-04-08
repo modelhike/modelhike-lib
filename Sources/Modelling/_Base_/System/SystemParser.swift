@@ -1,7 +1,7 @@
 //
 //  SystemParser.swift
 //  ModelHike
-//  https://www.github.com/modelhike/modelhike
+//  https://www.github.com/modelhike/modelhike-lib
 //
 //  Parses the system-level fence block:
 //
@@ -57,7 +57,7 @@ public enum SystemParser {
         let nameCandidate = await lineParser.lookAheadLine(by: 1)
         let trimmedName = nameCandidate.trimmingCharacters(in: .whitespaces)
         guard trimmedName.isNotEmpty else { return false }
-        guard !isAsterismLine(trimmedName) else { return false } // name line must not itself be a fence
+        guard !isAsterismLine(trimmedName) else { return false }  // name line must not itself be a fence
         let closingFence = await lineParser.lookAheadLine(by: 2)
         return isAsterismLine(closingFence)
     }
@@ -69,8 +69,10 @@ public enum SystemParser {
     /// Expects the parser positioned on the opening asterism line.
     /// Reads the body — `+` container references and infra-node blocks — until the
     /// closing body asterism (or end of file). The closing asterism is consumed.
-    public static func parse(parser: LineParser, with ctx: LoadContext, pending: ParserUtil.PendingMetadata? = nil) async throws -> C4System? {
-        await parser.skipLine() // skip opening asterism
+    public static func parse(
+        parser: LineParser, with ctx: LoadContext, pending: ParserUtil.PendingMetadata? = nil
+    ) async throws -> C4System? {
+        await parser.skipLine()  // skip opening asterism
 
         var nameLine = await parser.currentLine()
         let inlineDesc = ParserUtil.extractInlineDescription(from: &nameLine)
@@ -91,12 +93,15 @@ public enum SystemParser {
             await ParserUtil.populateTags(for: item, from: tagString)
         }
 
-        await parser.skipLine() // skip system name line
-        await parser.skipLine() // skip closing title asterism
+        await parser.skipLine()  // skip system name line
+        await parser.skipLine()  // skip closing title asterism
 
         // Read the system body until the closing body asterism or end of file.
         while await parser.linesRemaining {
-            if await parser.isCurrentLineEmptyOrCommented() { await parser.skipLine(); continue }
+            if await parser.isCurrentLineEmptyOrCommented() {
+                await parser.skipLine()
+                continue
+            }
 
             let currentLine = await parser.currentLine()
             let trimmed = currentLine.trimmingCharacters(in: .whitespaces)
@@ -107,12 +112,19 @@ public enum SystemParser {
                 break
             }
 
-            guard let pInfo = await parser.currentParsedInfo(level: 0) else { await parser.skipLine(); continue }
-            if await parser.isCurrentLineHumaneComment(pInfo) { await parser.skipLine(); continue }
+            guard let pInfo = await parser.currentParsedInfo(level: 0) else {
+                await parser.skipLine()
+                continue
+            }
+            if await parser.isCurrentLineHumaneComment(pInfo) {
+                await parser.skipLine()
+                continue
+            }
 
             // `+ Container Name` — store as unresolved reference.
             if pInfo.firstWord == ModelConstants.Container_Member {
-                let rest = pInfo.line.remainingLine(after: ModelConstants.Container_Member).trimmingCharacters(in: .whitespaces)
+                let rest = pInfo.line.remainingLine(after: ModelConstants.Container_Member)
+                    .trimmingCharacters(in: .whitespaces)
                 if rest.isNotEmpty {
                     await item.appendUnresolvedRef(rest)
                 }
