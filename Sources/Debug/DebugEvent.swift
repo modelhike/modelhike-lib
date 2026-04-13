@@ -64,12 +64,12 @@ public enum DebugEvent: Codable, Sendable {
 
     // Errors
     case error(
-        category: String, code: String?, message: String, source: SourceLocation,
+        category: String, code: DiagnosticErrorCode?, message: String, source: SourceLocation,
         callStack: [SourceLocation])
 
     // Non-fatal diagnostics (warnings, hints, info)
     case diagnostic(
-        severity: DiagnosticSeverity, code: String?, message: String, source: SourceLocation,
+        severity: DiagnosticSeverity, code: DiagnosticErrorCode?, message: String, source: SourceLocation,
         suggestions: [DiagnosticSuggestion])
 }
 

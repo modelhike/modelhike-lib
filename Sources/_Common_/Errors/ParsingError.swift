@@ -31,18 +31,18 @@ public enum ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeProviding {
         }
     }
 
-    public var errorCode: String {
+    public var diagnosticErrorCode: DiagnosticErrorCode {
         switch self {
         case .invalidLine(_, let err):
-            return err.code ?? "E401"
+            return err.diagnosticErrorCode ?? .e401
         case .invalidLineWithoutErr:
-            return "E402"
+            return .e402
         case .unrecognisedParsingDirective:
-            return "E403"
+            return .e403
         case .invalidParsingDirective:
-            return "E404"
+            return .e404
         case .featureNotImplementedYet:
-            return "E405"
+            return .e405
         }
     }
 

@@ -41,7 +41,7 @@ import Testing
         await context.debugLog.drainRecorder()
         let session = await recorder.session(config: config)
         let events = session.events
-        var codes: [String] = []
+        var codes: [DiagnosticErrorCode] = []
         for envelope in events {
             if case .diagnostic(_, let code, _, _, _) = envelope.event {
                 if let code {
@@ -50,7 +50,7 @@ import Testing
             }
         }
 
-        #expect(codes.contains("W301"))
+        #expect(codes.contains(.w301))
     }
 
     @Test func validationWarnings_preserveParsedSourceLocations() async throws {
@@ -100,25 +100,25 @@ import Testing
 
         await context.debugLog.drainRecorder()
         let session = await recorder.session(config: config)
-        var locations: [String: ModelHike.SourceLocation] = [:]
+        var locations: [DiagnosticErrorCode: ModelHike.SourceLocation] = [:]
         for envelope in session.events {
             if case .diagnostic(_, let code, _, let source, _) = envelope.event, let code {
                 locations[code] = source
             }
         }
 
-        #expect(locations["W301"]?.fileIdentifier == "warnings.modelhike")
-        #expect(locations["W301"]?.lineNo == 12)
-        #expect(locations["W302"]?.fileIdentifier == "warnings.modelhike")
-        #expect(locations["W302"]?.lineNo == 13)
-        #expect(locations["W303"]?.fileIdentifier == "warnings.modelhike")
-        #expect(locations["W303"]?.lineNo == 4)
-        #expect(locations["W304"]?.fileIdentifier == "warnings.modelhike")
-        #expect(locations["W304"]?.lineNo == 19)
-        #expect(locations["W305"]?.fileIdentifier == "warnings.modelhike")
-        #expect(locations["W305"]?.lineNo == 15)
-        #expect(locations["W306"]?.fileIdentifier == "warnings.modelhike")
-        #expect(locations["W306"]?.lineNo == 17)
+        #expect(locations[.w301]?.fileIdentifier == "warnings.modelhike")
+        #expect(locations[.w301]?.lineNo == 12)
+        #expect(locations[.w302]?.fileIdentifier == "warnings.modelhike")
+        #expect(locations[.w302]?.lineNo == 13)
+        #expect(locations[.w303]?.fileIdentifier == "warnings.modelhike")
+        #expect(locations[.w303]?.lineNo == 4)
+        #expect(locations[.w304]?.fileIdentifier == "warnings.modelhike")
+        #expect(locations[.w304]?.lineNo == 19)
+        #expect(locations[.w305]?.fileIdentifier == "warnings.modelhike")
+        #expect(locations[.w305]?.lineNo == 15)
+        #expect(locations[.w306]?.fileIdentifier == "warnings.modelhike")
+        #expect(locations[.w306]?.lineNo == 17)
     }
 
     @Test func inlineModelIdentifier_isPreservedInParseErrors() async throws {

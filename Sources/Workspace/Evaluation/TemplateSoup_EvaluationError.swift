@@ -54,19 +54,19 @@ public enum TemplateSoup_EvaluationError: ErrorWithMessageAndParsedInfo, ErrorCo
         }
     }
 
-    public var errorCode: String {
+    public var diagnosticErrorCode: DiagnosticErrorCode {
         switch self {
-        case .objectNotFound: return "E301"
-        case .unIdentifiedStmt: return "E302"
-        case .errorInExpression: return "E303"
-        case .invalidFileSystemPath: return "E304"
-        case .workingDirectoryNotSet: return "E305"
-        case .templateDoesNotExist: return "E306"
-        case .templateReadingError: return "E307"
-        case .scriptFileDoesNotExist: return "E308"
-        case .scriptFileReadingError: return "E309"
-        case .nonSendablePropertyValue: return "E310"
-        case .nonSendableValueFound: return "E311"
+        case .objectNotFound: return .e301
+        case .unIdentifiedStmt: return .e302
+        case .errorInExpression: return .e303
+        case .invalidFileSystemPath: return .e304
+        case .workingDirectoryNotSet: return .e305
+        case .templateDoesNotExist: return .e306
+        case .templateReadingError: return .e307
+        case .scriptFileDoesNotExist: return .e308
+        case .scriptFileReadingError: return .e309
+        case .nonSendablePropertyValue: return .e310
+        case .nonSendableValueFound: return .e311
         }
     }
     

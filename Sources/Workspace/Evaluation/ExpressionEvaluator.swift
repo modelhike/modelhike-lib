@@ -93,7 +93,7 @@ public actor ExpressionEvaluator {
                 let candidates = await pInfo.ctx.variables.keySnapshot
                 await pInfo.ctx.debugLog.recordLookupDiagnostic(
                     .warning,
-                    code: "W201",
+                    code: .w201,
                     "Condition '\(expression)' resolved to nil — treating as false. "
                         + "Check for typos in variable or property names.",
                     lookup: trimmed,
@@ -104,7 +104,7 @@ public actor ExpressionEvaluator {
             } else {
                 await pInfo.ctx.debugLog.recordDiagnostic(
                     .warning,
-                    code: "W201",
+                    code: .w201,
                     "Condition '\(expression)' resolved to nil — treating as false. "
                         + "Check for typos in variable or property names.",
                     pInfo: pInfo

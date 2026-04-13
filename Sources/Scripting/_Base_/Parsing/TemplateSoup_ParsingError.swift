@@ -77,27 +77,27 @@ public enum TemplateSoup_ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeP
         }
     }
 
-    public var errorCode: String {
+    public var diagnosticErrorCode: DiagnosticErrorCode {
         switch self {
-        case .invalidFrontMatter: return "E201"
-        case .invalidStmt: return "E202"
-        case .invalidMultiBlockStmt: return "E203"
-        case .invalidTemplateFunctionStmt: return "E204"
-        case .modifierNotFound: return "E205"
-        case .modifierInvalidSyntax: return "E206"
-        case .modifierInvalidArguments: return "E207"
-        case .modifierCalledOnwrongType: return "E208"
-        case .invalidExpression: return "E209"
-        case .propertiesEmpty: return "E210"
-        case .invalidPropertyAccess: return "E211"
-        case .variableOrPropertyNotFound: return "E212"
-        case .expressionOperandNotFound: return "E213"
-        case .invalidPropertyInCall: return "E214"
-        case .infixOperatorNotFound: return "E215"
-        case .infixOperatorCalledOnwrongLhsType: return "E216"
-        case .infixOperatorCalledOnwrongRhsType: return "E217"
-        case .infixOperatorTypeMismatch: return "E218"
-        case .templateFunctionNotFound: return "E219"
+        case .invalidFrontMatter: return .e201
+        case .invalidStmt: return .e202
+        case .invalidMultiBlockStmt: return .e203
+        case .invalidTemplateFunctionStmt: return .e204
+        case .modifierNotFound: return .e205
+        case .modifierInvalidSyntax: return .e206
+        case .modifierInvalidArguments: return .e207
+        case .modifierCalledOnwrongType: return .e208
+        case .invalidExpression: return .e209
+        case .propertiesEmpty: return .e210
+        case .invalidPropertyAccess: return .e211
+        case .variableOrPropertyNotFound: return .e212
+        case .expressionOperandNotFound: return .e213
+        case .invalidPropertyInCall: return .e214
+        case .infixOperatorNotFound: return .e215
+        case .infixOperatorCalledOnwrongLhsType: return .e216
+        case .infixOperatorCalledOnwrongRhsType: return .e217
+        case .infixOperatorTypeMismatch: return .e218
+        case .templateFunctionNotFound: return .e219
         }
     }
 

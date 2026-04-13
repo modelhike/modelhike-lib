@@ -63,28 +63,28 @@ public enum Model_ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeProvidin
         }
     }
 
-    public var errorCode: String {
+    public var diagnosticErrorCode: DiagnosticErrorCode {
         switch self {
-        case .objectTypeNotFound: return "E601"
-        case .invalidPropertyInType: return "E602"
-        case .invalidPropertyUsedInApi: return "E603"
-        case .invalidMapping: return "E604"
-        case .invalidPropertyLine: return "E605"
-        case .propertyConstraintReferenceOutsideBlock: return "E620"
-        case .invalidMethodLine: return "E606"
-        case .invalidDerivedProperty: return "E607"
-        case .invalidContainerMemberLine: return "E608"
-        case .invalidContainerLine: return "E609"
-        case .invalidModuleLine: return "E610"
-        case .invalidSubModuleLine: return "E611"
-        case .invalidDomainObjectLine: return "E612"
-        case .invalidDtoObjectLine: return "E613"
-        case .invalidUIViewLine: return "E614"
-        case .invalidAnnotationLine: return "E615"
-        case .invalidAttachedSection: return "E616"
-        case .invalidApiLine: return "E617"
-        case .invalidSystemLine: return "E619"
-        case .invalidCodeLogicStatement: return "E618"
+        case .objectTypeNotFound: return .e601
+        case .invalidPropertyInType: return .e602
+        case .invalidPropertyUsedInApi: return .e603
+        case .invalidMapping: return .e604
+        case .invalidPropertyLine: return .e605
+        case .propertyConstraintReferenceOutsideBlock: return .e620
+        case .invalidMethodLine: return .e606
+        case .invalidDerivedProperty: return .e607
+        case .invalidContainerMemberLine: return .e608
+        case .invalidContainerLine: return .e609
+        case .invalidModuleLine: return .e610
+        case .invalidSubModuleLine: return .e611
+        case .invalidDomainObjectLine: return .e612
+        case .invalidDtoObjectLine: return .e613
+        case .invalidUIViewLine: return .e614
+        case .invalidAnnotationLine: return .e615
+        case .invalidAttachedSection: return .e616
+        case .invalidApiLine: return .e617
+        case .invalidSystemLine: return .e619
+        case .invalidCodeLogicStatement: return .e618
         }
     }
 

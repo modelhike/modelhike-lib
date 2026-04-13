@@ -6,6 +6,17 @@
 
 import Foundation
 
+/// Captured variable state attached to a single error record.
+/// Wrapping the raw dictionary gives the debug payload room to grow without
+/// changing every API that currently threads error memory around.
+public struct MemoryDump: Codable, Sendable {
+    public let variables: [String: String]
+
+    public init(variables: [String: String]) {
+        self.variables = variables
+    }
+}
+
 /// A full variable snapshot at a moment in the debug timeline.
 /// This is the baseline state the debugger starts from when reconstructing memory.
 public struct MemorySnapshot: Codable, Sendable {

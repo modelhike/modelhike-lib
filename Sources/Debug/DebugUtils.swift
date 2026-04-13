@@ -65,7 +65,7 @@ public final class ContextDebugLog: @unchecked Sendable {
     /// without stopping the pipeline. Warnings are also printed to stdout.
     public func recordDiagnostic(
         _ severity: DiagnosticSeverity,
-        code: String? = nil,
+        code: DiagnosticErrorCode? = nil,
         _ message: String,
         source: SourceLocation,
         suggestions: [DiagnosticSuggestion] = []
@@ -78,7 +78,7 @@ public final class ContextDebugLog: @unchecked Sendable {
                                     source: source, suggestions: suggestions))
         }
         if shouldPrint {
-            let codeStr = code.map { "[\($0)] " } ?? ""
+            let codeStr = code.map { "[\($0.rawValue)] " } ?? ""
             let suggStr = suggestions.isEmpty
                 ? ""
                 : "\n   = \(suggestions.map(\.displayText).joined(separator: "\n   = "))"
@@ -108,7 +108,7 @@ public final class ContextDebugLog: @unchecked Sendable {
     /// Convenience overload accepting ParsedInfo for location.
     public func recordDiagnostic(
         _ severity: DiagnosticSeverity,
-        code: String? = nil,
+        code: DiagnosticErrorCode? = nil,
         _ message: String,
         pInfo: ParsedInfo,
         suggestions: [DiagnosticSuggestion] = []
@@ -120,7 +120,7 @@ public final class ContextDebugLog: @unchecked Sendable {
     /// and optional "available options" suggestions.
     public func recordLookupDiagnostic(
         _ severity: DiagnosticSeverity,
-        code: String? = nil,
+        code: DiagnosticErrorCode? = nil,
         _ message: String,
         lookup query: String,
         in candidates: [String],
@@ -143,7 +143,7 @@ public final class ContextDebugLog: @unchecked Sendable {
     /// Convenience overload accepting ParsedInfo for location.
     public func recordLookupDiagnostic(
         _ severity: DiagnosticSeverity,
-        code: String? = nil,
+        code: DiagnosticErrorCode? = nil,
         _ message: String,
         lookup query: String,
         in candidates: [String],

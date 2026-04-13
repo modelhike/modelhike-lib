@@ -57,7 +57,7 @@ public struct ValidateModelsPass: LoadingPass {
                 count += 1
                 ctx.debugLog.recordLookupDiagnostic(
                     .warning,
-                    code: "W303",
+                    code: .w303,
                     "Container '\(containerName)': module reference '+ \(member.name)' could not be resolved.",
                     lookup: member.name,
                     in: allNames,
@@ -84,7 +84,7 @@ public struct ValidateModelsPass: LoadingPass {
                 count += 1
                 ctx.debugLog.recordDiagnostic(
                     .warning,
-                    code: "W304",
+                    code: .w304,
                     "Duplicate type name '\(name)'. First occurrence: \(existing).",
                     source: source
                 )
@@ -110,7 +110,7 @@ public struct ValidateModelsPass: LoadingPass {
                     count += 1
                     ctx.debugLog.recordDiagnostic(
                         .warning,
-                        code: "W305",
+                        code: .w305,
                         "Duplicate property '\(pName)' in type '\(typeName)'.",
                         source: source
                     )
@@ -126,7 +126,7 @@ public struct ValidateModelsPass: LoadingPass {
                     count += 1
                     ctx.debugLog.recordDiagnostic(
                         .warning,
-                        code: "W306",
+                        code: .w306,
                         "Duplicate method '\(mName)' in type '\(typeName)'.",
                         source: source
                     )
@@ -160,7 +160,7 @@ public struct ValidateModelsPass: LoadingPass {
                     count += 1
                     ctx.debugLog.recordLookupDiagnostic(
                         .warning,
-                        code: "W301",
+                        code: .w301,
                         "Type '\(typeName)' referenced by property '\(propName)' in '\(ownerName)' not found.",
                         lookup: typeName,
                         in: knownTypeNamesSorted,
@@ -286,7 +286,7 @@ public struct ValidateModelsPass: LoadingPass {
                 count += 1
                 ctx.debugLog.recordLookupDiagnostic(
                     .warning,
-                    code: "W302",
+                    code: .w302,
                     "Unresolved `@\(ref)` default expression reference on property '\(await prop.name)' in '\(ownerName)'.",
                     lookup: ref,
                     in: allNames,
@@ -302,7 +302,7 @@ public struct ValidateModelsPass: LoadingPass {
                 count += 1
                 ctx.debugLog.recordLookupDiagnostic(
                     .warning,
-                    code: "W302",
+                    code: .w302,
                     "Unresolved `@\(ac)` constraint reference on property '\(await prop.name)' in '\(ownerName)'.",
                     lookup: ac,
                     in: allNames,

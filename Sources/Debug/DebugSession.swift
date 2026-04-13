@@ -41,6 +41,8 @@ public struct GeneratedFileRecord: Codable, Sendable {
 public struct ErrorRecord: Codable, Sendable {
     /// Broad classification such as parsing, evaluation, or rendering.
     public let category: String
+    /// Stable structured error code when one is available.
+    public let code: DiagnosticErrorCode?
     /// Human-readable error message shown in the debug UI.
     public let message: String
     /// Primary source location where the error originated.
@@ -48,13 +50,14 @@ public struct ErrorRecord: Codable, Sendable {
     /// Source-aware call stack collected at the time the error was recorded.
     public let callStack: [SourceLocation]
     /// Optional flattened variable state captured when the error occurred.
-    public let memoryDump: [String: String]?
+    public let memoryDump: MemoryDump?
 
     public init(
-        category: String, message: String, source: SourceLocation, callStack: [SourceLocation],
-        memoryDump: [String: String]?
+        category: String, code: DiagnosticErrorCode? = nil, message: String, source: SourceLocation,
+        callStack: [SourceLocation], memoryDump: MemoryDump?
     ) {
         self.category = category
+        self.code = code
         self.message = message
         self.source = source
         self.callStack = callStack

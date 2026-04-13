@@ -141,7 +141,7 @@ public struct SetStrVarStmt: BlockOrLineTemplateStmt {
                     let expr = ValueExpression.isNotEmpty ? ValueExpression : "(block body)"
                     await ctx.debugLog.recordDiagnostic(
                         .warning,
-                        code: "W202",
+                        code: .w202,
                         "Variable '\(variableName)' cleared: expression '\(expr)' resolved to nil.",
                         pInfo: pInfo
                     )

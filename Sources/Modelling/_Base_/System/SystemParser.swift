@@ -147,7 +147,7 @@ public enum SystemParser {
                 } else {
                     ctx.debugLog.recordDiagnostic(
                         .warning,
-                        code: "W620",
+                        code: .w620,
                         "Infra node header '\(pInfo.line.trim())' could not be parsed — name must start with a letter. Expected: 'Name [type] #tags -- description' followed by a '++++' underline.",
                         pInfo: pInfo
                     )

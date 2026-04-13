@@ -169,7 +169,7 @@ import Testing
         let pInfo = await ParsedInfo.dummy(line: ":if usernme", identifier: "main.ss", generationCtx: sandbox.context)
         await sandbox.context.debugLog.recordDiagnostic(
             .warning,
-            code: "W201",
+            code: .w201,
             "Condition 'usernme' resolved to nil — treating as false.",
             pInfo: pInfo,
             suggestions: [
@@ -206,7 +206,7 @@ import Testing
                 }
             }
             #expect(severity == .warning)
-            #expect(code == "W201")
+            #expect(code == .w201)
             #expect(message.contains("resolved to nil"))
             #expect(source.fileIdentifier == "main.ss")
             #expect(suggestions.contains(where: { $0.message.contains("did you mean 'username'?") }))
@@ -239,26 +239,27 @@ import Testing
         let sandbox = await ws.newStringSandbox()
         let pInfo = await ParsedInfo.dummyForMainFile(with: sandbox.context)
 
-        let errors: [(any ErrorWithMessage, String)] = [
-            (TemplateSoup_ParsingError.invalidFrontMatter("bad", pInfo), "E201"),
-            (TemplateSoup_ParsingError.modifierNotFound("missing", pInfo), "E205"),
-            (TemplateSoup_ParsingError.variableOrPropertyNotFound("missing", pInfo), "E212"),
-            (TemplateSoup_ParsingError.templateFunctionNotFound("missing", pInfo), "E219"),
-            (TemplateSoup_EvaluationError.unIdentifiedStmt(pInfo), "E302"),
+        let errors: [(any ErrorWithMessage, DiagnosticErrorCode)] = [
+            (TemplateSoup_ParsingError.invalidFrontMatter("bad", pInfo), .e201),
+            (TemplateSoup_ParsingError.modifierNotFound("missing", pInfo), .e205),
+            (TemplateSoup_ParsingError.variableOrPropertyNotFound("missing", pInfo), .e212),
+            (TemplateSoup_ParsingError.templateFunctionNotFound("missing", pInfo), .e219),
+            (TemplateSoup_EvaluationError.unIdentifiedStmt(pInfo), .e302),
             (TemplateSoup_EvaluationError.invalidFileSystemPath(
                 operation: "copy-file",
                 argument: "as",
                 expression: "targetPath",
                 actualType: "Bool",
                 pInfo
-            ), "E304"),
-            (TemplateSoup_EvaluationError.templateDoesNotExist("user.teso", pInfo), "E306"),
-            (TemplateSoup_EvaluationError.nonSendableValueFound("closure", pInfo), "E311"),
+            ), .e304),
+            (TemplateSoup_EvaluationError.templateDoesNotExist("user.teso", pInfo), .e306),
+            (TemplateSoup_EvaluationError.nonSendableValueFound("closure", pInfo), .e311),
         ]
 
         for (error, code) in errors {
-            #expect(error.code == code)
-            #expect(error.infoWithCode.hasPrefix("[\(code)] "))
+            #expect(error.diagnosticErrorCode == code)
+            #expect(error.code == code.rawValue)
+            #expect(error.infoWithCode.hasPrefix("[\(code.rawValue)] "))
         }
     }
 
@@ -267,23 +268,26 @@ import Testing
         let sandbox = await ws.newStringSandbox()
         let pInfo = await ParsedInfo.dummyForMainFile(with: sandbox.context)
 
-        let modelErrors: [(any ErrorWithMessage, String)] = [
-            (Model_ParsingError.objectTypeNotFound("type missing", pInfo), "E601"),
-            (Model_ParsingError.invalidMapping("a ->", pInfo), "E604"),
-            (Model_ParsingError.invalidAnnotationLine(pInfo), "E615"),
-            (Model_ParsingError.invalidApiLine(pInfo), "E617"),
+        let modelErrors: [(any ErrorWithMessage, DiagnosticErrorCode)] = [
+            (Model_ParsingError.objectTypeNotFound("type missing", pInfo), .e601),
+            (Model_ParsingError.invalidMapping("a ->", pInfo), .e604),
+            (Model_ParsingError.invalidAnnotationLine(pInfo), .e615),
+            (Model_ParsingError.invalidApiLine(pInfo), .e617),
         ]
 
         for (error, code) in modelErrors {
-            #expect(error.code == code)
-            #expect(error.infoWithCode.hasPrefix("[\(code)] "))
+            #expect(error.diagnosticErrorCode == code)
+            #expect(error.code == code.rawValue)
+            #expect(error.infoWithCode.hasPrefix("[\(code.rawValue)] "))
         }
 
         let nestedParsing = ParsingError.invalidLine(pInfo, TemplateSoup_ParsingError.modifierNotFound("missing", pInfo))
+        #expect(nestedParsing.diagnosticErrorCode == .e205)
         #expect(nestedParsing.code == "E205")
         #expect(nestedParsing.infoWithCode.hasPrefix("[E205] "))
 
         let plainParsing = ParsingError.invalidLineWithoutErr("plain parse failure", pInfo)
+        #expect(plainParsing.diagnosticErrorCode == .e402)
         #expect(plainParsing.code == "E402")
         #expect(plainParsing.infoWithCode.hasPrefix("[E402] "))
 
@@ -291,10 +295,12 @@ import Testing
             pInfo,
             TemplateSoup_EvaluationError.templateDoesNotExist("user.teso", pInfo)
         )
+        #expect(nestedEvaluation.diagnosticErrorCode == .e306)
         #expect(nestedEvaluation.code == "E306")
         #expect(nestedEvaluation.infoWithCode.hasPrefix("[E306] "))
 
         let genericEvaluation = EvaluationError.failedWriteOperation("write failed", pInfo)
+        #expect(genericEvaluation.diagnosticErrorCode == .e504)
         #expect(genericEvaluation.code == "E504")
         #expect(genericEvaluation.infoWithCode.hasPrefix("[E504] "))
     }
@@ -302,7 +308,7 @@ import Testing
     @Test func errorEvent_encodesStructuredErrorCode() throws {
         let event = DebugEvent.error(
             category: "template-evaluation",
-            code: "E304",
+            code: .e304,
             message: "Filesystem error in copy-file: 'as' path 'targetPath' expected String, got Bool",
             source: SourceLocation(fileIdentifier: "main.ss", lineNo: 12, lineContent: "copy-file a as b", level: 0),
             callStack: []

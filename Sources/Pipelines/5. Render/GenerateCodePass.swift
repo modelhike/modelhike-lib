@@ -113,7 +113,7 @@ public struct GenerateCodePass : RenderingPass {
         let availableBlueprints = await sandbox.context.blueprints.availableBlueprints
         await sandbox.context.debugLog.recordLookupDiagnostic(
             .warning,
-            code: "W307",
+            code: .w307,
             "Container '\(containerName)' is missing '#\(TagConstants.blueprint)(name)' tag — skipping generation.",
             lookup: "",
             in: availableBlueprints,
@@ -147,7 +147,7 @@ public struct GenerateCodePass : RenderingPass {
             if !mainExists {
                 await sandbox.context.debugLog.recordDiagnostic(
                     .error,
-                    code: "E101",
+                    code: .e101,
                     "Blueprint '\(blueprintName)' is missing required entry-point '\(mainScriptName)'. Generation cannot proceed.",
                     pInfo: pInfo
                 )

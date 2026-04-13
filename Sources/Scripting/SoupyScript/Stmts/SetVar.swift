@@ -92,7 +92,7 @@ public struct SetVarStmt: LineTemplateStmt, CustomDebugStringConvertible {
                     let candidates = await ctx.variables.keySnapshot
                     await ctx.debugLog.recordLookupDiagnostic(
                         .warning,
-                        code: "W202",
+                        code: .w202,
                         "Variable '\(variableName)' cleared: expression '\(ValueExpression)' resolved to nil.",
                         lookup: ValueExpression,
                         in: candidates,

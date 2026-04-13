@@ -114,12 +114,13 @@ public actor StreamingDebugRecorder: DebugRecorder {
 
     public func captureError(
         category: String,
+        code: DiagnosticErrorCode?,
         message: String,
         source: SourceLocation,
         callStack: [SourceLocation],
-        memoryDump: [String: String]?
+        memoryDump: MemoryDump?
     ) async {
-        await inner.captureError(category: category, message: message, source: source, callStack: callStack, memoryDump: memoryDump)
+        await inner.captureError(category: category, code: code, message: message, source: source, callStack: callStack, memoryDump: memoryDump)
     }
 
     public func addGeneratedFile(

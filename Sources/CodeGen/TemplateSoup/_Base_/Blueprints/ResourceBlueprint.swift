@@ -421,7 +421,7 @@ public struct ResourceReadingError: ErrorWithMessageAndParsedInfo, ErrorCodeProv
         return "Resource \(resName) reading error."
     }
 
-    public var errorCode: String { "E701" }
+    public var diagnosticErrorCode: DiagnosticErrorCode { .e701 }
 
     public init(resName: String, pInfo: ParsedInfo) {
         self.resName = resName
@@ -437,7 +437,7 @@ public struct ResourceDoesNotExist: ErrorWithMessageAndParsedInfo, ErrorCodeProv
         return "Resource \(resName) does not exist."
     }
 
-    public var errorCode: String { "E702" }
+    public var diagnosticErrorCode: DiagnosticErrorCode { .e702 }
 
     public init(resName: String, pInfo: ParsedInfo) {
         self.resName = resName

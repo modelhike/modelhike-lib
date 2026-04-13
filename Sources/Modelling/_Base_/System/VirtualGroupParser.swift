@@ -109,7 +109,7 @@ public enum VirtualGroupParser {
                 // Malformed — a non-`|` line that is not the closing fence.
                 ctx.debugLog.recordDiagnostic(
                     .warning,
-                    code: "W621",
+                    code: .w621,
                     "Virtual group '\(group.givenname)': unexpected line '\(trimmed)' — expected a '|' body line or '+---' closing fence.",
                     source: SourceLocation(fileIdentifier: await parser.identifier, lineNo: await parser.curLineNoForDisplay, lineContent: trimmed)
                 )
@@ -180,7 +180,7 @@ public enum VirtualGroupParser {
                 } else {
                     ctx.debugLog.recordDiagnostic(
                         .warning,
-                        code: "W620",
+                        code: .w620,
                         "Infra node header '\(pInfo.line.trim())' inside group '\(group.givenname)' could not be parsed.",
                         pInfo: pInfo
                     )

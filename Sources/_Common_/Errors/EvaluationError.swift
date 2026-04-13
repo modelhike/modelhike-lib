@@ -36,26 +36,26 @@ public enum EvaluationError: ErrorWithMessageAndParsedInfo, ErrorCodeProviding {
         }
     }
 
-    public var errorCode: String {
+    public var diagnosticErrorCode: DiagnosticErrorCode {
         switch self {
         case .invalidLine(_, let err):
-            return err.code ?? "E501"
+            return err.diagnosticErrorCode ?? .e501
         case .invalidInput:
-            return "E502"
+            return .e502
         case .invalidAppState:
-            return "E503"
+            return .e503
         case .failedWriteOperation:
-            return "E504"
+            return .e504
         case .workingDirectoryNotSet(_, let err):
-            return err.code ?? "E505"
+            return err.diagnosticErrorCode ?? .e505
         case .templateDoesNotExist(_, let err):
-            return err.code ?? "E506"
+            return err.diagnosticErrorCode ?? .e506
         case .scriptFileDoesNotExist(_, let err):
-            return err.code ?? "E507"
+            return err.diagnosticErrorCode ?? .e507
         case .readingError(_, let err):
-            return err.code ?? "E508"
+            return err.diagnosticErrorCode ?? .e508
         case .templateRenderingError(_, let err):
-            return err.code ?? "E509"
+            return err.diagnosticErrorCode ?? .e509
         }
     }
 

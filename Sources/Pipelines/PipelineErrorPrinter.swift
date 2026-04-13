@@ -90,9 +90,9 @@ public struct PipelineErrorPrinter {
             
             var info = ""
             if case let .invalidAppState(string, _) = evalErr {
-                info = ErrorCodes.format(message: string, code: evalErr.code)
+                info = ErrorCodes.format(message: string, code: evalErr.diagnosticErrorCode)
             } else if case let .invalidInput(string, _) = evalErr {
-                info = ErrorCodes.format(message: string, code: evalErr.code)
+                info = ErrorCodes.format(message: string, code: evalErr.diagnosticErrorCode)
             } else {
                 info = evalErr.infoWithCode
             }

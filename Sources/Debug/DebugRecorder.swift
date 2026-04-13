@@ -20,8 +20,8 @@ public protocol DebugRecorder: Actor, Sendable {
     func captureDelta(eventIndex: Int, variable: String, oldValue: String?, newValue: String) async
     var currentEventCount: Int { get async }
     func captureError(
-        category: String, message: String, source: SourceLocation, callStack: [SourceLocation],
-        memoryDump: [String: String]?) async
+        category: String, code: DiagnosticErrorCode?, message: String, source: SourceLocation,
+        callStack: [SourceLocation], memoryDump: MemoryDump?) async
     func addGeneratedFile(
         outputPath: String, templateName: String?, objectName: String?, workingDir: String) async
     /// Records phase lifecycle into the phase summary and event timeline.
@@ -64,15 +64,16 @@ extension DebugRecorder {
 
         await captureError(
             category: category,
-            message: error.infoWithCode,
+            code: error.diagnosticErrorCode,
+            message: error.info,
             source: source,
             callStack: callStack,
-            memoryDump: memoryDump
+            memoryDump: MemoryDump(variables: memoryDump)
         )
         await recordEvent(
             .error(
                 category: category,
-                code: error.code,
+                code: error.diagnosticErrorCode,
                 message: error.info,
                 source: source,
                 callStack: callStack
@@ -200,11 +201,11 @@ public actor DefaultDebugRecorder: DebugRecorder {
     public var currentEventCount: Int { events.count }
 
     public func captureError(
-        category: String, message: String, source: SourceLocation, callStack: [SourceLocation],
-        memoryDump: [String: String]?
+        category: String, code: DiagnosticErrorCode?, message: String, source: SourceLocation,
+        callStack: [SourceLocation], memoryDump: MemoryDump?
     ) async {
         let record = ErrorRecord(
-            category: category, message: message, source: source, callStack: callStack,
+            category: category, code: code, message: message, source: source, callStack: callStack,
             memoryDump: memoryDump)
         errors.append(record)
     }
