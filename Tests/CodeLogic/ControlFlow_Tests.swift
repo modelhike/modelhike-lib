@@ -35,10 +35,12 @@ import Testing
             |> ELSE
             |return false
             """)
-        #expect(logic.statements.count == 2)
+        #expect(logic.statements.count == 1)
         #expect(await logic.statements[0].kind == .`if`)
-        #expect(await logic.statements[1].kind == .`else`)
-        let elseChildren = await logic.statements[1].children
+        let ifChildren = await logic.statements[0].children
+        #expect(ifChildren.count == 2)
+        #expect(await ifChildren[1].kind == .`else`)
+        let elseChildren = await ifChildren[1].children
         #expect(await elseChildren[0].kind == .`return`)
         #expect(await elseChildren[0].expression == "false")
     }
@@ -54,15 +56,17 @@ import Testing
             |> ELSE
             |return "F"
             """)
-        #expect(logic.statements.count == 4)
+        #expect(logic.statements.count == 1)
         #expect(await logic.statements[0].kind == .`if`)
-        #expect(await logic.statements[1].kind == .elseIf)
-        #expect(await logic.statements[1].expression == "score >= 75")
-        #expect(await logic.statements[2].kind == .elseIf)
-        #expect(await logic.statements[2].expression == "score >= 60")
-        #expect(await logic.statements[3].kind == .`else`)
+        let ifChildren = await logic.statements[0].children
+        #expect(ifChildren.count == 4)
+        #expect(await ifChildren[1].kind == .elseIf)
+        #expect(await ifChildren[1].expression == "score >= 75")
+        #expect(await ifChildren[2].kind == .elseIf)
+        #expect(await ifChildren[2].expression == "score >= 60")
+        #expect(await ifChildren[3].kind == .`else`)
 
-        guard case .elseIfStmt(let node) = await logic.statements[1].node else {
+        guard case .elseIfStmt(let node) = await ifChildren[1].node else {
             Issue.record("Expected .elseIfStmt"); return
         }
         #expect(node.condition == "score >= 75")
@@ -126,9 +130,11 @@ import Testing
             |> CATCH ex: IOException
             |call logger.error(ex)
             """)
-        #expect(logic.statements.count == 2)
+        #expect(logic.statements.count == 1)
         #expect(await logic.statements[0].kind == .`try`)
-        let catchStmt = logic.statements[1]
+        let tryChildren = await logic.statements[0].children
+        #expect(tryChildren.count == 2)
+        let catchStmt = tryChildren[1]
         #expect(await catchStmt.kind == .`catch`)
         #expect(await catchStmt.expression == "ex: IOException")
 
@@ -148,11 +154,13 @@ import Testing
             |> FINALLY
             |call cleanup()
             """)
-        #expect(logic.statements.count == 3)
+        #expect(logic.statements.count == 1)
         #expect(await logic.statements[0].kind == .`try`)
-        #expect(await logic.statements[1].kind == .`catch`)
-        #expect(await logic.statements[2].kind == .`finally`)
-        let finallyChildren = await logic.statements[2].children
+        let tryChildren = await logic.statements[0].children
+        #expect(tryChildren.count == 3)
+        #expect(await tryChildren[1].kind == .`catch`)
+        #expect(await tryChildren[2].kind == .`finally`)
+        let finallyChildren = await tryChildren[2].children
         #expect(await finallyChildren[0].kind == .call)
     }
 
@@ -163,7 +171,8 @@ import Testing
             |> CATCH err:
             |return nil
             """)
-        let catchStmt = logic.statements[1]
+        let tryChildren = await logic.statements[0].children
+        let catchStmt = tryChildren[1]
         guard case .catchClause(let node) = await catchStmt.node else {
             Issue.record("Expected .catchClause"); return
         }
@@ -177,26 +186,30 @@ import Testing
         let logic = try await parse("""
             |> SWITCH status
             |> CASE "active"
-            |return true
+            | return true
             |> CASE "inactive"
-            |return false
+            | return false
             |> DEFAULT
-            |return nil
+            | return nil
             """)
-        #expect(logic.statements.count == 4)
+        #expect(logic.statements.count == 1)
         #expect(await logic.statements[0].kind == .`switch`)
         guard case .switchStmt(let node) = await logic.statements[0].node else {
             Issue.record("Expected .switchStmt"); return
         }
         #expect(node.subject == "status")
 
-        #expect(await logic.statements[1].kind == .`case`)
-        guard case .caseClause(let caseNode) = await logic.statements[1].node else {
+        let switchChildren = await logic.statements[0].children
+        #expect(switchChildren.count == 3)
+        #expect(await switchChildren[0].kind == .`case`)
+        guard case .caseClause(let caseNode) = await switchChildren[0].node else {
             Issue.record("Expected .caseClause"); return
         }
         #expect(caseNode.value == "\"active\"")
+        let firstCaseChildren = await switchChildren[0].children
+        #expect(await firstCaseChildren[0].kind == .return)
 
-        #expect(await logic.statements[3].kind == .`default`)
+        #expect(await switchChildren[2].kind == .`default`)
     }
 
     // MARK: Compiler directives
@@ -246,9 +259,11 @@ import Testing
             ||call skip(item)
             """)
         let forChildren = await logic.statements[0].children
-        #expect(forChildren.count == 2)
+        #expect(forChildren.count == 1)
         #expect(await forChildren[0].kind == .`if`)
-        #expect(await forChildren[1].kind == .`else`)
+        let ifChildren = await forChildren[0].children
+        #expect(ifChildren.count == 2)
+        #expect(await ifChildren[1].kind == .`else`)
     }
 
     @Test func tripleDepthNesting() async throws {

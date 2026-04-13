@@ -13,6 +13,7 @@ import Testing
         let logic = try await parse("""
             |> HTTP GET https://api.example.com/users
             |> LET users = _
+
             return users
             """)
         #expect(logic.statements.count == 2)
@@ -124,6 +125,7 @@ import Testing
             |  email = user.email
             |> EXPECT 200
             |> LET updated = _
+
             return updated
             """)
         #expect(logic.statements.count == 2)
@@ -195,6 +197,32 @@ import Testing
         #expect(node.auth?.scheme == "bearer")
         #expect(node.expectedStatus == "200")
         #expect(node.variables.count == 1)
+    }
+
+    // MARK: websocket
+
+    @Test func websocketWithClaimedChildren() async throws {
+        let logic = try await parse("""
+            |> WEBSOCKET GET wss://echo.example.com/socket/{room}
+            |> PATH
+            |  room = roomId
+            |> HEADERS
+            |  X-Trace-Id = traceId
+            |> QUERY
+            |  reconnect = true
+            |> LET socket = _
+            """)
+        #expect(logic.statements.count == 1)
+        guard case .webSocket(let node) = await logic.statements[0].node else {
+            Issue.record("Expected .webSocket"); return
+        }
+        #expect(node.method == "GET")
+        #expect(node.url == "wss://echo.example.com/socket/{room}")
+        #expect(node.pathParams.count == 1)
+        #expect(node.pathParams[0].key == "room")
+        #expect(node.headerFields.count == 1)
+        #expect(node.queryParams.count == 1)
+        #expect(node.letBinding?.name == "socket")
     }
 
     // MARK: http-raw

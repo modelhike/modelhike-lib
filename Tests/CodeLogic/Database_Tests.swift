@@ -139,6 +139,7 @@ import Testing
             |> TAKE 25
             |> TO-LIST
             |> LET orders = _
+
             return orders
             """)
         #expect(logic.statements.count == 2)
@@ -205,24 +206,24 @@ import Testing
 
     // MARK: group-by / aggregate
 
-    @Test func groupByAggregate() async throws {
+    @Test func dbGroupByAggregate() async throws {
         let logic = try await parse("""
+            |> DB Orders
             |> GROUP-BY o -> o.status
             |> AGGREGATE count()
+            |> LET counts = _
             """)
-        #expect(logic.statements.count == 2)
-        #expect(await logic.statements[0].kind == .groupBy)
-        #expect(await logic.statements[1].kind == .aggregate)
-
-        guard case .groupBy(let gbNode) = await logic.statements[0].node else {
-            Issue.record("Expected .groupBy"); return
+        #expect(logic.statements.count == 1)
+        guard case .db(let node) = await logic.statements[0].node else {
+            Issue.record("Expected .db"); return
         }
-        #expect(gbNode.lambda == "o -> o.status")
-
-        guard case .aggregate(let aggNode) = await logic.statements[1].node else {
-            Issue.record("Expected .aggregate"); return
-        }
-        #expect(aggNode.function == "count()")
+        let children = await logic.statements[0].children
+        #expect(children.count == 3)
+        #expect(await children[0].kind == .groupBy)
+        #expect(await children[1].kind == .aggregate)
+        #expect(node.groupBy?.lambda == "o -> o.status")
+        #expect(node.aggregate?.function == "count()")
+        #expect(node.letBinding?.name == "counts")
     }
 
     // MARK: db-proc-call

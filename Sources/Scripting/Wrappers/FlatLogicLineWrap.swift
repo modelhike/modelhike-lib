@@ -85,8 +85,7 @@ public struct FlatLogicLineData: Sendable {
                 }
             }
             if isBlock {
-                let nextIsChained = nextIdx < stmts.endIndex && Self.isChainedAfter(stmts[nextIdx].kind, previous: kind)
-                if !nextIsChained {
+                if Self.shouldEmitClose(for: stmt, parentStmt: parentStmt) {
                     result.append(closeLine(for: stmt, depth: baseDepth, parentStmt: parentStmt))
                 }
             }
@@ -119,17 +118,12 @@ public struct FlatLogicLineData: Sendable {
         )
     }
 
-    /// `else` / `catch` / `finally` chain without an extra `}` before the next clause.
-    static func isChainedAfter(_ kind: CodeLogicStmtKind, previous: CodeLogicStmtKind) -> Bool {
-        switch (previous, kind) {
-        case (.if, .elseIf), (.if, .else),
-            (.elseIf, .elseIf), (.elseIf, .else),
-            (.try, .catch), (.try, .finally),
-            (.catch, .catch), (.catch, .finally):
-            return true
-        default:
+    private static func shouldEmitClose(for stmt: CodeLogicStmt, parentStmt: CodeLogicStmt?) -> Bool {
+        if let parentKind = parentStmt?.kind,
+           CodeLogicStmt.blockOwnership(for: parentKind).branchKinds.contains(stmt.kind) {
             return false
         }
+        return true
     }
 
     private static func makeLineData(stmt: CodeLogicStmt, depth: Int, lineType: LineType, parentStmt: CodeLogicStmt? = nil) async -> FlatLogicLineData {

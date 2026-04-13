@@ -13,6 +13,19 @@ import Foundation
 ///
 /// The raw value of each case is its canonical pipe-gutter keyword (what appears in the DSL).
 public enum CodeLogicStmtKind: String, Sendable, Equatable {
+    public struct BlockOwnership: Sendable, Equatable {
+        public let partKinds: Set<CodeLogicStmtKind>
+        public let branchKinds: Set<CodeLogicStmtKind>
+
+        public init(partKinds: Set<CodeLogicStmtKind> = [],
+                    branchKinds: Set<CodeLogicStmtKind> = []) {
+            self.partKinds = partKinds
+            self.branchKinds = branchKinds
+        }
+
+        public static let empty = BlockOwnership()
+    }
+
 
     // MARK: Control flow
     case `if`   = "if"
@@ -133,43 +146,18 @@ public enum CodeLogicStmtKind: String, Sendable, Equatable {
     /// The canonical pipe-gutter keyword string for this statement kind.
     public var keyword: String { rawValue }
 
-    /// Same-depth sibling statement kinds that this block kind claims as its own children.
-    ///
-    /// Each block node struct defines its own `static siblingChildKinds`; this property
-    /// forwards to those definitions so `CodeLogicParser` can access them without depending
-    /// on the node types directly. Update the struct's set — this stays as a thin bridge.
-    public var siblingChildKinds: Set<CodeLogicStmtKind> {
-        switch self {
-        case .db:          return CodeLogicStmt.DbQueryNode.siblingChildKinds
-        case .dbUpdate:    return CodeLogicStmt.DbUpdateNode.siblingChildKinds
-        case .dbProcCall:  return CodeLogicStmt.DbProcCallNode.siblingChildKinds
-        case .dbRaw:       return CodeLogicStmt.DbRawNode.siblingChildKinds
-        case .http:      return CodeLogicStmt.HttpNode.siblingChildKinds
-        case .websocket: return CodeLogicStmt.WebSocketNode.siblingChildKinds
-        case .httpGraphQL: return CodeLogicStmt.HttpGraphQLNode.siblingChildKinds
-        case .httpRaw:     return CodeLogicStmt.HttpRawNode.siblingChildKinds
-        case .grpc:        return CodeLogicStmt.GrpcNode.siblingChildKinds
-        case .notify:      return CodeLogicStmt.NotifyNode.siblingChildKinds
-        case .publish:     return CodeLogicStmt.PublishNode.siblingChildKinds
-        default:           return []
-        }
-    }
-
     /// True if this kind only appears as a sub-statement claimed by a parent block and has no
     /// standalone meaning (e.g. `where`, `include`, `path`, `params`, `sql`).
     /// Used by the parser to detect a missing blank line between blocks.
     public var isSubStatementOnly: Bool {
-        let allClaimable: Set<CodeLogicStmtKind> = CodeLogicStmt.DbQueryNode.siblingChildKinds
-            .union(CodeLogicStmt.DbUpdateNode.siblingChildKinds)
-            .union(CodeLogicStmt.DbProcCallNode.siblingChildKinds)
-            .union(CodeLogicStmt.DbRawNode.siblingChildKinds)
-            .union(CodeLogicStmt.HttpNode.siblingChildKinds)
-            .union(CodeLogicStmt.WebSocketNode.siblingChildKinds)
-            .union(CodeLogicStmt.HttpGraphQLNode.siblingChildKinds)
-            .union(CodeLogicStmt.HttpRawNode.siblingChildKinds)
-            .union(CodeLogicStmt.GrpcNode.siblingChildKinds)
-            .union(CodeLogicStmt.NotifyNode.siblingChildKinds)
-            .union(CodeLogicStmt.PublishNode.siblingChildKinds)
+        let ownershipKinds: [CodeLogicStmtKind] = [
+            .db, .dbUpdate, .dbProcCall, .dbRaw,
+            .http, .websocket, .httpGraphQL, .httpRaw,
+            .grpc, .notify, .publish,
+        ]
+        let allClaimable = ownershipKinds.reduce(into: Set<CodeLogicStmtKind>()) { result, kind in
+            result.formUnion(CodeLogicStmt.blockOwnership(for: kind).partKinds)
+        }
         // `let` and `set` are also used as standalone statements — exclude them.
         let standaloneAlso: Set<CodeLogicStmtKind> = [.let, .set]
         return allClaimable.contains(self) && !standaloneAlso.contains(self)

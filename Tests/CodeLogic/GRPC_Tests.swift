@@ -13,6 +13,7 @@ import Testing
             |> PAYLOAD
             |  id = userId
             |> LET user = _
+
             return user
             """)
         #expect(logic.statements.count == 2)
@@ -107,6 +108,7 @@ import Testing
             |> PAYLOAD
             |  id = userId
             |> LET user = _
+
             call audit(user)
             return user
             """)

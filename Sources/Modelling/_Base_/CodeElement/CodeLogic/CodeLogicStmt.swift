@@ -6,6 +6,20 @@
 
 import Foundation
 
+protocol CodeLogicOwnershipProvider: Sendable {
+    static var blockOwnership: CodeLogicStmtKind.BlockOwnership { get }
+}
+
+extension CodeLogicOwnershipProvider {
+    static var blockOwnership: CodeLogicStmtKind.BlockOwnership { .empty }
+}
+
+protocol CodeLogicBlockStmt: CodeLogicOwnershipProvider {}
+
+protocol CodeLogicBlockStmtChild: CodeLogicOwnershipProvider {}
+
+protocol CodeLogicBlockStmtPart: CodeLogicOwnershipProvider {}
+
 /// A single node in a method's logic tree, corresponding to one pipe-gutter statement.
 ///
 /// Every statement kind has a dedicated `Node` case backed by its own struct. Block-opening
@@ -37,6 +51,34 @@ public actor CodeLogicStmt {
         self.children   = children
         self.node       = Node.parse(kind: kind, expression: expression, children: children)
     }
+}
+
+extension CodeLogicStmt {
+    static func blockOwnership(for kind: CodeLogicStmtKind) -> CodeLogicStmtKind.BlockOwnership {
+        blockOwnershipProviders[kind]?.blockOwnership ?? .empty
+    }
+
+    private static let blockOwnershipProviders: [CodeLogicStmtKind: any CodeLogicOwnershipProvider.Type] = [
+        .if: IfNode.self,
+        .elseIf: IfNode.ElseIfNode.self,
+        .try: TryNode.self,
+        .catch: TryNode.CatchNode.self,
+        .switch: SwitchNode.self,
+        .db: DbQueryNode.self,
+        .dbUpdate: DbUpdateNode.self,
+        .dbProcCall: DbProcCallNode.self,
+        .dbRaw: DbRawNode.self,
+        .http: HttpNode.self,
+        .websocket: WebSocketNode.self,
+        .httpGraphQL: HttpGraphQLNode.self,
+        .httpRaw: HttpRawNode.self,
+        .grpc: GrpcNode.self,
+        .notify: NotifyNode.self,
+        .publish: PublishNode.self,
+        .transaction: TransactionNode.self,
+        .savepoint: SavepointNode.self,
+        .needsReview: NeedsReviewNode.self,
+    ]
 }
 
 // MARK: - AST Node enum
@@ -184,47 +226,80 @@ extension CodeLogicStmt {
 
 extension CodeLogicStmt {
 
-    public struct ForLoopNode: Sendable  { public let item: String; public let collection: String }
-    public struct WhileNode: Sendable    { public let condition: String }
+    public struct ForLoopNode: CodeLogicBlockStmt {
+        public let item: String
+        public let collection: String
+        static let blockOwnership = CodeLogicStmtKind.BlockOwnership.empty
+    }
+    public struct WhileNode: CodeLogicBlockStmt {
+        public let condition: String
+        static let blockOwnership = CodeLogicStmtKind.BlockOwnership.empty
+    }
 
     /// `| BREAK` — exits the nearest enclosing loop. Optional label for targeting an outer loop.
     public struct BreakNode: Sendable    { public let label: String?; public init(label: String? = nil) { self.label = label } }
     /// `| CONTINUE` — skips to the next iteration. Optional label for targeting an outer loop.
     public struct ContinueNode: Sendable { public let label: String?; public init(label: String? = nil) { self.label = label } }
 
-    public struct TryNode: Sendable {
+    public struct TryNode: CodeLogicBlockStmt {
         public init() {}
 
+        static let blockOwnership = CodeLogicStmtKind.BlockOwnership(
+            branchKinds: [.catch, .finally])
+
         // MARK: Sub-nodes
-        public struct CatchNode: Sendable   { public let variable: String; public let type: String? }
-        public struct FinallyNode: Sendable { public init() {} }
+        public struct CatchNode: CodeLogicBlockStmtChild {
+            public let variable: String
+            public let type: String?
+        }
+        public struct FinallyNode: CodeLogicBlockStmtChild {
+            public init() {}
+        }
     }
 
     /// `| THROW expression` — raises an error; the counterpart to TRY/CATCH.
     public struct ThrowNode: Sendable { public let expression: String }
 
-    public struct IfNode: Sendable {
+    public struct IfNode: CodeLogicBlockStmt {
         public let condition: String
 
+        static let blockOwnership = CodeLogicStmtKind.BlockOwnership(
+            branchKinds: [.elseIf, .else])
+
         // MARK: Sub-nodes
-        public struct ElseIfNode: Sendable { public let condition: String }
-        public struct ElseNode: Sendable   { public init() {} }
+        public struct ElseIfNode: CodeLogicBlockStmtChild {
+            public let condition: String
+        }
+
+        public struct ElseNode: CodeLogicBlockStmtChild {
+            public init() {}
+        }
     }
 
-    public struct SwitchNode: Sendable {
+    public struct SwitchNode: CodeLogicBlockStmt {
         public let subject: String
 
+        static let blockOwnership = CodeLogicStmtKind.BlockOwnership(
+            branchKinds: [.case, .default])
+
         // MARK: Sub-nodes
-        public struct CaseNode: Sendable    { public let value: String }
-        public struct DefaultNode: Sendable { public init() {} }
+        public struct CaseNode: CodeLogicBlockStmtChild {
+            public let value: String
+        }
+        public struct DefaultNode: CodeLogicBlockStmtChild {
+            public init() {}
+        }
     }
 
-    public struct CompilerIfNode: Sendable {
+    public struct CompilerIfNode: CodeLogicBlockStmt {
         public let symbol: String
+        static let blockOwnership = CodeLogicStmtKind.BlockOwnership.empty
 
         // MARK: Sub-nodes
-        public struct ElseNode: Sendable  { public init() {} }
-        public struct EndIfNode: Sendable { public init() {} }
+        public struct ElseNode: CodeLogicBlockStmtChild {
+            public init() {}
+        }
+        public struct EndIfNode: CodeLogicBlockStmtChild { public init() {} }
     }
 }
 
@@ -248,9 +323,10 @@ extension CodeLogicStmt {
     }
 
     /// `raw>` — verbatim source block; depth+1 children provide multi-line content.
-    public struct RawNode: Sendable {
+    public struct RawNode: CodeLogicBlockStmt {
         public let content: String
         public let lines: [String]
+        static let blockOwnership = CodeLogicStmtKind.BlockOwnership.empty
 
         public init(content: String, lines: [String] = []) {
             self.content = content
@@ -267,14 +343,38 @@ extension CodeLogicStmt {
 
 extension CodeLogicStmt {
 
-    public struct PipeNode: Sendable    { public let source: String }
-    public struct FilterNode: Sendable  { public let lambda: String }
-    public struct SelectNode: Sendable  { public let lambda: String }
-    public struct MapNode: Sendable     { public let lambda: String }
-    public struct ReduceNode: Sendable  { public let expression: String }
-    public struct LetNode: Sendable     { public let name: String }
-    public struct MatchNode: Sendable   { public let expression: String }
-    public struct WhenNode: Sendable    { public let pattern: String }
+    public struct PipeNode: CodeLogicBlockStmt {
+        public let source: String
+        static let blockOwnership = CodeLogicStmtKind.BlockOwnership.empty
+    }
+    public struct FilterNode: CodeLogicBlockStmt {
+        public let lambda: String
+        static let blockOwnership = CodeLogicStmtKind.BlockOwnership.empty
+    }
+    public struct SelectNode: CodeLogicBlockStmt {
+        public let lambda: String
+        static let blockOwnership = CodeLogicStmtKind.BlockOwnership.empty
+    }
+    public struct MapNode: CodeLogicBlockStmt {
+        public let lambda: String
+        static let blockOwnership = CodeLogicStmtKind.BlockOwnership.empty
+    }
+    public struct ReduceNode: CodeLogicBlockStmt {
+        public let expression: String
+        static let blockOwnership = CodeLogicStmtKind.BlockOwnership.empty
+    }
+    public struct LetNode: CodeLogicBlockStmt {
+        public let name: String
+        static let blockOwnership = CodeLogicStmtKind.BlockOwnership.empty
+    }
+    public struct MatchNode: CodeLogicBlockStmt {
+        public let expression: String
+        static let blockOwnership = CodeLogicStmtKind.BlockOwnership.empty
+    }
+    public struct WhenNode: CodeLogicBlockStmt {
+        public let pattern: String
+        static let blockOwnership = CodeLogicStmtKind.BlockOwnership.empty
+    }
     public struct EndMatchNode: Sendable { public init() {} }
 }
 
@@ -283,16 +383,22 @@ extension CodeLogicStmt {
 extension CodeLogicStmt {
 
     /// `db> Entity` — claims `where>`, `include>`, `order-by>`, `skip>`, `take>`,
-    /// `to-list>`/`first>`/`single>` as same-depth siblings and absorbs them into typed fields.
-    public struct DbQueryNode: Sendable {
+    /// `group-by>`, `aggregate>`, `to-list>`/`first>`/`single>` as same-depth siblings and absorbs them into typed fields.
+    public struct DbQueryNode: CodeLogicBlockStmt {
         public let entity: String
         public let where_: WhereNode?
         public let includes: [IncludeNode]
         public let orderBy: OrderByNode?
         public let skip: SkipNode?
         public let take: TakeNode?
+        public let groupBy: GroupByNode?
+        public let aggregate: AggregateNode?
         public let materialize: Materialize?
         public let letBinding: LetNode?
+
+        static let blockOwnership = CodeLogicStmtKind.BlockOwnership(
+            partKinds: [.where, .include, .orderBy, .skip, .take, .groupBy, .aggregate, .toList, .first, .single, .let]
+        )
 
         public enum Materialize: Sendable { case toList, first, single }
 
@@ -314,6 +420,7 @@ extension CodeLogicStmt {
         public init(entity: String,
                     where_: WhereNode? = nil, includes: [IncludeNode] = [],
                     orderBy: OrderByNode? = nil, skip: SkipNode? = nil, take: TakeNode? = nil,
+                    groupBy: GroupByNode? = nil, aggregate: AggregateNode? = nil,
                     materialize: Materialize? = nil, letBinding: LetNode? = nil) {
             self.entity      = entity
             self.where_      = where_
@@ -321,13 +428,11 @@ extension CodeLogicStmt {
             self.orderBy     = orderBy
             self.skip        = skip
             self.take        = take
+            self.groupBy     = groupBy
+            self.aggregate   = aggregate
             self.materialize = materialize
             self.letBinding  = letBinding
         }
-
-        static let siblingChildKinds: Set<CodeLogicStmtKind> = [
-            .where, .include, .orderBy, .skip, .take, .toList, .first, .single, .let
-        ]
 
         static func parse(entity: String, from children: [CodeLogicStmt]) -> DbQueryNode {
             var where_: WhereNode?
@@ -335,6 +440,8 @@ extension CodeLogicStmt {
             var orderBy: OrderByNode?
             var skip: SkipNode?
             var take: TakeNode?
+            var groupBy: GroupByNode?
+            var aggregate: AggregateNode?
             var materialize: Materialize?
             var letBinding: LetNode?
 
@@ -351,6 +458,8 @@ extension CodeLogicStmt {
                     }
                 case .skip:   skip = .init(count: child.expression)
                 case .take:   take = .init(count: child.expression)
+                case .groupBy: groupBy = .init(lambda: child.expression)
+                case .aggregate: aggregate = .init(function: child.expression)
                 case .toList: materialize = .toList
                 case .first:  materialize = .first
                 case .single: materialize = .single
@@ -362,6 +471,7 @@ extension CodeLogicStmt {
             }
             return DbQueryNode(entity: entity, where_: where_, includes: includes,
                                orderBy: orderBy, skip: skip, take: take,
+                               groupBy: groupBy, aggregate: aggregate,
                                materialize: materialize, letBinding: letBinding)
         }
     }
@@ -382,10 +492,13 @@ extension CodeLogicStmt {
     }
 
     /// `db-update> Entity -> predicate` — claims `set>` siblings and absorbs them into `fields`.
-    public struct DbUpdateNode: Sendable {
+    public struct DbUpdateNode: CodeLogicBlockStmt {
         public let entity: String
         public let predicate: String
         public let fields: [AssignNode.FieldPair]
+
+        static let blockOwnership = CodeLogicStmtKind.BlockOwnership(
+            partKinds: [.set])
 
         // MARK: Sub-node
         public struct SetFieldNode: Sendable {
@@ -398,8 +511,6 @@ extension CodeLogicStmt {
             self.predicate = predicate
             self.fields    = fields
         }
-
-        static let siblingChildKinds: Set<CodeLogicStmtKind> = [.set]
 
         static func parse(entity: String, predicate: String,
                           from children: [CodeLogicStmt]) -> DbUpdateNode {
@@ -426,10 +537,13 @@ extension CodeLogicStmt {
 extension CodeLogicStmt {
 
     /// `db-proc-call> schema.ProcName` — claims `params>` sibling and absorbs into `params`.
-    public struct DbProcCallNode: Sendable {
+    public struct DbProcCallNode: CodeLogicBlockStmt {
         public let procedure: String
         public let params: [AssignNode.FieldPair]
         public let letBinding: LetNode?
+
+        static let blockOwnership = CodeLogicStmtKind.BlockOwnership(
+            partKinds: [.params, .let])
 
         public init(procedure: String, params: [AssignNode.FieldPair] = [],
                     letBinding: LetNode? = nil) {
@@ -437,8 +551,6 @@ extension CodeLogicStmt {
             self.params     = params
             self.letBinding = letBinding
         }
-
-        static let siblingChildKinds: Set<CodeLogicStmtKind> = [.params, .let]
 
         static func parse(procedure: String, from children: [CodeLogicStmt]) -> DbProcCallNode {
             var params: [AssignNode.FieldPair] = []
@@ -463,16 +575,19 @@ extension CodeLogicStmt {
 extension CodeLogicStmt {
 
     /// `db-raw> source` — claims `params>`, `sql>`, and an optional trailing `let>` child; absorbs into typed fields.
-    public struct DbRawNode: Sendable {
+    public struct DbRawNode: CodeLogicBlockStmt {
         public let source: String
         public let sqlLines: [String]
         public let params: [AssignNode.FieldPair]
         /// Optional result-variable binding — the last child `let name = _` inside the block.
         public let letBinding: LetNode?
 
+        static let blockOwnership = CodeLogicStmtKind.BlockOwnership(
+            partKinds: [.params, .sql, .let])
+
         // MARK: Sub-nodes
         /// `params>` — depth+1 children are `assign` statements.
-        public struct ParamsNode: Sendable {
+        public struct ParamsNode: CodeLogicBlockStmtPart {
             public let params: [AssignNode.FieldPair]
             public init(params: [AssignNode.FieldPair] = []) { self.params = params }
             static func parse(from children: [CodeLogicStmt]) -> ParamsNode {
@@ -480,7 +595,7 @@ extension CodeLogicStmt {
             }
         }
         /// `sql>` — depth+1 children are verbatim text lines.
-        public struct SqlNode: Sendable {
+        public struct SqlNode: CodeLogicBlockStmtPart {
             public let lines: [String]
             public init(lines: [String] = []) { self.lines = lines }
             static func parse(from children: [CodeLogicStmt]) -> SqlNode {
@@ -494,8 +609,6 @@ extension CodeLogicStmt {
             self.params     = params
             self.letBinding = letBinding
         }
-
-        static let siblingChildKinds: Set<CodeLogicStmtKind> = [.params, .sql, .let]
 
         static func parse(source: String, from children: [CodeLogicStmt]) -> DbRawNode {
             var sqlLines: [String] = []
@@ -522,7 +635,7 @@ extension CodeLogicStmt {
 
     /// `http> METHOD url` — claims `path>`, `query>`, `headers>`, `auth>`, `expect>`, `body>`
     /// as same-depth siblings and absorbs them into typed fields.
-    public struct HttpNode: Sendable {
+    public struct HttpNode: CodeLogicBlockStmt {
         public let method: String
         public let url: String
         public let pathParams: [AssignNode.FieldPair]
@@ -533,9 +646,13 @@ extension CodeLogicStmt {
         public let bodyFields: [AssignNode.FieldPair]
         public let letBinding: LetNode?
 
+        static let blockOwnership = CodeLogicStmtKind.BlockOwnership(
+            partKinds: [.path, .query, .headers, .auth, .expect, .body, .let]
+        )
+
         // MARK: Sub-nodes
         /// `path>` — depth+1 children are `assign` path-param statements.
-        public struct PathNode: Sendable {
+        public struct PathNode: CodeLogicBlockStmtPart {
             public let params: [AssignNode.FieldPair]
             public init(params: [AssignNode.FieldPair] = []) { self.params = params }
             static func parse(from children: [CodeLogicStmt]) -> PathNode {
@@ -543,7 +660,7 @@ extension CodeLogicStmt {
             }
         }
         /// `query>` — depth+1 children are `assign` pairs (REST) or raw lines (GraphQL body).
-        public struct QueryNode: Sendable {
+        public struct QueryNode: CodeLogicBlockStmtPart {
             public let params: [AssignNode.FieldPair]
             public let lines: [String]
             public init(params: [AssignNode.FieldPair] = [], lines: [String] = []) {
@@ -565,7 +682,7 @@ extension CodeLogicStmt {
             }
         }
         /// `headers>` — depth+1 children are `assign` header statements.
-        public struct HeadersNode: Sendable {
+        public struct HeadersNode: CodeLogicBlockStmtPart {
             public let fields: [AssignNode.FieldPair]
             public init(fields: [AssignNode.FieldPair] = []) { self.fields = fields }
             static func parse(from children: [CodeLogicStmt]) -> HeadersNode {
@@ -582,7 +699,7 @@ extension CodeLogicStmt {
             public let statusCode: String
         }
         /// `body>` — depth+1 children are `assign` body-field statements.
-        public struct BodyNode: Sendable {
+        public struct BodyNode: CodeLogicBlockStmtPart {
             public let fields: [AssignNode.FieldPair]
             public init(fields: [AssignNode.FieldPair] = []) { self.fields = fields }
             static func parse(from children: [CodeLogicStmt]) -> BodyNode {
@@ -605,10 +722,6 @@ extension CodeLogicStmt {
             self.bodyFields     = bodyFields
             self.letBinding     = letBinding
         }
-
-        static let siblingChildKinds: Set<CodeLogicStmtKind> = [
-            .path, .query, .headers, .auth, .expect, .body, .let
-        ]
 
         static func parse(expression: String, from children: [CodeLogicStmt]) -> HttpNode {
             let (method, url) = expression.splittingOffFirstWord()
@@ -651,7 +764,7 @@ extension CodeLogicStmt {
 
     /// `websocket> METHOD url` — claims the same sibling block kinds as `http>` (`path`, `query`, …).
     /// Nested parameter types (`PathNode`, `AuthNode`, …) are shared with `HttpNode`.
-    public struct WebSocketNode: Sendable {
+    public struct WebSocketNode: CodeLogicBlockStmt {
         public let method: String
         public let url: String
         public let pathParams: [AssignNode.FieldPair]
@@ -661,6 +774,8 @@ extension CodeLogicStmt {
         public let expectedStatus: String?
         public let bodyFields: [AssignNode.FieldPair]
         public let letBinding: LetNode?
+
+        static let blockOwnership = HttpNode.blockOwnership
 
         public init(method: String, url: String,
                     pathParams: [AssignNode.FieldPair] = [], queryParams: [AssignNode.FieldPair] = [],
@@ -677,9 +792,6 @@ extension CodeLogicStmt {
             self.bodyFields = bodyFields
             self.letBinding = letBinding
         }
-
-        /// Same as `HttpNode` — `path`, `query`, `headers`, `auth`, `expect`, `body`, `let`.
-        static let siblingChildKinds: Set<CodeLogicStmtKind> = HttpNode.siblingChildKinds
 
         static func parse(expression: String, from children: [CodeLogicStmt]) -> WebSocketNode {
             let h = HttpNode.parse(expression: expression, from: children)
@@ -698,13 +810,13 @@ extension CodeLogicStmt {
     }
 
     /// `notify> TYPE recipient` — claims `to`, `subject`, `body`, `message`, `title`, `priority`, `severity`, `channel`, `data`, `template`, `let` siblings.
-    public struct NotifyNode: Sendable {
+    public struct NotifyNode: CodeLogicBlockStmt {
         public let notificationType: String
         public let recipient: String?
 
-        static let siblingChildKinds: Set<CodeLogicStmtKind> = [
-            .to, .subject, .body, .message, .title, .priority, .severity, .channel, .data, .template, .let
-        ]
+        static let blockOwnership = CodeLogicStmtKind.BlockOwnership(
+            partKinds: [.to, .subject, .body, .message, .title, .priority, .severity, .channel, .data, .template, .let]
+        )
 
         static func parse(expression: String, from children: [CodeLogicStmt]) -> NotifyNode {
             let parsed = CodeLogicStmt.Node.splitHeadAndTail(from: expression)
@@ -719,11 +831,12 @@ extension CodeLogicStmt {
     }
 
     /// `publish> EventName [TO channel]` — claims `payload`, `metadata`, `let` siblings.
-    public struct PublishNode: Sendable {
+    public struct PublishNode: CodeLogicBlockStmt {
         public let eventName: String
         public let channel: String?
 
-        static let siblingChildKinds: Set<CodeLogicStmtKind> = [.payload, .metadata, .let]
+        static let blockOwnership = CodeLogicStmtKind.BlockOwnership(
+            partKinds: [.payload, .metadata, .let])
 
         static func parse(expression: String, from children: [CodeLogicStmt]) -> PublishNode {
             if let parsed = CodeLogicStmt.Node.splitAroundKeyword("TO", in: expression) {
@@ -739,7 +852,7 @@ extension CodeLogicStmt {
 extension CodeLogicStmt {
 
     /// `http-graphql> url` — claims `query>`, `variables>`, `auth>`, `expect>` siblings.
-    public struct HttpGraphQLNode: Sendable {
+    public struct HttpGraphQLNode: CodeLogicBlockStmt {
         public let url: String
         public let queryLines: [String]
         public let variables: [AssignNode.FieldPair]
@@ -747,9 +860,13 @@ extension CodeLogicStmt {
         public let expectedStatus: String?
         public let letBinding: LetNode?
 
+        static let blockOwnership = CodeLogicStmtKind.BlockOwnership(
+            partKinds: [.query, .variables, .auth, .expect, .let]
+        )
+
         // MARK: Sub-node
         /// `variables>` — depth+1 children are `assign` GraphQL-variable statements.
-        public struct VariablesNode: Sendable {
+        public struct VariablesNode: CodeLogicBlockStmtPart {
             public let variables: [AssignNode.FieldPair]
             public init(variables: [AssignNode.FieldPair] = []) { self.variables = variables }
             static func parse(from children: [CodeLogicStmt]) -> VariablesNode {
@@ -767,10 +884,6 @@ extension CodeLogicStmt {
             self.expectedStatus = expectedStatus
             self.letBinding     = letBinding
         }
-
-        static let siblingChildKinds: Set<CodeLogicStmtKind> = [
-            .query, .variables, .auth, .expect, .let
-        ]
 
         static func parse(url: String, from children: [CodeLogicStmt]) -> HttpGraphQLNode {
             var queryLines: [String] = []
@@ -808,14 +921,17 @@ extension CodeLogicStmt {
 extension CodeLogicStmt {
 
     /// `http-raw> source` — claims `raw>` and `note>` siblings; absorbs into typed fields.
-    public struct HttpRawNode: Sendable {
+    public struct HttpRawNode: CodeLogicBlockStmt {
         public let source: String
         public let rawLines: [String]
         public let notes: [String]
 
+        static let blockOwnership = CodeLogicStmtKind.BlockOwnership(
+            partKinds: [.raw, .note])
+
         // MARK: Sub-node
         /// `note> content` — depth+1 children provide multi-line note text.
-        public struct NoteNode: Sendable {
+        public struct NoteNode: CodeLogicBlockStmtPart {
             public let content: String
             public let lines: [String]
             public init(content: String, lines: [String] = []) {
@@ -832,8 +948,6 @@ extension CodeLogicStmt {
             self.rawLines = rawLines
             self.notes    = notes
         }
-
-        static let siblingChildKinds: Set<CodeLogicStmtKind> = [.raw, .note]
 
         static func parse(source: String, from children: [CodeLogicStmt]) -> HttpRawNode {
             var rawLines: [String] = []
@@ -860,16 +974,19 @@ extension CodeLogicStmt {
 extension CodeLogicStmt {
 
     /// `grpc> Service.Method` — claims `payload>` and `metadata>` siblings.
-    public struct GrpcNode: Sendable {
+    public struct GrpcNode: CodeLogicBlockStmt {
         public let service: String
         public let rpcMethod: String
         public let payloadFields: [AssignNode.FieldPair]
         public let metadataFields: [AssignNode.FieldPair]
         public let letBinding: LetNode?
 
+        static let blockOwnership = CodeLogicStmtKind.BlockOwnership(
+            partKinds: [.payload, .metadata, .let])
+
         // MARK: Sub-nodes
         /// `payload>` — depth+1 children are `assign` request-field statements.
-        public struct PayloadNode: Sendable {
+        public struct PayloadNode: CodeLogicBlockStmtPart {
             public let fields: [AssignNode.FieldPair]
             public init(fields: [AssignNode.FieldPair] = []) { self.fields = fields }
             static func parse(from children: [CodeLogicStmt]) -> PayloadNode {
@@ -877,7 +994,7 @@ extension CodeLogicStmt {
             }
         }
         /// `metadata>` — depth+1 children are `assign` metadata key=value statements.
-        public struct MetadataNode: Sendable {
+        public struct MetadataNode: CodeLogicBlockStmtPart {
             public let fields: [AssignNode.FieldPair]
             public init(fields: [AssignNode.FieldPair] = []) { self.fields = fields }
             static func parse(from children: [CodeLogicStmt]) -> MetadataNode {
@@ -895,8 +1012,6 @@ extension CodeLogicStmt {
             self.metadataFields = metadataFields
             self.letBinding     = letBinding
         }
-
-        static let siblingChildKinds: Set<CodeLogicStmtKind> = [.payload, .metadata, .let]
 
         static func parse(service: String, rpcMethod: String,
                           from children: [CodeLogicStmt]) -> GrpcNode {
@@ -927,15 +1042,17 @@ extension CodeLogicStmt {
 
     /// `|> TRANSACTION [name]` — wraps a scope of statements that execute atomically.
     /// Children at depth+1 are the body of the transaction.
-    public struct TransactionNode: Sendable {
+    public struct TransactionNode: CodeLogicBlockStmt {
         public let name: String?
+        static let blockOwnership = CodeLogicStmtKind.BlockOwnership.empty
         public init(name: String? = nil) { self.name = name }
     }
 
     /// `|> SAVEPOINT name` — marks a restore point inside a transaction. Children at depth+1
     /// are the statements covered by this savepoint; a `ROLLBACK name` undoes only these.
-    public struct SavepointNode: Sendable {
+    public struct SavepointNode: CodeLogicBlockStmt {
         public let name: String
+        static let blockOwnership = CodeLogicStmtKind.BlockOwnership.empty
         public init(name: String) { self.name = name }
     }
 
@@ -972,11 +1089,13 @@ extension CodeLogicStmt {
     /// `|> NEEDS-REVIEW reason` — flags a statement that cannot be automatically converted and
     /// requires a human to determine the correct equivalent. Children at depth+1 preserve the
     /// original form verbatim so no information is lost.
-    public struct NeedsReviewNode: Sendable {
+    public struct NeedsReviewNode: CodeLogicBlockStmt {
         /// Short reason string describing why review is needed (e.g. "GOTO", "WAITFOR TIME").
         public let reason: String
         /// Preserved original lines from depth+1 children.
         public let originalLines: [String]
+
+        static let blockOwnership = CodeLogicStmtKind.BlockOwnership.empty
 
         public init(reason: String, originalLines: [String] = []) {
             self.reason = reason

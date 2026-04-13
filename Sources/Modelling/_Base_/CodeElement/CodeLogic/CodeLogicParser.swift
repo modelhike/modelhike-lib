@@ -94,9 +94,11 @@ public enum CodeLogicParser {
     /// - End of input — returns what was parsed.
     public static func parseFenced(from parser: any LineParser, pInfo: ParsedInfo, closingFence: String = fenceDelimiter) async throws -> CodeLogic? {
         var rawLines: [ParsedLogicLine] = []
+        var precededBySeparator = false
 
         while await parser.linesRemaining {
             let line = await parser.currentLine()
+            let lineNo = await parser.curLineNoForDisplay
 
             // Closing fence — consume and stop
             if line == closingFence {
@@ -104,14 +106,18 @@ public enum CodeLogicParser {
                 break
             }
 
-            // Blank lines inside a fence are skipped
+            // Blank lines inside a fence are preserved as separators between parsed statements.
             if line.isEmpty {
+                precededBySeparator = true
                 await parser.skipLine()
                 continue
             }
 
-            if let parsed = parseLine(line) {
+            if let parsed = parseLine(line, lineNo: lineNo, precededBySeparator: precededBySeparator) {
                 rawLines.append(parsed)
+                precededBySeparator = false
+            } else if isSeparatorLine(line) {
+                precededBySeparator = true
             }
             await parser.skipLine()
         }
@@ -129,6 +135,9 @@ public enum CodeLogicParser {
         let depth: Int
         let keyword: String
         let expression: String
+        let rawLine: String
+        let lineNo: Int
+        let precededBySeparator: Bool
     }
 
     /// Parses a single line of fenced logic content.
@@ -144,7 +153,8 @@ public enum CodeLogicParser {
     /// - `|return x`         depth-2 (N=1)
     /// - `| return x`        depth-2 (space after pipe allowed)
     /// - `depth = N + 1`.
-    private static func parseLine(_ line: String) -> ParsedLogicLine? {
+    private static func parseLine(_ line: String, lineNo: Int, precededBySeparator: Bool) -> ParsedLogicLine? {
+        let originalLine = line
         var line = line
 
         // Count depth pipes, allowing optional spaces between them for readability.
@@ -164,9 +174,8 @@ public enum CodeLogicParser {
         }
         line = String(line[i...])
 
-        guard line.isNotEmpty else {
-            return ParsedLogicLine(depth: N + 1, keyword: "", expression: "")
-        }
+        // Prefix-only lines like `|` / `||` are treated as scoped blank separators.
+        guard line.isNotEmpty else { return nil }
 
         // Block opener: "> KEYWORD expression"
         let isBlock = line.hasPrefix(">")
@@ -181,24 +190,24 @@ public enum CodeLogicParser {
         // must stay as `assign` even when `key` matches a pipe-gutter keyword (e.g. `priority`,
         // `channel`, `data`) so gRPC/HTTP metadata fields and similar KV lines keep working.
         if !isBlock && parts.second.hasPrefix("=") {
-            return ParsedLogicLine(depth: depth, keyword: "assign", expression: content)
+            return ParsedLogicLine(depth: depth, keyword: "assign", expression: content, rawLine: originalLine, lineNo: lineNo, precededBySeparator: precededBySeparator)
         }
 
         if CodeLogicStmtKind(rawValue: firstWord) == nil {
             if isBlock {
                 // Unknown block opener (e.g. |> CUSTOM expr): keep as .unknown, expression only.
-                return ParsedLogicLine(depth: depth, keyword: firstWord, expression: parts.second)
+                return ParsedLogicLine(depth: depth, keyword: firstWord, expression: parts.second, rawLine: originalLine, lineNo: lineNo, precededBySeparator: precededBySeparator)
             } else if parts.second.hasPrefix("=") {
                 // Bare "key = value" line inside parameter blocks (path>, body>, params>, etc.)
                 // Rewrite as assign so parseKV can extract the pair.
-                return ParsedLogicLine(depth: depth, keyword: "assign", expression: content)
+                return ParsedLogicLine(depth: depth, keyword: "assign", expression: content, rawLine: originalLine, lineNo: lineNo, precededBySeparator: precededBySeparator)
             } else {
                 // Raw text line (sql>, raw>, note> bodies) — preserve full content as expression.
-                return ParsedLogicLine(depth: depth, keyword: "unknown", expression: content)
+                return ParsedLogicLine(depth: depth, keyword: "unknown", expression: content, rawLine: originalLine, lineNo: lineNo, precededBySeparator: precededBySeparator)
             }
         }
 
-        return ParsedLogicLine(depth: depth, keyword: firstWord, expression: parts.second)
+        return ParsedLogicLine(depth: depth, keyword: firstWord, expression: parts.second, rawLine: originalLine, lineNo: lineNo, precededBySeparator: precededBySeparator)
     }
 
     // MARK: - Tree assembly
@@ -226,13 +235,15 @@ public enum CodeLogicParser {
                 ? try await buildStatements(from: stream, baseDepth: stream.current!.depth, pInfo: pInfo)
                 : []
 
-            // Same-depth sibling children — db>, http>, grpc> etc. claim their following
-            // siblings (where>, include>, path>, headers>, let, ...) from the stream directly.
-            let claimable = kind.siblingChildKinds
-            if claimable.isNotEmpty {
+            // Some blocks own same-depth continuation lines directly from the stream:
+            // parts (`where>`, `headers>`, `let>`, ...) and branch blocks (`elseif>`, `catch>`, `case>`, ...).
+            let ownership = CodeLogicStmt.blockOwnership(for: kind)
+            let ownedSameDepthKinds = ownership.partKinds.union(ownership.branchKinds)
+            if ownedSameDepthKinds.isNotEmpty {
                 while let next = stream.current,
                       next.depth == baseDepth,
-                      claimable.contains(CodeLogicStmtKind.parse(next.keyword)) {
+                      !next.precededBySeparator,
+                      ownedSameDepthKinds.contains(CodeLogicStmtKind.parse(next.keyword)) {
                     stream.advance()
                     let childKind = CodeLogicStmtKind.parse(next.keyword)
                     let grandchildren: [CodeLogicStmt] = (stream.current?.depth ?? 0) > baseDepth
@@ -242,16 +253,24 @@ public enum CodeLogicParser {
                                                   children: grandchildren))
                 }
 
-                // If the very next same-depth line is a sub-statement-only keyword not claimed
-                // by this block, the user forgot a blank line. Consume it as a needs-review
-                // child so the error is visible in generated output without halting the pipeline.
                 if let next = stream.current,
                    next.depth == baseDepth,
-                   CodeLogicStmtKind.parse(next.keyword).isSubStatementOnly {
-                    stream.advance()
-                    let reason = "'\(next.keyword)' is not a sub-statement of '\(kind.keyword)' — add a blank line before '\(next.keyword)' to start a new block"
-                    children.append(CodeLogicStmt(kind: .needsReview, expression: reason,
-                                                  children: [CodeLogicStmt(kind: .unknown, expression: "\(next.keyword) \(next.expression)")]))
+                   !next.precededBySeparator {
+                    let nextKind = CodeLogicStmtKind.parse(next.keyword)
+                    if nextKind != .unknown, !ownedSameDepthKinds.contains(nextKind) {
+                        let ownedKinds = ownedSameDepthKinds.map(\.keyword).sorted().joined(separator: ", ")
+                        let nextPInfo = await ParsedInfo(
+                            parser: pInfo.parser,
+                            line: next.rawLine,
+                            lineNo: next.lineNo,
+                            level: pInfo.level,
+                            firstWord: next.keyword
+                        )
+                        throw Model_ParsingError.invalidCodeLogicStatement(
+                            "'\(kind.keyword)' does not own same-depth keyword '\(next.keyword)'. Insert a blank line before '\(next.keyword)' to start a new sibling block. Owned continuations: [\(ownedKinds)].",
+                            nextPInfo
+                        )
+                    }
                 }
             }
 
@@ -259,6 +278,19 @@ public enum CodeLogicParser {
         }
 
         return result
+    }
+
+    private static func isSeparatorLine(_ line: String) -> Bool {
+        var i = line.startIndex
+        while i < line.endIndex {
+            let c = line[i]
+            if c == "|" || c == " " || c == "\t" {
+                i = line.index(after: i)
+            } else {
+                break
+            }
+        }
+        return String(line[i...]).isEmpty
     }
 }
 

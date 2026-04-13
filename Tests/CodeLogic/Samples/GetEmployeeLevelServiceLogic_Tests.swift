@@ -16,14 +16,16 @@ import Testing
         #expect(await method.hasLogic == true)
 
         let logic = try await requireLogic(of: method)
-        // db-raw (let absorbed as child), if, elseif, elseif, else, return
-        #expect(logic.statements.count == 6)
+        // db-raw (let absorbed as child), if-with-branches, return
+        #expect(logic.statements.count == 3)
         #expect(await logic.statements[0].kind == .dbRaw)
         #expect(await logic.statements[1].kind == .`if`)
-        #expect(await logic.statements[2].kind == .elseIf)
-        #expect(await logic.statements[3].kind == .elseIf)
-        #expect(await logic.statements[4].kind == .`else`)
-        #expect(await logic.statements[5].kind == .`return`)
+        let ifChildren = await logic.statements[1].children
+        #expect(ifChildren.count == 4)
+        #expect(await ifChildren[1].kind == .elseIf)
+        #expect(await ifChildren[2].kind == .elseIf)
+        #expect(await ifChildren[3].kind == .`else`)
+        #expect(await logic.statements[2].kind == .`return`)
 
         let lines = await FlatLogicLineData.flatten(logic: logic)
         let kinds = lines.map { $0.kind }
@@ -50,8 +52,8 @@ import Testing
 
     @Test func logicParsesStandalone() async throws {
         let logic = try await parseLogicOnly(Self.methodLogicBody)
-        // let absorbed into db-raw as child
-        #expect(logic.statements.count == 6)
+        // let absorbed into db-raw as child; else/elseif are owned by the if block
+        #expect(logic.statements.count == 3)
     }
 
     // MARK: - Helpers
@@ -82,8 +84,8 @@ import Testing
 
     /// Setext method body only (what `CodeLogicParser.parse` expects).
     ///
-    /// Uses `IF` / `ELSEIF` / `ELSE` at the same depth so `return level` is a top-level sibling.
-    /// (Deeply nested `ELSE` + `IF` + bare `return` can attach `return` to the outer `else` in the current tree builder.)
+    /// Uses `IF` / `ELSEIF` / `ELSE` at the same depth; the parser folds those branches into the
+    /// owning `if` block so `return level` remains the only top-level trailing sibling after the chain.
     ///
     /// SQL uses `EXEC …` so the first token on SQL lines is not a CodeLogic keyword (`SELECT`, `WHERE`, …); see `Database_Tests`.
     private static let methodLogicBody = """
@@ -94,6 +96,7 @@ import Testing
     |  emp_id = empId
     |  years = years
     |> LET years = _
+
     |> IF years < 2
     | assign level = "Junior"
     |> ELSEIF years < 5
@@ -102,6 +105,7 @@ import Testing
     | assign level = "Senior"
     |> ELSE
     | assign level = "Principal"
+
     return level
     """
 

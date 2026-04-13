@@ -88,6 +88,22 @@ A space after pipes is allowed for readability — `| return x` equals `|return 
 
 Block openers (`|> KEYWORD`) gather the lines that immediately follow at a greater depth as their `children`. Line statements have no children.
 
+When two sibling block statements appear inside the same parent block, separate them with an empty line that uses the parent scope's line prefix (`|`, `||`, etc.) so the grouping stays visually unambiguous.
+
+Example:
+
+````modelhike
+|> TRANSACTION
+||> DB-RAW primary
+||> SQL
+|| SELECT 1
+|
+||> DB-RAW replica
+||> SQL
+|| SELECT 2
+| commit
+````
+
 ---
 
 ## 3. Control Flow
@@ -203,12 +219,12 @@ assign account.balance = account.balance - amount
 describe(status: String) : String
 ----------------------------------
 |> SWITCH status
-| |> CASE "PENDING"
-| | return "Awaiting approval"
-| |> CASE "ACTIVE"
-| | return "In progress"
-| |> DEFAULT
-| | return "Unknown"
+|> CASE "PENDING"
+| return "Awaiting approval"
+|> CASE "ACTIVE"
+| return "In progress"
+|> DEFAULT
+| return "Unknown"
 ---
 ````
 
@@ -241,11 +257,39 @@ Statement | Syntax | Kind | Description |
 `finally` | `\|> FINALLY` | Block | Always-run cleanup block |
 `throw` | `\| THROW expression` | Leaf | Raise an error |
 `switch` | `\|> SWITCH subject` | Block | Multi-branch switch |
-`case` | `\|> CASE value` | Block | Switch branch |
-`default` | `\|> DEFAULT` | Block | Default switch branch |
+`case` | `\|> CASE value` | Block | Switch branch within the enclosing `switch` block |
+`default` | `\|> DEFAULT` | Block | Default switch branch within the enclosing `switch` block |
 `#if` | `\|> #IF symbol` | Block | Conditional compilation |
 `#else` | `\|> #ELSE` | Block | Else directive |
 `#endif` | `\|> #ENDIF` | Block | End directive |
+
+### Blank-Line Separation Between Sibling Blocks
+
+Blocks that own same-depth parts or branches must be separated from the next sibling statement by an empty line.
+
+Examples:
+
+```text
+|> DB-RAW primary
+|> SQL
+|  SELECT 1
+|> PARAMS
+|  id = orderId
+
+|> IF ok
+|return true
+```
+
+```text
+|> IF score >= 90
+|return "A"
+|> ELSE
+|return "B"
+
+return grade
+```
+
+Without the empty line, the parser records a warning telling you to start the next sibling block with a blank separator.
 
 ---
 
@@ -295,9 +339,9 @@ Statement | Syntax | Description |
 activeOrderTotals(orders: Order[]) : Float[]
 ---------------------------------------------
 |> PIPE orders
-| |> FILTER o -> o.status == "ACTIVE"
-| |> MAP o -> o.amount
-| |> LET totals = _
+|> FILTER o -> o.status == "ACTIVE"
+|> MAP o -> o.amount
+|> LET totals = _
 return totals
 ---
 ````
@@ -312,9 +356,9 @@ return totals
 getOrder(orderId: Id) : Order
 ------------------------------
 |> DB Orders
-| |> WHERE o -> o.id == orderId
-| |> FIRST
-| |> LET order = _
+|> WHERE o -> o.id == orderId
+|> FIRST
+|> LET order = _
 return order
 ---
 ````
@@ -325,11 +369,11 @@ return order
 listOrders(skip: Int, take: Int) : Order[]
 -------------------------------------------
 |> DB Orders
-| |> ORDER-BY createdAt desc
-| |> SKIP skip
-| |> TAKE take
-| |> TO-LIST
-| |> LET orders = _
+|> ORDER-BY createdAt desc
+|> SKIP skip
+|> TAKE take
+|> TO-LIST
+|> LET orders = _
 return orders
 ---
 ````
@@ -348,8 +392,8 @@ return order
 shipOrder(id: Id) : void
 -------------------------
 |> DB-UPDATE Orders -> o.id == id
-| |> SET status    = "SHIPPED"
-| |> SET shippedAt = now()
+|> SET status    = "SHIPPED"
+|> SET shippedAt = now()
 ---
 ````
 
@@ -366,9 +410,9 @@ deleteOrder(id: Id) : void
 orderCountByStatus() : any
 ---------------------------
 |> DB Orders
-| |> GROUP-BY o -> o.status
-| |> AGGREGATE count
-| |> LET countsByStatus = _
+|> GROUP-BY o -> o.status
+|> AGGREGATE count
+|> LET countsByStatus = _
 return countsByStatus
 ---
 ````
@@ -379,9 +423,9 @@ return countsByStatus
 customerOrders(customerId: Id) : Order[]
 -----------------------------------------
 |> DB-PROC-CALL dbo.usp_GetCustomerOrders
-| |> PARAMS
-| |  CustomerId = customerId
-| |> LET orders = _
+|> PARAMS
+|  CustomerId = customerId
+|> LET orders = _
 return orders
 ---
 ````
@@ -392,11 +436,11 @@ return orders
 legacySearch(term: String) : any[]
 ------------------------------------
 |> DB-RAW primary
-| |> SQL
-| |  SELECT * FROM Products WHERE Name LIKE @term
-| |> PARAMS
-| |  term = "%" + term + "%"
-| |> LET results = _
+|> SQL
+|  SELECT * FROM Products WHERE Name LIKE @term
+|> PARAMS
+|  term = "%" + term + "%"
+|> LET results = _
 return results
 ---
 ````
@@ -413,9 +457,9 @@ processOrders() : void
 | DB-ENV SET NOCOUNT ON
 | DB-ENV SET TRANSACTION ISOLATION LEVEL READ COMMITTED
 |> DB Orders
-| |> WHERE o -> o.status == "PENDING"
-| |> TO-LIST
-| |> LET pendingOrders = _
+|> WHERE o -> o.status == "PENDING"
+|> TO-LIST
+|> LET pendingOrders = _
 ---
 ````
 
@@ -476,18 +520,19 @@ Statement | Syntax |
 transferFunds(fromId: Id, toId: Id, amount: Decimal) : void
 -------------------------------------------------------------
 |> TRANSACTION transferFunds
-| |> DB-RAW connection
-| | |> SQL
-| | | UPDATE Accounts SET Balance = Balance - @amount WHERE AccountID = @fromId
-| | |> PARAMS
-| | | amount = amount
-| | | fromId = fromId
-| |> DB-RAW connection
-| | |> SQL
-| | | UPDATE Accounts SET Balance = Balance + @amount WHERE AccountID = @toId
-| | |> PARAMS
-| | | amount = amount
-| | | toId = toId
+||> DB-RAW connection
+||> SQL
+|| UPDATE Accounts SET Balance = Balance - @amount WHERE AccountID = @fromId
+||> PARAMS
+|| amount = amount
+|| fromId = fromId
+|
+||> DB-RAW connection
+||> SQL
+|| UPDATE Accounts SET Balance = Balance + @amount WHERE AccountID = @toId
+||> PARAMS
+|| amount = amount
+|| toId = toId
 | commit
 ---
 ````
@@ -500,17 +545,19 @@ transferFunds(fromId: Id, toId: Id, amount: Decimal) : void
 complexUpdate() : Int
 ----------------------
 |> TRANSACTION
-| |> DB-RAW connection
-| | |> SQL
-| | | UPDATE master_table SET status = 'processing'
-| |> SAVEPOINT afterMasterUpdate
-| | |> DB-RAW connection
-| | | |> SQL
-| | | | UPDATE detail_table SET processed = 1
-| | |> SAVEPOINT afterDetailUpdate
-| | | |> DB-RAW connection
-| | | | |> SQL
-| | | | | UPDATE summary_table SET last_update = GETDATE()
+||> DB-RAW connection
+||> SQL
+|| UPDATE master_table SET status = 'processing'
+|
+||> SAVEPOINT afterMasterUpdate
+|||> DB-RAW connection
+|||> SQL
+||| UPDATE detail_table SET processed = 1
+||
+|||> SAVEPOINT afterDetailUpdate
+||||> DB-RAW connection
+||||> SQL
+|||| UPDATE summary_table SET last_update = GETDATE()
 | commit
 ---
 ````
@@ -531,14 +578,14 @@ Combine `TRANSACTION` with `TRY`/`CATCH` to express the common "begin-work-commi
 safeTransfer(fromId: Id, toId: Id, amount: Decimal) : void
 ------------------------------------------------------------
 |> TRY
-| |> TRANSACTION
-| | |> DB-RAW connection
-| | | |> SQL
-| | | | UPDATE Accounts SET Balance = Balance - @amount WHERE AccountID = @fromId
-| | | |> PARAMS
-| | | | amount = amount
-| | | | fromId = fromId
-| | commit
+||> TRANSACTION
+|||> DB-RAW connection
+|||> SQL
+||| UPDATE Accounts SET Balance = Balance - @amount WHERE AccountID = @fromId
+|||> PARAMS
+||| amount = amount
+||| fromId = fromId
+|| commit
 |> CATCH error
 | rollback
 | raw throw TransferError(error.message)

@@ -36,17 +36,17 @@ import Testing
             |> ELSE
             |return amount * 0.9
             """)
-        #expect(logic.statements.count == 2)
+        #expect(logic.statements.count == 1)
 
         let ifStmt = logic.statements[0]
         #expect(await ifStmt.kind == .`if`)
         #expect(await ifStmt.expression == "percent <= 0")
         let ifChildren = await ifStmt.children
-        #expect(ifChildren.count == 1)
+        #expect(ifChildren.count == 2)
         #expect(await ifChildren[0].kind == .`return`)
         #expect(await ifChildren[0].expression == "amount")
 
-        let elseStmt = logic.statements[1]
+        let elseStmt = ifChildren[1]
         #expect(await elseStmt.kind == .`else`)
         let elseChildren = await elseStmt.children
         #expect(elseChildren.count == 1)
@@ -62,11 +62,13 @@ import Testing
             |> ELSE
             |return "C"
             """)
-        #expect(logic.statements.count == 3)
+        #expect(logic.statements.count == 1)
         #expect(await logic.statements[0].kind == .`if`)
-        #expect(await logic.statements[1].kind == .elseIf)
-        #expect(await logic.statements[1].expression == "score >= 75")
-        #expect(await logic.statements[2].kind == .`else`)
+        let ifChildren = await logic.statements[0].children
+        #expect(ifChildren.count == 3)
+        #expect(await ifChildren[1].kind == .elseIf)
+        #expect(await ifChildren[1].expression == "score >= 75")
+        #expect(await ifChildren[2].kind == .`else`)
     }
 
     @Test func forLoop() async throws {
@@ -92,11 +94,13 @@ import Testing
             |> FINALLY
             |call cleanup()
             """)
-        #expect(logic.statements.count == 3)
+        #expect(logic.statements.count == 1)
         #expect(await logic.statements[0].kind == .`try`)
-        #expect(await logic.statements[1].kind == .`catch`)
-        #expect(await logic.statements[1].expression == "ex: DatabaseException")
-        #expect(await logic.statements[2].kind == .`finally`)
+        let tryChildren = await logic.statements[0].children
+        #expect(tryChildren.count == 3)
+        #expect(await tryChildren[1].kind == .`catch`)
+        #expect(await tryChildren[1].expression == "ex: DatabaseException")
+        #expect(await tryChildren[2].kind == .`finally`)
     }
 
     // MARK: Nesting
@@ -130,9 +134,10 @@ import Testing
             |> WHERE o -> o.id == orderId
             |> FIRST
             |> LET order = _
+
             return order
             """)
-        // db> claims where/first/let as sibling children; return stands alone
+        // db> claims where/first/let as sibling children; a blank line starts the next sibling block
         #expect(logic.statements.count == 2)
         let db = logic.statements[0]
         #expect(await db.kind == .db)
@@ -176,9 +181,10 @@ import Testing
             |> AUTH bearer
             |> EXPECT 200
             |> LET user = _
+
             return user
             """)
-        // http> claims path/auth/expect/let as sibling children; return stands alone
+        // http> claims path/auth/expect/let as sibling children; a blank line starts the next sibling block
         #expect(logic.statements.count == 2)
         let http = logic.statements[0]
         #expect(await http.kind == .http)
@@ -221,12 +227,12 @@ import Testing
             |> ELSE
             | return amount * 0.9
             """)
-        #expect(logic.statements.count == 2)
+        #expect(logic.statements.count == 1)
         let ifChildren = await logic.statements[0].children
-        #expect(ifChildren.count == 1)
+        #expect(ifChildren.count == 2)
         #expect(await ifChildren[0].kind == .`return`)
         #expect(await ifChildren[0].expression == "amount")
-        let elseChildren = await logic.statements[1].children
+        let elseChildren = await ifChildren[1].children
         #expect(elseChildren.count == 1)
         #expect(await elseChildren[0].expression == "amount * 0.9")
     }
@@ -304,10 +310,12 @@ import Testing
         #expect(await method.hasLogic == true)
 
         let logic = try await requireLogic(of: method)
-        #expect(logic.statements.count == 2)
+        #expect(logic.statements.count == 1)
         #expect(await logic.statements[0].kind == .`if`)
         #expect(await logic.statements[0].expression == "percent <= 0")
-        #expect(await logic.statements[1].kind == .`else`)
+        let ifChildren = await logic.statements[0].children
+        #expect(ifChildren.count == 2)
+        #expect(await ifChildren[1].kind == .`else`)
     }
 
     @Test func logicBlockTerminatesBeforeNextProperty() async throws {
@@ -762,9 +770,11 @@ import Testing
         let methods = await obj.methods
         #expect(methods.count == 1)
         let logic = try await requireLogic(of: methods[0])
-        #expect(logic.statements.count == 2)
+        #expect(logic.statements.count == 1)
         #expect(await logic.statements[0].kind == .if)
-        #expect(await logic.statements[1].kind == .else)
+        let ifChildren = await logic.statements[0].children
+        #expect(ifChildren.count == 2)
+        #expect(await ifChildren[1].kind == .else)
     }
 
     @Test func tildeAndSetextMethodsMixed() async throws {

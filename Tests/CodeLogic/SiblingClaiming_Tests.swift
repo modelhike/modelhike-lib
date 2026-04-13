@@ -14,6 +14,7 @@ import Testing
             |> DB Orders
             |> WHERE o -> o.active
             |> LET orders = _
+
             return orders
             """)
         #expect(logic.statements.count == 2)
@@ -28,6 +29,7 @@ import Testing
             |> DB Users
             |> TO-LIST
             |> LET users = _
+
             assign count = users.count
             return count
             """)
@@ -45,10 +47,12 @@ import Testing
             |> WHERE o -> o.id == orderId
             |> FIRST
             |> LET order = _
+
             |> DB Users
             |> WHERE u -> u.id == order.userId
             |> FIRST
             |> LET user = _
+
             return user
             """)
         // Each db> should claim its own siblings independently
@@ -72,12 +76,14 @@ import Testing
             |> WHERE u -> u.id == userId
             |> FIRST
             |> LET user = _
+
             |> HTTP POST https://notify.example.com/send
             |> BODY
             |  email = user.email
             |  message = "Hello"
             |> EXPECT 200
             |> LET _ = _
+
             return user
             """)
         #expect(logic.statements.count == 3)
@@ -100,16 +106,18 @@ import Testing
             ||> WHERE u -> u.id == userId
             ||> FIRST
             ||> LET user = _
+            |
             |return user
             |> ELSE
             |return nil
             """)
-        #expect(logic.statements.count == 2)
+        #expect(logic.statements.count == 1)
         let ifChildren = await logic.statements[0].children
-        // The first child of IF is the db block; the second is the return
-        #expect(ifChildren.count == 2)
+        // The IF owns the db block, the return in its true branch, and the trailing else branch.
+        #expect(ifChildren.count == 3)
         #expect(await ifChildren[0].kind == .db)
         #expect(await ifChildren[1].kind == .`return`)
+        #expect(await ifChildren[2].kind == .`else`)
 
         let dbChildren = await ifChildren[0].children
         #expect(dbChildren.count == 3) // where + first + let
@@ -123,6 +131,7 @@ import Testing
             |> SET status = "SHIPPED"
             |> SET shippedAt = now()
             |> SET trackingId = tracking
+
             return "ok"
             """)
         #expect(logic.statements.count == 2)
@@ -139,6 +148,7 @@ import Testing
             |> PAYLOAD
             |  items = cart.items
             |> LET order = _
+
             call auditLog(order)
             return order
             """)
@@ -158,6 +168,7 @@ import Testing
             |> PARAMS
             |  month = currentMonth
             |> LET totals = _
+
             return totals
             """)
         #expect(logic.statements.count == 2)
@@ -165,6 +176,60 @@ import Testing
         #expect(procChildren.count == 2)   // params + let
         #expect(await procChildren[0].kind == .params)
         #expect(await procChildren[1].kind == .`let`)
+    }
+
+    @Test func wrongSubStatementThrowsParseError() async {
+        await #expect(throws: Model_ParsingError.self) {
+            _ = try await parse("""
+                |> DB Orders
+                |> PATH
+                |  id = userId
+                """)
+        }
+    }
+
+    @Test func nestedDbRawClaimsSqlAndParamsAtItsOwnDepth() async throws {
+        let logic = try await parse("""
+            |> TRANSACTION
+            ||> DB-RAW primary
+            ||> SQL
+            || SELECT * FROM Orders WHERE Id = @id
+            ||> PARAMS
+            || id = orderId
+            |
+            | commit
+            """)
+        #expect(logic.statements.count == 1)
+        let transactionChildren = await logic.statements[0].children
+        #expect(transactionChildren.count == 2)
+        #expect(await transactionChildren[0].kind == .dbRaw)
+        #expect(await transactionChildren[1].kind == .commit)
+
+        let dbRawChildren = await transactionChildren[0].children
+        #expect(dbRawChildren.count == 2)
+        #expect(await dbRawChildren[0].kind == .sql)
+        #expect(await dbRawChildren[1].kind == .params)
+    }
+
+    @Test func prefixedBlankLineSeparatesSiblingParentBlocks() async throws {
+        let logic = try await parse("""
+            |> TRANSACTION
+            ||> DB-RAW primary
+            ||> SQL
+            || SELECT 1
+            |
+            ||> DB-RAW replica
+            ||> SQL
+            || SELECT 2
+            |
+            | commit
+            """)
+        #expect(logic.statements.count == 1)
+        let transactionChildren = await logic.statements[0].children
+        #expect(transactionChildren.count == 3)
+        #expect(await transactionChildren[0].kind == .dbRaw)
+        #expect(await transactionChildren[1].kind == .dbRaw)
+        #expect(await transactionChildren[2].kind == .commit)
     }
 
     // MARK: Helper

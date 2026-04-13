@@ -34,11 +34,11 @@ import Testing
         #expect(types == [.open, .leaf, .open, .leaf, .close])
         #expect(lines[0].depth == 1)
         #expect(lines[1].depth == 2)
-        #expect(lines[2].depth == 1)
-        #expect(lines[3].depth == 2)
+        #expect(lines[2].depth == 2)
+        #expect(lines[3].depth == 3)
         #expect(lines[4].depth == 1)
         #expect(lines[4].lineType == .close)
-        #expect(lines[4].closingKind == "else")
+        #expect(lines[4].closingKind == "if")
         #expect(lines[4].parentKind == "")
     }
 
@@ -74,12 +74,54 @@ import Testing
         #expect(String(repeating: "    ", count: (dbRawClose?.depth ?? 0) + 2) == "            ")
     }
 
-    @Test func isChainedAfter() {
-        #expect(FlatLogicLineData.isChainedAfter(.else, previous: .if))
-        #expect(FlatLogicLineData.isChainedAfter(.elseIf, previous: .if))
-        #expect(FlatLogicLineData.isChainedAfter(.catch, previous: .try))
-        #expect(FlatLogicLineData.isChainedAfter(.finally, previous: .catch))
-        #expect(!FlatLogicLineData.isChainedAfter(.return, previous: .if))
+    @Test func blockOwnsBranchKindsOnlyForItsOwnBranches() {
+        #expect(CodeLogicStmt.blockOwnership(for: .if).branchKinds.contains(.else))
+        #expect(CodeLogicStmt.blockOwnership(for: .if).branchKinds.contains(.elseIf))
+        #expect(CodeLogicStmt.blockOwnership(for: .try).branchKinds.contains(.catch))
+        #expect(CodeLogicStmt.blockOwnership(for: .try).branchKinds.contains(.finally))
+        #expect(CodeLogicStmt.blockOwnership(for: .switch).branchKinds.contains(.case))
+        #expect(CodeLogicStmt.blockOwnership(for: .switch).branchKinds.contains(.default))
+        #expect(CodeLogicStmt.blockOwnership(for: .dbRaw).branchKinds.isEmpty)
+        #expect(CodeLogicStmt.blockOwnership(for: .http).branchKinds.isEmpty)
+        #expect(CodeLogicStmt.blockOwnership(for: .grpc).branchKinds.isEmpty)
+        #expect(CodeLogicStmt.blockOwnership(for: .notify).branchKinds.isEmpty)
+        #expect(!CodeLogicStmt.blockOwnership(for: .case).branchKinds.contains(.default))
+        #expect(!CodeLogicStmt.blockOwnership(for: .dbRaw).branchKinds.contains(.case))
+        #expect(!CodeLogicStmt.blockOwnership(for: .http).branchKinds.contains(.headers))
+        #expect(!CodeLogicStmt.blockOwnership(for: .if).branchKinds.contains(.return))
+    }
+
+    @Test func partsStayGroupedWithTheirParentBlock() {
+        #expect(CodeLogicStmt.blockOwnership(for: .db).partKinds.contains(.where))
+        #expect(CodeLogicStmt.blockOwnership(for: .dbRaw).partKinds.contains(.sql))
+        #expect(CodeLogicStmt.blockOwnership(for: .http).partKinds.contains(.headers))
+        #expect(CodeLogicStmt.blockOwnership(for: .grpc).partKinds.contains(.payload))
+        #expect(CodeLogicStmt.blockOwnership(for: .notify).partKinds.contains(.subject))
+        #expect(CodeLogicStmt.blockOwnership(for: .publish).partKinds.contains(.metadata))
+        #expect(!CodeLogicStmt.blockOwnership(for: .switch).partKinds.contains(.case))
+        #expect(!CodeLogicStmt.blockOwnership(for: .if).partKinds.contains(.else))
+    }
+
+    @Test func flattenSwitchClausesStayWithinSwitchBlock() async throws {
+        let logic = try await parseLogic("""
+            |> SWITCH status
+            |> CASE "active"
+            | return true
+            |> DEFAULT
+            | return false
+            """)
+        let lines = await FlatLogicLineData.flatten(logic: logic)
+        let kinds = lines.map { $0.kind }
+        let types = lines.map { $0.lineType }
+        let depths = lines.map { $0.depth }
+
+        #expect(kinds == [
+            .statement(.switch), .statement(.case), .statement(.return),
+            .statement(.default), .statement(.return), .close,
+        ])
+        #expect(types == [.open, .open, .leaf, .open, .leaf, .close])
+        #expect(depths == [1, 2, 3, 2, 3, 1])
+        #expect(lines[5].closingKind == "switch")
     }
 
     private func parseLogic(_ dslString: String) async throws -> CodeLogic {
