@@ -67,6 +67,7 @@ public actor API_Wrap : ObjectWrapper {
 
         case .givenname: await item.givenname
         case .baseUrl: await item.baseUrl
+        case .routePrefix: await item.routePrefix ?? ""
         case .version: await item.version
         case .queryParams: await queryParams
 
@@ -177,6 +178,7 @@ private enum APIProperty: String, CaseIterable {
     case type
     case givenname
     case baseUrl = "base-url"
+    case routePrefix = "route-prefix"
     case version
     case queryParams = "query-params"
     case isCreate = "is-create"

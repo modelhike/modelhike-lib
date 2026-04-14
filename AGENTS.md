@@ -601,6 +601,7 @@ getByUsingCustomLogic, listByUsingCustomLogic, mutationUsingCustomLogic
 
 - **Indentation** — `WhitespaceContent` records leading spaces/tabs on a template line. When a `{{ … }}` print spans multiple lines, the first line’s leading whitespace is applied to continuation lines (use `String.newLine` / `String.newLine2` in Swift, not ad-hoc `\n` literals — see Key Conventions).
 - **`MethodObject` in scripts** — `MethodObject_Wrap` / `MethodParameter_Wrap` expose signatures and metadata. For each method with logic, `logic-lines` is built from `FlatLogicLineData.flatten`, producing rows with `kind`, `depth`, `is-open` / `is-leaf` / `is-close`, and structured fields (`condition`, `for-item`, …). Language-specific emission belongs in blueprint `_modifiers_` (e.g. Spring Boot `java-method-body.teso`, `java-method-params.teso`, `java-return-type.teso`).
+- **`API` in scripts** — `API_Wrap` exposes `api.base-url`, `api.route-prefix` (REST prefix from `# APIs` bracket notes starting with `/`, empty when unset), and other keys listed in [`DSL/templatesoup.dsl.md`](DSL/templatesoup.dsl.md) (section 5.6).
 
 ---
 

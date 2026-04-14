@@ -318,6 +318,8 @@ All statements below work in both file types; only the prefix changes.
 | `api.givenname`                | Original name                                            |
 | `api.type`                     | `APIType` enum value as string                           |
 | `api.path`                     | Route path suffix (e.g. `:id`)                           |
+| `api.base-url`                 | Slug derived from entity name (used as base URL segment) |
+| `api.route-prefix`             | REST path prefix from `# APIs` `[…]` notes whose text starts with `/` (see [`modelHike.dsl.md`](modelHike.dsl.md), section Technical implications); empty string if none — set when `@ apis::` materialises APIs |
 | `api.has-path`                 | Bool — path is non-empty                                 |
 | `api.is-create`                | Bool                                                     |
 | `api.is-update`                | Bool                                                     |
