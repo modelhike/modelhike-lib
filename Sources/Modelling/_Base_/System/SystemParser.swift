@@ -81,13 +81,16 @@ public enum SystemParser {
             return nil
         }
 
-        let (_, systemName, attributeString, tagString) = match.output
+        let (_, systemName, attributeString, technicalString, tagString) = match.output
         let item = await C4System(name: systemName)
 
         await ParserUtil.appendDescription(pending?.description, to: item)
         await ParserUtil.appendDescription(inlineDesc, to: item)
         if let attributeString {
             await ParserUtil.populateAttributes(for: item, from: attributeString)
+        }
+        if let technicalString {
+            await ParserUtil.populateTechnicalImplications(for: item, from: technicalString)
         }
         if let tagString {
             await ParserUtil.populateTags(for: item, from: tagString)

@@ -27,12 +27,16 @@ public enum AttachedSectionParser {
             return nil
         }
 
-        let (_, sectionCode, attributeString, tagString) = match.output
+        let (_, sectionCode, attributeString, technicalString, tagString) = match.output
         let item = AttachedSection(code: sectionCode.trim(), for: obj)
 
         //check if has attributes
         if let attributeString = attributeString {
             await ParserUtil.populateAttributes(for: item, from: attributeString)
+        }
+
+        if let technicalString = technicalString {
+            await ParserUtil.populateTechnicalImplications(for: item, from: technicalString)
         }
 
         //check if has tags

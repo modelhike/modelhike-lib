@@ -36,7 +36,7 @@ public enum SubModuleParser {
         let line = innerLine
         guard let match = line.wholeMatch(of: ModelRegEx.moduleName_Capturing)                                                                                  else { return nil }
         
-        let (_, moduleName, attributeString, tagString) = match.output
+        let (_, moduleName, attributeString, technicalString, tagString) = match.output
         let item = C4Component(name: moduleName.trim())
         await ParserUtil.appendDescription(pending?.description, to: item)
         await ParserUtil.appendDescription(inlineDesc, to: item)
@@ -44,6 +44,10 @@ public enum SubModuleParser {
         //check if has attributes
         if let attributeString = attributeString {
             await ParserUtil.populateAttributes(for: item, from: attributeString)
+        }
+
+        if let technicalString = technicalString {
+            await ParserUtil.populateTechnicalImplications(for: item, from: technicalString)
         }
         
         //check if has tags

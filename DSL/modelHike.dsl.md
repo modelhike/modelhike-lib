@@ -46,7 +46,7 @@ ModelHike DSL lets you capture **architecture, data models, and APIs** in a sing
 | `<>`               | Valid value set literal               | Property valid value set |
 | `{key=value}`      | **Constraint** list                   | After property           |
 | `(key=value)`      | **Attribute** (explicit)              | After element / property |
-| `[ … ]`            | **Attribute** (inferred)              | Usually after `# APIs`   |
+| `[ … ]`            | **Technical implications** — bracket notes (after `(attributes)`, before `#` tags) | Container, module, class, property, method, `# APIs`, virtual group headers, … |
 | `@`                | **Annotation** (scaffold / metadata)  | Any element              |
 | `#tag`             | **Tag** – free‑form label             | End of header / property |
 | `#blueprint(name)` | **Blueprint tag** – selects templates | Container header         |
@@ -496,10 +496,13 @@ Attributes add key‑value pairs to **any element**.
 
 ### 6.1 Two styles
 
+Attributes use **parentheses** only: `(key=value, …)`.
+
 | Style    | Syntax                        | Result                       |
 | -------- | ----------------------------- | ---------------------------- |
-| Explicit | `(route="/users", version=2)` | You name every key           |
-| Inferred | `["/orders"]`                 | DSL infers `route="/orders"` |
+| Explicit | `(version=2)` | Key–value pairs on the model element |
+
+**Square brackets `[ … ]` on the same line are not attributes.** They are **technical implications** (see §6.5): parsed **after** `(…)` and **before** `#` tags. For `# APIs` blocks, bracket text that starts with `/` is also used as a **REST route prefix** when `@ apis::` is applied (see §10).
 
 ### 6.2 Inheritance / Composition
 
@@ -518,17 +521,47 @@ Order (BaseEntity, SoftDelete)
 * price : Float = 9.99 { min = 0 } (currency="USD")
 ```
 
-### 6.4 API‑block attributes
+### 6.4 API‑block line
+
+Put **attributes** in parentheses. Optional **technical-implication** brackets and **`#` tags** follow the same ordering as everywhere else (§6.5).
 
 ```modelhike
 # APIs (route="/orders", version=2, auth="jwt")
-# APIs ["/orders"]   # inferred route
+# APIs (protocol="rest") ["/api/v1"] #public
 ```
+
+* Route prefix from brackets: any `[ … ]` segment whose inner text starts with `/` is concatenated (e.g. `[/api]` + `[/v1]` → `/api/v1`) and passed to generated REST APIs for that `# APIs` block.
 
 #### Mini‑cheatsheet
 
 ```modelhike
-# APIs ["/products"]
+# APIs ["/products"] [review caching]
+```
+
+---
+
+### 6.5 Technical implications — `[ … ]` bracket notes
+
+**Technical implications** are zero or more **`[ … ]` segments** placed **after** `(attributes)` (if any) and **before** `#` hash tags on the same line. They are meant for **technical reviewers and implementers** (implementation risks, rollout notes, API review); non‑technical readers can skip them.
+
+**Where they are parsed**
+
+* Container, module, sub‑module, and **system** headers  
+* **Class / DTO / UIView** headers  
+* **Property** lines (after type, constraints, and `(attributes)`)  
+* **Method** signatures (tilde and setext)  
+* **`# APIs` and other attached section** headers (`# SectionName …`)  
+* **`>>>` parameter metadata** lines (same position as on a property line)  
+* **Virtual group** opening lines (`+--- Name …`)  
+* **`+` module** lines inside a container  
+
+**API route prefix**
+
+On a **`# APIs`** line, any bracket whose text **starts with `/`** participates in the **route prefix** for REST endpoints scaffolded by `@ apis::` (combined in order, no separator between segments).
+
+```modelhike
+# APIs [/api/v1] [owner-only review]
+@ apis:: create, list, get-by-id
 ```
 
 ---
@@ -577,7 +610,7 @@ Specifies how query parameters map to entity properties for the list endpoint. U
 
 ## 8 · Tags — quick labels 🏷️
 
-Tags add searchable, free‑form metadata. **Always append them at the very end of a line.**
+Tags add searchable, free‑form metadata. **Always append them at the very end of a line** — **after** `(attributes)` and **after** any **`[ … ]` technical-implication** segments (§6.5).
 
 ### Key ideas
 
@@ -635,8 +668,8 @@ APIs turn your DSL models into live endpoints. ModelHike supports **REST, GraphQ
 > | `@ apis:: …`           | Scaffold CRUD **and** generate stubs (REST / GraphQL / gRPC) |
 > | `protocol="…"` attr    | Explicitly pick `rest` (default), `graphql`, or `grpc`       |
 > | `# APIs`               | Start a per‑class API block                                  |
-> | `["/path"]`            | Inferred **route** attribute (REST)                          |
-> | `[graphql]` / `[grpc]` | Inferred **protocol** attribute                              |
+> | `[ /prefix ]` on `# APIs` | Bracket text starting with `/` → **route prefix** for REST (§6.5) |
+> | `[ … ]` (other)        | **Technical implications** on the API line (§6.5)            |
 > | `list by <prop>`       | Auto‑builds filter query / resolver / RPC                    |
 
  Module‑level scaffold
@@ -653,7 +686,7 @@ APIs turn your DSL models into live endpoints. ModelHike supports **REST, GraphQ
 ```modelhike
 Product
 =======
-# APIs ["/products"]                 # inferred REST route (protocol defaults to REST)
+# APIs ["/products"] [review pagination]   # REST route via attribute; brackets = technical notes
 @ apis:: create, delete, get-by-id   # scaffold CRUD endpoints
 ## list by name                      # auto GET /products?name={name}
 ## discount(price: Float) : Product  (route="/products/discount", method=POST)
@@ -665,7 +698,7 @@ Product
 ```modelhike
 Flight View
 ===========
-# APIs [graphql]
+# APIs (protocol="graphql") [review resolvers]
 @ apis:: create, list, get-by-id      # generates mutations & queries
 ## list by arrival Station            # adds `flightsByArrivalStation` resolver
 #
@@ -742,7 +775,7 @@ My Screen View (attributes) #tags
 Dashboard View
 ~~~~~~~~~~~~~~
 @ roles:: admin
-# APIs ["/dashboard"]
+# APIs [/dashboard]                    # `/…` in brackets → REST route prefix (§6.5)
 @ apis:: get-by-id
 #
 ```
@@ -758,7 +791,7 @@ Methods appear **after all properties** in a class. Two syntaxes are supported:
 **Tilde-prefix style** — `~` prefix on the signature line. Preferred for method stubs (no logic). Supports an optional fenced logic block using ` ``` `, `'''`, or `"""` — any run of 3 or more of the same character is accepted; the closing fence must be the exact same string as the opening fence.
 
 ```modelhike
-methodName(param1: Type, param2: Type) : ReturnType #tags
+methodName(param1: Type, param2: Type) : ReturnType (attributes) [ … ] #tags
 ----------------------------------------------------------
 ```
 
@@ -768,7 +801,7 @@ view-sql
 ```
 
 ```modelhike
-~ methodName(param1: Type, param2: Type) : ReturnType #tags
+~ methodName(param1: Type, param2: Type) : ReturnType (attributes) [ … ] #tags
 ```
 
 ```modelhike
@@ -788,8 +821,10 @@ view-sql
 To attach rich metadata to individual parameters, write one `>>>` line per parameter **immediately before** the method header (no blank lines between). The format mirrors the property syntax:
 
 ```
->>> <marker> <paramName>: <Type> [= default] [<validValueSet>] [{ constraints }] [(attributes)] [#tags]
+>>> <marker> <paramName>: <Type> [= default] [<validValueSet>] [{ constraints }] [(attributes)] [ … ] … [#tags]
 ```
+
+* After `(attributes)`, you may repeat **`[ … ]`** for **technical implications** (§6.5), then **`#` tags** at the end.
 
 | Marker | Meaning |
 | ------ | ------- |
@@ -813,7 +848,6 @@ You may also prefix parameters in the **signature** with `-->` or `<-->` (e.g. `
 * Parameters with no matching `>>>` line receive default metadata (`required = .no`, no constraints, no default).
 * Both tilde-prefix and setext-style methods support `>>>` blocks.
 * Valid value set, constraints, attributes, and tags use the same syntax as properties (see §5).
-* `MethodParameter.metadata` is a `ParameterMetadata` struct with fields: `required`, `isOutput`, `defaultValue`, `validValueSet: [String]`, `constraints`, `attribs`, `tags`.
 
 #### Mini‑cheatsheet
 

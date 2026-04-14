@@ -27,7 +27,7 @@ public enum UIViewParser {
 
         guard let match = line.wholeMatch(of: ModelRegEx.uiviewName_Capturing)                                                                                  else { return nil }
 
-        let (_, className, attributeString, tagString) = match.output
+        let (_, className, attributeString, technicalString, tagString) = match.output
 
         guard let pctx = await parser.currentParsedInfo(level : 0) else { await parser.skipLine(); return nil }
 
@@ -38,6 +38,10 @@ public enum UIViewParser {
         //check if has attributes
         if let attributeString = attributeString {
             await ParserUtil.populateAttributes(for: item, from: attributeString)
+        }
+
+        if let technicalString = technicalString {
+            await ParserUtil.populateTechnicalImplications(for: item, from: technicalString)
         }
 
         //check if has tags

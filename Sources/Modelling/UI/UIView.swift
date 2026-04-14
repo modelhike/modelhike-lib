@@ -6,7 +6,7 @@
 
 import Foundation
 
-public actor UIView : UIObject {
+public actor UIView : UIObject, HasTechnicalImplications_Actor {
     let sourceLocation: SourceLocation
 
     public var givenname: String
@@ -18,6 +18,7 @@ public actor UIView : UIObject {
     
     public let attribs = Attributes()
     public let tags = Tags()
+    public let technicalImplications = TechnicalImplications()
     public let annotations = Annotations()
     public private(set) var description: String?
 

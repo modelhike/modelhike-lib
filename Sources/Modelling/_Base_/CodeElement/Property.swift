@@ -6,11 +6,12 @@
 
 import Foundation
 
-public actor Property : CodeMember {
+public actor Property : CodeMember, HasTechnicalImplications_Actor {
     public let pInfo: ParsedInfo
     public let attribs = Attributes()
     public let constraints = Constraints()
     public let tags = Tags()
+    public let technicalImplications = TechnicalImplications()
     
     public var name: String
     public var givenname : String
@@ -47,6 +48,7 @@ public actor Property : CodeMember {
             validValueSet,
             constraintString,
             attributeString,
+            technicalString,
             tagString
         ) = match.output
         
@@ -75,6 +77,10 @@ public actor Property : CodeMember {
         //check if has attributes
         if let attributeString = attributeString {
             await ParserUtil.populateAttributes(for: prop, from: attributeString)
+        }
+
+        if let technicalString = technicalString {
+            await ParserUtil.populateTechnicalImplications(for: prop, from: technicalString)
         }
         
         await prop.typeKind(from: typeName)

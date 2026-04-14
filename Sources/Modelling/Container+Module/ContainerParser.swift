@@ -34,7 +34,7 @@ public enum ContainerParser {
         
         guard let match = line.wholeMatch(of: ModelRegEx.containerName_Capturing)                                                                                  else { return nil }
         
-        let (_, containerName, attributeString, tagString) = match.output
+        let (_, containerName, attributeString, technicalString, tagString) = match.output
         let item = await C4Container(name: containerName)
         await ParserUtil.appendDescription(pending?.description, to: item)
         await ParserUtil.appendDescription(inlineDesc, to: item)
@@ -42,6 +42,10 @@ public enum ContainerParser {
         //check if has attributes
         if let attributeString = attributeString {
             await ParserUtil.populateAttributes(for: item, from: attributeString)
+        }
+
+        if let technicalString = technicalString {
+            await ParserUtil.populateTechnicalImplications(for: item, from: technicalString)
         }
         
         //check if has tags

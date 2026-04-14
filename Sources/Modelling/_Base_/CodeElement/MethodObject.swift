@@ -6,10 +6,11 @@
 
 import Foundation
 
-public actor MethodObject: CodeMember {
+public actor MethodObject: CodeMember, HasTechnicalImplications_Actor {
     public let pInfo: ParsedInfo
     public var attribs = Attributes()
     public var tags = Tags()
+    public let technicalImplications = TechnicalImplications()
 
     public var name: String
     public var givenname: String
@@ -133,6 +134,10 @@ public actor MethodObject: CodeMember {
             await ParserUtil.populateAttributes(for: method, from: attributeString)
         }
 
+        if let technicalString = signature.technicalString {
+            await ParserUtil.populateTechnicalImplications(for: method, from: technicalString)
+        }
+
         //check if has tags
         if let tagString = signature.tagString {
             await ParserUtil.populateTags(for: method, from: tagString)
@@ -156,6 +161,7 @@ public actor MethodObject: CodeMember {
         let arguments: String
         let returnType: String?
         let attributeString: String?
+        let technicalString: String?
         let tagString: String?
     }
 
@@ -264,12 +270,13 @@ public actor MethodObject: CodeMember {
 
     private static func parseSignature(_ line: String) -> ParsedMethodSignature? {
         if let match = line.wholeMatch(of: ModelRegEx.method_Capturing) {
-            let (_, methodName, arguments, returnType, attributeString, tagString) = match.output
+            let (_, methodName, arguments, returnType, attributeString, technicalString, tagString) = match.output
             return ParsedMethodSignature(
                 name: methodName,
                 arguments: arguments,
                 returnType: returnType,
                 attributeString: attributeString,
+                technicalString: technicalString,
                 tagString: tagString
             )
         }
@@ -278,12 +285,13 @@ public actor MethodObject: CodeMember {
             return nil
         }
 
-        let (_, methodName, returnType, attributeString, tagString) = match.output
+        let (_, methodName, returnType, attributeString, technicalString, tagString) = match.output
         return ParsedMethodSignature(
             name: methodName,
             arguments: "",
             returnType: returnType,
             attributeString: attributeString,
+            technicalString: technicalString,
             tagString: tagString
         )
     }
@@ -359,7 +367,7 @@ public struct MethodParameter: Sendable {
 }
 
 /// Metadata for a method parameter, parsed from `>>>` lines that precede the method signature.
-public struct ParameterMetadata: Sendable {
+public struct ParameterMetadata: Sendable, HasTechnicalImplicationsValues {
     public var required: RequiredKind
     public var isOutput: Bool
     public var defaultValue: String?
@@ -367,6 +375,8 @@ public struct ParameterMetadata: Sendable {
     public var constraints: [Constraint]
     public var attribs: [Attribute]
     public var tags: [Tag]
+    /// Bracket notes from the `>>>` parameter line, after `(attributes)`.
+    public var technicalImplications: [TechnicalImplication] = []
     /// Documentation from `--` on the same `>>>` line as parameter metadata.
     public var description: String?
 
@@ -378,6 +388,7 @@ public struct ParameterMetadata: Sendable {
         constraints: [Constraint] = [],
         attribs: [Attribute] = [],
         tags: [Tag] = [],
+        technicalImplications: [TechnicalImplication] = [],
         description: String? = nil
     ) {
         self.required = required
@@ -387,6 +398,7 @@ public struct ParameterMetadata: Sendable {
         self.constraints = constraints
         self.attribs = attribs
         self.tags = tags
+        self.technicalImplications = technicalImplications
         self.description = description
     }
 
@@ -443,7 +455,7 @@ public struct ParameterMetadata: Sendable {
         // propertyLine: "paramName: Type [= default] [{ constraints }] [(attributes)] [#tags]"
 
         guard let match = propertyLine.wholeMatch(of: ModelRegEx.property_Capturing) else { return nil }
-        let (_, propName, _, _, defaultValue, capturedValidValueSet, constraintString, attributeString, tagString) = match.output
+        let (_, propName, _, _, defaultValue, capturedValidValueSet, constraintString, attributeString, technicalString, tagString) = match.output
 
         let required: RequiredKind
         let isOutputMarker: Bool
@@ -468,6 +480,7 @@ public struct ParameterMetadata: Sendable {
 
         let attribs = ParserUtil.parseAttributes(from: attributeString ?? "")
         let tags = ParserUtil.parseTags(from: tagString ?? "")
+        let technicalImplications = ParserUtil.technicalImplicationNotes(from: technicalString ?? "")
         let isOutput = isOutputMarker || tags.contains(where: { $0.name == "output" })
 
         let name = propName.trim().normalizeForVariableName()
@@ -479,6 +492,7 @@ public struct ParameterMetadata: Sendable {
             constraints: constraints,
             attribs: attribs,
             tags: tags,
+            technicalImplications: technicalImplications,
             description: paramDesc
         )
         return (name: name, metadata: metadata)

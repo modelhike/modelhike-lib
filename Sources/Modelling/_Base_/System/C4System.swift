@@ -6,9 +6,10 @@
 
 import Foundation
 
-public actor C4System: ArtifactHolder {
+public actor C4System: ArtifactHolder, HasTechnicalImplications_Actor {
     public var attribs = Attributes()
     public var tags = Tags()
+    public let technicalImplications = TechnicalImplications()
     public var annotations = Annotations()
 
     public var name: String = ""

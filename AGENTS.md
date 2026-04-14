@@ -149,6 +149,8 @@ System  (* * * ... * * * asterism fence)
 
 > **Syntax reference:** All DSL syntax — property prefixes, type names, array notation, attribute/annotation/tag grammar, UIView syntax, method syntax, API protocol options, and the `(backend)` attribute convention — is documented in [`DSL/modelHike.dsl.md`](DSL/modelHike.dsl.md). Fenced method-body logic block syntax (fence styles, depth rules, all statement keywords) is documented in [`DSL/codelogic.dsl.md`](DSL/codelogic.dsl.md). Those files are the single source of truth. **Update them when any syntax changes; do not duplicate syntax here.**
 
+**Technical implications** — `[ … ]` segments after `(attributes)` and before `#` tags on the same line; parsed into `TechnicalImplication` / `TechnicalImplications` / `HasTechnicalImplicationsValues`. On `# APIs` lines, bracket text starting with `/` contributes to the REST route prefix. See **§6.5** in `DSL/modelHike.dsl.md`.
+
 ---
 
 ## 5. Source Module Breakdown
@@ -1142,7 +1144,7 @@ CRITICAL:
 | **Blueprint** | A repository of `.teso` template files, static files, and a `main.ss` entry-point SoupyScript. Blueprints drive what code is generated. |
 | **System** | The outermost C4 boundary — a named collection of containers, infra nodes, and virtual groups. Uses three asterism fences: open title / close title / close body. `+` lines reference containers (resolved at load); infra nodes use a setext `++++` header with `key = value` properties; virtual groups use `+--- Name … +---` fences. Maps to `C4System`. |
 | **InfraNode** | An inline infrastructure element inside a system body (database, broker, cache, etc.). Declared with a setext `++++` header, `[type]` bracket, and `key = value` property lines. Stored as `InfraNode` struct on `C4System.infraNodes`. |
-| **VirtualGroup** | A named visual cluster inside a system body (or nested inside another group). Opening fence: `+--- Name #tags -- desc`. Closing fence: `+---` alone. Body lines prefixed with `\|`. Can contain container refs, infra nodes, and nested virtual groups. Carries no semantic meaning — exists for diagram layout. Stored as `VirtualGroup` struct on `C4System.groups` (or `VirtualGroup.subGroups`). Container refs are resolved during load in `AppModel.resolveAndLinkItems`. |
+| **VirtualGroup** | A named visual cluster inside a system body (or nested inside another group). Opening fence: `+--- Name #tags -- desc`. Closing fence: `+---` alone. Body lines prefixed with `\|`. Can contain container refs, infra nodes, and nested virtual groups. Carries no semantic meaning — exists for diagram layout. Optional `[ … ]` on the opening line holds technical implications (`TechnicalImplication`). Stored as `VirtualGroup` struct on `C4System.groups` (or `VirtualGroup.subGroups`). Container refs are resolved during load in `AppModel.resolveAndLinkItems`. |
 | **Container** | A deployable unit in the C4 model — maps to a microservice, web app, or database. Defined with `===...===` fences. |
 | **Module / Component** | A C4 Component inside a Container; maps to a bounded context or functional grouping. |
 | **DomainObject** | A persisted entity class with typed properties, mixins, and optional APIs. |
@@ -1154,6 +1156,7 @@ CRITICAL:
 | **Annotation** | A directive starting with `@` that automates tasks like CRUD scaffolding or index creation. |
 | **Tag** | A free-form label (`#tag` or `#tag:value`) for searchable metadata. |
 | **Attribute** | A key-value pair (`key=value`) attached to model elements; used for validation rules, routing, etc. |
+| **Technical implication** | Optional `[ … ]` segment on a line (after `(attributes)`, before `#` tags). Parsed as `TechnicalImplication` text; stored on model elements that support `TechnicalImplications`. On `# APIs` lines, bracket text starting with `/` contributes to the REST route prefix when `@ apis::` runs. |
 | **Pipeline** | The 6-phase processing chain: Discover → Load → Hydrate → Transform → Render → Persist. |
 | **Sandbox** | `CodeGenerationSandbox` — the actor that executes code generation for a single container against a blueprint. |
 | **ModelSpace** | The root in-memory representation of all parsed models: `C4Container`s and `C4Component`s. |
@@ -1166,7 +1169,7 @@ CRITICAL:
 | **CodeLogic** | Fenced method-body syntax inside methods (pipe-gutter statements; `DSL/codelogic.dsl.md`). Parsed into `CodeLogic` / `CodeLogicStmt`; flattened for templates via `FlatLogicLineData`. |
 | **MethodObject** | A method member inside a class (`~` tilde-prefix or setext style). Has `parameters: [MethodParameter]`, `returnType: TypeInfo`, and `logic: CodeLogic?`. May be preceded by `>>>` parameter metadata lines. |
 | **MethodParameter** | A single method parameter: `name`, `type`, `metadata: ParameterMetadata`. |
-| **ParameterMetadata** | Rich decoration for a `MethodParameter` parsed from `>>>` lines: `required`, `isOutput`, `defaultValue`, `validValueSet: [String]`, `constraints`, `attribs`, `tags`. |
+| **ParameterMetadata** | Rich decoration for a `MethodParameter` parsed from `>>>` lines: `required`, `isOutput`, `defaultValue`, `validValueSet: [String]`, `constraints`, `attribs`, `tags`, optional `[ … ]` as `technicalImplications`, optional `--` inline description. |
 | **backend attribute** | `(backend)` on a property or field — marks it as server-side only, excluded from client schemas by blueprints that honour this convention. |
 | **MappingAnnotation** | The `@list-api` annotation value type: a list of `(key, value)` pairs expressed as `prop -> prop.sub; prop2 -> prop2`. |
 | **Visual Debugger** | Browser-based inspection of pipeline runs. Post-mortem: `swift run DevTester --debug`. Live streaming: `swift run DevTester --debug-stepping`. Full docs in [Docs/debug/VISUALDEBUG.md](Docs/debug/VISUALDEBUG.md). |

@@ -26,7 +26,7 @@ public enum DtoObjectParser {
         
         guard let match = line.wholeMatch(of: ModelRegEx.className_Capturing)                                                                                  else { return nil }
         
-        let (_, className, attributeString, tagString) = match.output
+        let (_, className, attributeString, technicalString, tagString) = match.output
         
         try await pInfo.ctx.events.onParse(objectName: className, with: pInfo)
 
@@ -37,6 +37,10 @@ public enum DtoObjectParser {
         //check if has attributes
         if let attributeString = attributeString {
             await ParserUtil.populateAttributes(for: item, from: attributeString)
+        }
+
+        if let technicalString = technicalString {
+            await ParserUtil.populateTechnicalImplications(for: item, from: technicalString)
         }
         
         //check if has tags

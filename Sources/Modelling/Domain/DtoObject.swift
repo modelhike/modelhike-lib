@@ -6,7 +6,7 @@
 
 import Foundation
 
-public actor DtoObject : CodeObject {
+public actor DtoObject : CodeObject, HasTechnicalImplications_Actor {
     let sourceLocation: SourceLocation
     public var givenname: String
     public var name: String
@@ -17,6 +17,7 @@ public actor DtoObject : CodeObject {
 
     public var attribs = Attributes()
     public var tags = Tags()
+    public let technicalImplications = TechnicalImplications()
     public var annotations = Annotations()
     public private(set) var description: String?
 

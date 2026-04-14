@@ -6,10 +6,11 @@
 
 import Foundation
 
-public actor ContainerModuleMember: Artifact {
+public actor ContainerModuleMember: Artifact, HasTechnicalImplications_Actor {
     let sourceLocation: SourceLocation
     public var attribs = Attributes()
     public var tags = Tags()
+    public let technicalImplications = TechnicalImplications()
     public var annotations = Annotations()
 
     public let name: String
@@ -36,7 +37,7 @@ public actor ContainerModuleMember: Artifact {
             return nil
         }
 
-        let (_, moduleName, attributeString, tagString) = match.output
+        let (_, moduleName, attributeString, technicalString, tagString) = match.output
         let modulename = moduleName.trim()
 
         let module = ContainerModuleMember(
@@ -45,6 +46,10 @@ public actor ContainerModuleMember: Artifact {
         //check if has attributes
         if let attributeString = attributeString {
             await ParserUtil.populateAttributes(for: module, from: attributeString)
+        }
+
+        if let technicalString = technicalString {
+            await ParserUtil.populateTechnicalImplications(for: module, from: technicalString)
         }
 
         //check if has tags

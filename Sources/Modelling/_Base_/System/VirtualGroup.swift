@@ -25,11 +25,13 @@
 
 import Foundation
 
-public struct VirtualGroup: Sendable {
+public struct VirtualGroup: Sendable, HasTechnicalImplicationsValues {
     public let name: String
     public let givenname: String
     public var description: String?
     public var tags: [Tag]
+    /// Bracket technical-review notes from the group header (after `(attributes)`).
+    public var technicalImplications: [TechnicalImplication]
 
     /// Container names declared with `+ Name` inside this group — unresolved until
     /// `AppModel.resolveAndLinkItems` runs.
@@ -44,11 +46,12 @@ public struct VirtualGroup: Sendable {
     /// Nested virtual groups, preserving declaration order.
     public private(set) var subGroups: [VirtualGroup]
 
-    public init(givenname: String, description: String? = nil, tags: [Tag] = []) {
+    public init(givenname: String, description: String? = nil, tags: [Tag] = [], technicalImplications: [TechnicalImplication] = []) {
         self.givenname = givenname.trim()
         self.name = self.givenname.normalizeForVariableName()
         self.description = description
         self.tags = tags
+        self.technicalImplications = technicalImplications
         self.unresolvedContainerRefs = []
         self.containers = []
         self.infraNodes = []

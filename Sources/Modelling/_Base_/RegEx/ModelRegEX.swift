@@ -75,6 +75,44 @@ public enum ModelRegEx {
             }
         }
 
+    /// One or more `[ … ]` segments (technical implications / review notes). Parsed after `(attributes)`, before `#` tags.
+    nonisolated(unsafe)
+        public static let technicalImplications_Capturing: Regex<(Substring, String)> = Regex {
+            Capture {
+                OneOrMore {
+                    Optionally { whitespace }
+                    "["
+                    ZeroOrMore {
+                        NegativeLookahead {
+                            "]"
+                        }
+                        CharacterClass.any
+                    }
+                    "]"
+                }
+            } transform: {
+                String($0)
+            }
+        }
+
+    /// One `[ … ]` segment; first capture is the inner text (use with ``String.matches(of:)`` to list every bracket pair in order).
+    nonisolated(unsafe)
+        public static let technicalImplicationBracketInner_Capturing: Regex<(Substring, String)> = Regex {
+            Optionally { whitespace }
+            "["
+            Capture {
+                ZeroOrMore {
+                    NegativeLookahead {
+                        "]"
+                    }
+                    CharacterClass.any
+                }
+            } transform: {
+                String($0)
+            }
+            "]"
+        }
+
     nonisolated(unsafe)
         public static let property_Type: Regex<Substring> = Regex {
             CharacterClass(
@@ -302,7 +340,7 @@ public enum ModelRegEx {
 
     nonisolated(unsafe)
         public static let property_Capturing:
-        Regex<(Substring, String, String, String?, String?, String?, String?, String?, String?)> =
+        Regex<(Substring, String, String, String?, String?, String?, String?, String?, String?, String?)> =
             Regex {
                 Capture {
                     nameWithWhitespace
@@ -342,6 +380,10 @@ public enum ModelRegEx {
                 }
 
                 Optionally {
+                    technicalImplications_Capturing
+                }
+
+                Optionally {
                     Capture {
                         tags
                     } transform: {
@@ -353,7 +395,7 @@ public enum ModelRegEx {
             }
 
     nonisolated(unsafe)
-        public static let derivedProperty_Capturing: Regex<(Substring, String, String?, String?)> =
+        public static let derivedProperty_Capturing: Regex<(Substring, String, String?, String?, String?)> =
             Regex {
                 Capture {
                     nameWithWhitespace
@@ -363,6 +405,10 @@ public enum ModelRegEx {
 
                 Optionally {
                     attributes
+                }
+
+                Optionally {
+                    technicalImplications_Capturing
                 }
 
                 Optionally {
@@ -378,7 +424,7 @@ public enum ModelRegEx {
 
     nonisolated(unsafe)
         public static let method_Capturing:
-        Regex<(Substring, String, String, String?, String?, String?)> = Regex {
+        Regex<(Substring, String, String, String?, String?, String?, String?)> = Regex {
             Capture {
                 CommonRegEx.functionName
             } transform: {
@@ -417,6 +463,12 @@ public enum ModelRegEx {
             whitespace
 
             Optionally {
+                technicalImplications_Capturing
+            }
+
+            whitespace
+
+            Optionally {
                 Capture {
                     tags
                 } transform: {
@@ -429,7 +481,7 @@ public enum ModelRegEx {
 
     nonisolated(unsafe)
         public static let methodParamless_Capturing:
-        Regex<(Substring, String, String?, String?, String?)> = Regex {
+        Regex<(Substring, String, String?, String?, String?, String?)> = Regex {
             Capture {
                 CommonRegEx.functionName
             } transform: {
@@ -452,6 +504,12 @@ public enum ModelRegEx {
 
             Optionally {
                 attributes
+            }
+
+            whitespace
+
+            Optionally {
+                technicalImplications_Capturing
             }
 
             whitespace
@@ -495,7 +553,7 @@ public enum ModelRegEx {
         }
 
     nonisolated(unsafe)
-        public static let container_Member_Capturing: Regex<(Substring, String, String?, String?)> =
+        public static let container_Member_Capturing: Regex<(Substring, String, String?, String?, String?)> =
             Regex {
                 Capture {
                     nameWithWhitespace
@@ -505,6 +563,10 @@ public enum ModelRegEx {
 
                 Optionally {
                     attributes
+                }
+
+                Optionally {
+                    technicalImplications_Capturing
                 }
 
                 Optionally {
@@ -519,22 +581,22 @@ public enum ModelRegEx {
             }
 
     nonisolated(unsafe)
-        public static let moduleName_Capturing: Regex<(Substring, String, String?, String?)> =
+        public static let moduleName_Capturing: Regex<(Substring, String, String?, String?, String?)> =
             container_Member_Capturing
 
     nonisolated(unsafe)
-        public static let containerName_Capturing: Regex<(Substring, String, String?, String?)> =
+        public static let containerName_Capturing: Regex<(Substring, String, String?, String?, String?)> =
             container_Member_Capturing
 
     nonisolated(unsafe)
-        public static let className_Capturing: Regex<(Substring, String, String?, String?)> =
+        public static let className_Capturing: Regex<(Substring, String, String?, String?, String?)> =
             container_Member_Capturing
 
     nonisolated(unsafe)
-        public static let uiviewName_Capturing: Regex<(Substring, String, String?, String?)> =
+        public static let uiviewName_Capturing: Regex<(Substring, String, String?, String?, String?)> =
             container_Member_Capturing
 
     nonisolated(unsafe)
         public static let attachedSectionName_Capturing:
-        Regex<(Substring, String, String?, String?)> = container_Member_Capturing
+        Regex<(Substring, String, String?, String?, String?)> = container_Member_Capturing
 }

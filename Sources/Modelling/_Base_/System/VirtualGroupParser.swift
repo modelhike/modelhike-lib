@@ -78,20 +78,23 @@ public enum VirtualGroupParser {
         // Extract name + optional tags from the header segment.
         let groupName: String
         let tags: [Tag]
+        let technical: [TechnicalImplication]
         if let match = headerLine.wholeMatch(of: ModelRegEx.containerName_Capturing) {
-            let (_, name, _, tagStr) = match.output
+            let (_, name, _, techStr, tagStr) = match.output
             groupName = name
+            technical = techStr.map { ParserUtil.technicalImplicationNotes(from: $0) } ?? []
             tags = tagStr.map { ParserUtil.parseTags(from: $0) } ?? []
         } else {
             // Fallback for names that fail the standard regex (e.g. digit-first names).
             let (n, tagStr) = ParserUtil.extractNameAndTagString(from: headerLine)
             groupName = n
+            technical = []
             tags = tagStr.map { ParserUtil.parseTags(from: $0) } ?? []
         }
 
         guard groupName.isNotEmpty else { return nil }
 
-        var group = VirtualGroup(givenname: groupName, description: inlineDesc, tags: tags)
+        var group = VirtualGroup(givenname: groupName, description: inlineDesc, tags: tags, technicalImplications: technical)
         await parser.skipLine() // consume the opening fence line
 
         // Collect body lines (each must start with `|`) until the closing `+---`.

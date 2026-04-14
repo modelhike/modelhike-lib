@@ -6,10 +6,11 @@
 
 import Foundation
 
-public actor DerivedProperty: CodeMember {
+public actor DerivedProperty: CodeMember, HasTechnicalImplications_Actor {
     public let pInfo: ParsedInfo
     public var attribs = Attributes()
     public var tags = Tags()
+    public let technicalImplications = TechnicalImplications()
 
     public var name: String
     public var givenname: String
@@ -30,7 +31,7 @@ public actor DerivedProperty: CodeMember {
             return nil
         }
 
-        let (_, propName, attributeString, tagString) = match.output
+        let (_, propName, attributeString, technicalString, tagString) = match.output
 
         let givenName = propName.trim()
 
@@ -39,6 +40,10 @@ public actor DerivedProperty: CodeMember {
         //check if has attributes
         if let attributeString = attributeString {
             await ParserUtil.populateAttributes(for: prop, from: attributeString)
+        }
+
+        if let technicalString = technicalString {
+            await ParserUtil.populateTechnicalImplications(for: prop, from: technicalString)
         }
 
         //check if has tags

@@ -431,6 +431,45 @@ public class ParserUtil {
         }
     }
 
+    /// Bracket segments as ``TechnicalImplication`` values.
+    public static func technicalImplicationNotes(from raw: String) -> [TechnicalImplication] {
+        parseTechnicalImplications(from: raw).map { TechnicalImplication($0) }
+    }
+
+    /// Splits a captured suffix (e.g. `" [review-db] [/api/v1]"`) into inner bracket texts in order.
+    public static func parseTechnicalImplications(from raw: String) -> [String] {
+        raw.matches(of: ModelRegEx.technicalImplicationBracketInner_Capturing).map { match in
+            let (_, inner) = match.output
+            return inner.trim()
+        }
+    }
+
+    /// Joins `[ /segment ]` markers into one URL path prefix for REST APIs (e.g. `[/api]` + `[/v1]` → `/api/v1`).
+    /// Bracket text may be JSON-like `"/flight"` (quotes stripped before checking for a leading `/`).
+    public static func apiRoutePrefix(from notes: [TechnicalImplication]) -> String? {
+        let paths = notes.compactMap { Self.normalizedRoutePrefixSegment($0.text) }
+        guard paths.isNotEmpty else { return nil }
+        return paths.joined(separator: "")
+    }
+
+    private static func normalizedRoutePrefixSegment(_ raw: String) -> String? {
+        var s = raw.trim()
+        if s.count >= 2, s.first == "\"", s.last == "\"" {
+            s = String(s.dropFirst().dropLast()).trim()
+        }
+        guard s.hasPrefix("/") else { return nil }
+        return s
+    }
+
+    /// Parses and appends bracket technical-implication notes onto `artifact`.
+    public static func populateTechnicalImplications(
+        for artifact: HasTechnicalImplications_Actor, from raw: String?
+    ) async {
+        guard let raw, raw.isNotEmpty else { return }
+        let items = technicalImplicationNotes(from: raw)
+        await artifact.technicalImplications.appendAll(items)
+    }
+
     /// Parses tags from `tagString` and appends them onto an actor-backed artifact.
     public static func populateTags(for artifact: HasTags_Actor, from tagString: String) async {
         let tagMatches = tagString.matches(of: ModelRegEx.tags_Capturing)
