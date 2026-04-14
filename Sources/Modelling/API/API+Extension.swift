@@ -20,6 +20,8 @@ public actor APIState {
     
     public let path: String
     public let baseUrl: String
+    /// Optional REST path prefix from `# APIs` bracket markers such as `[/api/v1]`.
+    public let routePrefix: String?
     public let version: Int
     public private(set) var queryParams: [APIQueryParamWrapper] = []
     
@@ -31,7 +33,7 @@ public actor APIState {
         self.name = value
     }
     
-    public init(entity item: CodeObject, name: String, path: String, type: APIType, version: Int = 1) async {
+    public init(entity item: CodeObject, name: String, path: String, type: APIType, version: Int = 1, routePrefix: String? = nil) async {
         let entityname = await item.name
         self.entity = item
         self.type = type
@@ -39,6 +41,7 @@ public actor APIState {
         self.version = version
         
         self.path = path
+        self.routePrefix = routePrefix
         
         self.name = name
         self.givenname = name
@@ -49,7 +52,7 @@ public actor GenericAPI: API {
     public var state: APIState
     public private(set) var name: String = ""
 
-    public init(entity item: CodeObject, type: APIType, version: Int = 1) async {
+    public init(entity item: CodeObject, type: APIType, version: Int = 1, routePrefix: String? = nil) async {
         let entityname = await item.name
         
         var name = ""
@@ -93,10 +96,10 @@ public actor GenericAPI: API {
             name = "\(plural)Subscription"
         }
         
-        await self.init(entity: item, name: name, type: type, version: version)
+        await self.init(entity: item, name: name, type: type, version: version, routePrefix: routePrefix)
     }
     
-    public init(entity item: CodeObject, name: String, type: APIType, version: Int = 1) async {
+    public init(entity item: CodeObject, name: String, type: APIType, version: Int = 1, routePrefix: String? = nil) async {
         var path: String = ""
         
         switch type {
@@ -134,12 +137,12 @@ public actor GenericAPI: API {
             path = ""
         }
         
-        self.state = await APIState(entity: item, name: name, path: path, type: type, version: version)
+        self.state = await APIState(entity: item, name: name, path: path, type: type, version: version, routePrefix: routePrefix)
         self.name = name
     }
     
-    public init(entity item: CodeObject, name: String, path: String, type: APIType, version: Int = 1) async {
-        self.state = await APIState(entity: item, name: name, path: path, type: type, version: version)
+    public init(entity item: CodeObject, name: String, path: String, type: APIType, version: Int = 1, routePrefix: String? = nil) async {
+        self.state = await APIState(entity: item, name: name, path: path, type: type, version: version, routePrefix: routePrefix)
         self.name = name
     }
 }
@@ -158,6 +161,7 @@ extension API {
     public var dataType: ArtifactKind { state.dataType }
     public var path: String { state.path }
     public var baseUrl: String { state.baseUrl }
+    public var routePrefix: String? { state.routePrefix }
     public var version: Int { state.version }
 
     public var queryParams: [APIQueryParamWrapper] {
@@ -319,8 +323,8 @@ public extension CodeObject {
     }
     
     @discardableResult
-    func appendAPI(_ type : APIType) async -> API {
-        let api = await GenericAPI(entity: self, type: type)
+    func appendAPI(_ type: APIType, routePrefix: String? = nil) async -> API {
+        let api = await GenericAPI(entity: self, type: type, routePrefix: routePrefix)
         attached.append(api)
         
         if type == .list {

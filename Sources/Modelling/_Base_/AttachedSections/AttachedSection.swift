@@ -6,7 +6,7 @@
 
 import Foundation
 
-public actor AttachedSection: ArtifactHolder {
+public actor AttachedSection: ArtifactHolder, HasTechnicalImplications_Actor {
 
     public var debugDescription: String {
         return "AttachedSection(\(name))"
@@ -14,6 +14,7 @@ public actor AttachedSection: ArtifactHolder {
 
     public var attribs = Attributes()
     public var tags = Tags()
+    public let technicalImplications = TechnicalImplications()
     public var annotations: Annotations {
         get async { await containingObject.annotations }
     }
@@ -39,5 +40,11 @@ public actor AttachedSection: ArtifactHolder {
         self.givenname = code
         self.items = []
         self.containingObject = obj
+    }
+
+    /// REST route prefix from bracket markers whose text starts with `/` (e.g. `[/api/v1]`).
+    public func apiRoutePrefix() async -> String? {
+        let items = await technicalImplications.all()
+        return ParserUtil.apiRoutePrefix(from: items)
     }
 }

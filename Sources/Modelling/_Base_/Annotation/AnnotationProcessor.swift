@@ -15,7 +15,8 @@ public enum AnnotationProcessor {
                 }
             case AnnotationConstants.apisToGenerate:
                 var cls: CodeObject?
-                
+                var routePrefix: String?
+
                 if let objcls = obj as? CodeObject {
                     cls = objcls
                 }
@@ -23,25 +24,26 @@ public enum AnnotationProcessor {
                 if let attachedSection = obj as? AttachedSection,
                    let objcls = await attachedSection.containingObject as? CodeObject {
                         cls = objcls
+                        routePrefix = await attachedSection.apiRoutePrefix()
                 }
             
                 if let cls = cls,
                    let valuesAnnotation = annotation as? ValuesAnnotation {
                     for value in valuesAnnotation.values {
                         switch value.lowercased() {
-                        case "create": await cls.appendAPI(.create)
-                        case "update": await cls.appendAPI(.update)
-                        case "delete": await cls.appendAPI(.delete)
-                        case "get-by-id": await cls.appendAPI(.getById)
-                        case "list": await cls.appendAPI(.list)
-                        case "subscribe", "push-data": await cls.appendAPI(.pushData)
-                        case "subscribe-list", "push-datalist": await cls.appendAPI(.pushData)
+                        case "create": await cls.appendAPI(.create, routePrefix: routePrefix)
+                        case "update": await cls.appendAPI(.update, routePrefix: routePrefix)
+                        case "delete": await cls.appendAPI(.delete, routePrefix: routePrefix)
+                        case "get-by-id": await cls.appendAPI(.getById, routePrefix: routePrefix)
+                        case "list": await cls.appendAPI(.list, routePrefix: routePrefix)
+                        case "subscribe", "push-data": await cls.appendAPI(.pushData, routePrefix: routePrefix)
+                        case "subscribe-list", "push-datalist": await cls.appendAPI(.pushData, routePrefix: routePrefix)
                         case "crud":
-                            await cls.appendAPI(.create)
-                            await cls.appendAPI(.update)
-                            await cls.appendAPI(.delete)
-                            await cls.appendAPI(.getById)
-                            await cls.appendAPI(.list)
+                            await cls.appendAPI(.create, routePrefix: routePrefix)
+                            await cls.appendAPI(.update, routePrefix: routePrefix)
+                            await cls.appendAPI(.delete, routePrefix: routePrefix)
+                            await cls.appendAPI(.getById, routePrefix: routePrefix)
+                            await cls.appendAPI(.list, routePrefix: routePrefix)
                         case "none":
                             break //nothing to add
                         default :
