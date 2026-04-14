@@ -15,7 +15,7 @@ public actor ModelFileParser {
     let ctx: LoadContext
     
     public func parse(file: LocalFile) async throws -> ModelSpace {
-        let lines = try file.readTextLines(ignoreEmptyLines: true)
+        let lines = try file.readTextLines(ignoreEmptyLines: false)
         return try await self.parse(lines: lines, identifier: file.name)
     }
     

@@ -88,7 +88,9 @@ A space after pipes is allowed for readability — `| return x` equals `|return 
 
 Block openers (`|> KEYWORD`) gather the lines that immediately follow at a greater depth as their `children`. Line statements have no children.
 
-When two sibling block statements appear inside the same parent block, separate them with an empty line that uses the parent scope's line prefix (`|`, `||`, etc.) so the grouping stays visually unambiguous.
+When two same-depth sibling block statements appear in sequence, separate them with a blank line.
+
+At top level, that separator is just an empty line. Inside a parent block, use a blank line that carries the parent scope's prefix (`|`, `||`, etc.) so the grouping stays visually unambiguous.
 
 Example:
 
@@ -289,7 +291,7 @@ Examples:
 return grade
 ```
 
-Without the empty line, the parser records a warning telling you to start the next sibling block with a blank separator.
+The blank separator is required between same-depth sibling blocks. At top level it is a plain empty line; inside a parent block it uses the parent-scoped blank prefix (`|`, `||`, etc.).
 
 ---
 

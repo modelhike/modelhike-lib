@@ -97,6 +97,21 @@ import Testing
         #expect(httpChildren.count == 3)  // body + expect + let
     }
 
+    @Test func topLevelSiblingBlocksNeedBlankLine() async {
+        await #expect(throws: Model_ParsingError.self) {
+            _ = try await parse("""
+                |> DB Employee
+                |> WHERE e -> e.id == empId
+                |> FIRST
+                |> LET emp = _
+                |> IF emp.years < 5
+                |return "Mid-Level"
+                |> ELSE
+                |return "Senior"
+                """)
+        }
+    }
+
     // MARK: db> inside control flow
 
     @Test func dbInsideIfBlock() async throws {

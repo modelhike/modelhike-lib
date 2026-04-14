@@ -321,7 +321,7 @@ public actor GenericLineParser<T> : LineParser where T: Context {
             self.isStatementsPrefixedWithKeyword = isStatementsPrefixedWithKeyword
             
             self.file = file
-            self.lines = try file.readTextLines(ignoreEmptyLines: true).map { $0[...] }
+            self.lines = try file.readTextLines(ignoreEmptyLines: false).map { $0[...] }
         } catch {
             return nil
         }

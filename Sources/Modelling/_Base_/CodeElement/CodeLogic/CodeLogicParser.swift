@@ -267,7 +267,7 @@ public enum CodeLogicParser {
                             firstWord: next.keyword
                         )
                         throw Model_ParsingError.invalidCodeLogicStatement(
-                            "'\(kind.keyword)' does not own same-depth keyword '\(next.keyword)'. Insert a blank line before '\(next.keyword)' to start a new sibling block. Owned continuations: [\(ownedKinds)].",
+                            "'\(kind.keyword)' does not own same-depth keyword '\(next.keyword)'. Insert a blank line before '\(next.keyword)' to start a new sibling block. If this is nested inside another block, use that parent scope's blank-line prefix. Owned continuations: [\(ownedKinds)].",
                             nextPInfo
                         )
                     }
