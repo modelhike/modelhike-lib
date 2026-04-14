@@ -146,21 +146,27 @@ public enum CodeLogicStmtKind: String, Sendable, Equatable {
     /// The canonical pipe-gutter keyword string for this statement kind.
     public var keyword: String { rawValue }
 
-    /// True if this kind only appears as a sub-statement claimed by a parent block and has no
-    /// standalone meaning (e.g. `where`, `include`, `path`, `params`, `sql`).
-    /// Used by the parser to detect a missing blank line between blocks.
+    private static let ownershipKinds: [CodeLogicStmtKind] = [
+        .if, .try, .switch,
+        .db, .dbUpdate, .dbProcCall, .dbRaw,
+        .http, .websocket, .httpGraphQL, .httpRaw,
+        .grpc, .notify, .publish,
+    ]
+
+    private static let allClaimableKinds: Set<CodeLogicStmtKind> = ownershipKinds.reduce(into: Set<CodeLogicStmtKind>()) { result, kind in
+        result.formUnion(CodeLogicStmt.blockOwnership(for: kind).partKinds)
+        result.formUnion(CodeLogicStmt.blockOwnership(for: kind).branchKinds)
+    }
+
+    // `let` and `set` are also used as standalone statements.
+    private static let standaloneKinds: Set<CodeLogicStmtKind> = [.let, .set]
+
+    /// True if this kind only appears when claimed by a parent block and has no standalone
+    /// meaning (e.g. `where`, `include`, `path`, `params`, `sql`, `elseif`, `else`).
+    /// Used by the parser to detect missing separators and to downgrade orphaned child statements
+    /// to `.unknown` when they are not actually claimed by an owning block.
     public var isSubStatementOnly: Bool {
-        let ownershipKinds: [CodeLogicStmtKind] = [
-            .db, .dbUpdate, .dbProcCall, .dbRaw,
-            .http, .websocket, .httpGraphQL, .httpRaw,
-            .grpc, .notify, .publish,
-        ]
-        let allClaimable = ownershipKinds.reduce(into: Set<CodeLogicStmtKind>()) { result, kind in
-            result.formUnion(CodeLogicStmt.blockOwnership(for: kind).partKinds)
-        }
-        // `let` and `set` are also used as standalone statements — exclude them.
-        let standaloneAlso: Set<CodeLogicStmtKind> = [.let, .set]
-        return allClaimable.contains(self) && !standaloneAlso.contains(self)
+        Self.allClaimableKinds.contains(self) && !Self.standaloneKinds.contains(self)
     }
 
     /// Whether this statement kind opens a scoped block whose body lines appear at depth+1.

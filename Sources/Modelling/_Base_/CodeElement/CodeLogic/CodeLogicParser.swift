@@ -138,6 +138,10 @@ public enum CodeLogicParser {
         let rawLine: String
         let lineNo: Int
         let precededBySeparator: Bool
+
+        var standaloneContent: String {
+            expression.isEmpty ? keyword : "\(keyword) \(expression)"
+        }
     }
 
     /// Parses a single line of fenced logic content.
@@ -228,7 +232,7 @@ public enum CodeLogicParser {
         while let line = stream.current, line.depth == baseDepth {
             stream.advance()
 
-            let kind = CodeLogicStmtKind.parse(line.keyword)
+            let parsedKind = CodeLogicStmtKind.parse(line.keyword)
 
             // Depth+1 children — for control-flow blocks and leaf sub-blocks (params>, sql>, etc.)
             var children: [CodeLogicStmt] = (stream.current?.depth ?? 0) > baseDepth
@@ -237,7 +241,7 @@ public enum CodeLogicParser {
 
             // Some blocks own same-depth continuation lines directly from the stream:
             // parts (`where>`, `headers>`, `let>`, ...) and branch blocks (`elseif>`, `catch>`, `case>`, ...).
-            let ownership = CodeLogicStmt.blockOwnership(for: kind)
+            let ownership = CodeLogicStmt.blockOwnership(for: parsedKind)
             let ownedSameDepthKinds = ownership.partKinds.union(ownership.branchKinds)
             if ownedSameDepthKinds.isNotEmpty {
                 while let next = stream.current,
@@ -267,14 +271,28 @@ public enum CodeLogicParser {
                             firstWord: next.keyword
                         )
                         throw Model_ParsingError.invalidCodeLogicStatement(
-                            "'\(kind.keyword)' does not own same-depth keyword '\(next.keyword)'. Insert a blank line before '\(next.keyword)' to start a new sibling block. If this is nested inside another block, use that parent scope's blank-line prefix. Owned continuations: [\(ownedKinds)].",
+                            "'\(parsedKind.keyword)' does not own same-depth keyword '\(next.keyword)'. Insert a blank line before '\(next.keyword)' to start a new sibling block. If this is nested inside another block, use that parent scope's blank-line prefix. Owned continuations: [\(ownedKinds)].",
                             nextPInfo
                         )
                     }
                 }
             }
 
-            result.append(CodeLogicStmt(kind: kind, expression: line.expression, children: children))
+            if parsedKind.isSubStatementOnly {
+                let linePInfo = await ParsedInfo(
+                    parser: pInfo.parser,
+                    line: line.rawLine,
+                    lineNo: line.lineNo,
+                    level: pInfo.level,
+                    firstWord: line.keyword
+                )
+                throw Model_ParsingError.invalidCodeLogicStatement(
+                    "'\(parsedKind.keyword)' cannot appear as a standalone statement. It must be claimed by its parent block at the same depth without a separating blank line.",
+                    linePInfo
+                )
+            }
+
+            result.append(CodeLogicStmt(kind: parsedKind, expression: line.expression, children: children))
         }
 
         return result

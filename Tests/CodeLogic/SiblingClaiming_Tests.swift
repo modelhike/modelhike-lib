@@ -112,6 +112,29 @@ import Testing
         }
     }
 
+    @Test func separatedElseThrowsParseError() async {
+        await #expect(throws: Model_ParsingError.self) {
+            _ = try await parse("""
+                |> IF emp.years < 5
+                |return "Mid-Level"
+
+                |> ELSE
+                |return "Senior"
+                """)
+        }
+    }
+
+    @Test func separatedWhereThrowsParseError() async {
+        await #expect(throws: Model_ParsingError.self) {
+            _ = try await parse("""
+                |> DB Orders
+                |> LET orders = _
+
+                |> WHERE o -> o.id == orderId
+                """)
+        }
+    }
+
     // MARK: db> inside control flow
 
     @Test func dbInsideIfBlock() async throws {
