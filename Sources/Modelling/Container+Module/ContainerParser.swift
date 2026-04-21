@@ -50,6 +50,9 @@ public enum ContainerParser {
         
         //check if has tags
         if let tagString = tagString {
+            if let pInfo = await parser.currentParsedInfo(level: 0) {
+                try ParserUtil.validateTagString(tagString, pInfo: pInfo)
+            }
             await ParserUtil.populateTags(for: item, from: tagString)
         }
         

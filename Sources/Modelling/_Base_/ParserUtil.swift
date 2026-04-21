@@ -470,6 +470,17 @@ public class ParserUtil {
         await artifact.technicalImplications.appendAll(items)
     }
 
+    /// Throws when `tagString` contains a tag with empty parentheses (e.g. `#blueprint()`).
+    /// The thrown error includes a fix suggestion via `Suggestions.invalidTagArgument`.
+    public static func validateTagString(_ tagString: String, pInfo: ParsedInfo) throws {
+        for match in tagString.matches(of: ModelRegEx.tags_Capturing) {
+            let (_, tag, arg) = match.output
+            if let arg, arg.isEmpty {
+                throw Suggestions.invalidTagArgument(tag, pInfo: pInfo)
+            }
+        }
+    }
+
     /// Parses tags from `tagString` and appends them onto an actor-backed artifact.
     public static func populateTags(for artifact: HasTags_Actor, from tagString: String) async {
         let tagMatches = tagString.matches(of: ModelRegEx.tags_Capturing)

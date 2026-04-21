@@ -28,6 +28,8 @@ public enum Model_ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeProvidin
     case invalidApiLine(ParsedInfo)
     case invalidSystemLine(ParsedInfo)
     case invalidCodeLogicStatement(String, ParsedInfo)
+    /// A tag was written with empty parentheses — e.g. `#blueprint()`. Either supply an argument or omit the parens.
+    case invalidTagArgument(String, ParsedInfo)
 
     public var info: String {
         switch self {
@@ -60,6 +62,7 @@ public enum Model_ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeProvidin
 
         case .invalidApiLine(let pInfo): return "invalid api: \(pInfo.line)"
         case .invalidCodeLogicStatement(let message, _): return message
+        case .invalidTagArgument(let tag, _): return "#\(tag)() has empty parentheses — supply an argument or remove the parentheses"
         }
     }
 
@@ -85,6 +88,7 @@ public enum Model_ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeProvidin
         case .invalidApiLine: return .e617
         case .invalidSystemLine: return .e619
         case .invalidCodeLogicStatement: return .e618
+        case .invalidTagArgument: return .e621
         }
     }
 
@@ -114,6 +118,7 @@ public enum Model_ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeProvidin
 
         case .invalidApiLine(let pInfo): pInfo
         case .invalidCodeLogicStatement(_, let pInfo): pInfo
+        case .invalidTagArgument(_, let pInfo): pInfo
         }
     }
 }

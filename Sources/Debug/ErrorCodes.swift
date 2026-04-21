@@ -72,6 +72,7 @@ public enum DiagnosticErrorCode: String, Codable, Sendable, CaseIterable {
     case e618 = "E618"
     case e619 = "E619"
     case e620 = "E620"
+    case e621 = "E621"
     case e701 = "E701"
     case e702 = "E702"
     case w201 = "W201"

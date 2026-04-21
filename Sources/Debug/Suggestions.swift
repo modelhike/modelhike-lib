@@ -395,6 +395,20 @@ public enum Suggestions {
         )
     }
 
+    /// Builds a parsing error for a tag written with empty parentheses (e.g. `#blueprint()`).
+    ///
+    /// The fix is always one of two deterministic choices:
+    /// - remove the parentheses: `#blueprint`
+    /// - supply an argument:     `#blueprint(some-value)`
+    ///
+    /// No fuzzy matching is needed here because there is no candidate list to compare against.
+    public static func invalidTagArgument(_ tag: String, pInfo: ParsedInfo) -> Model_ParsingError {
+        .invalidTagArgument(
+            "#\(tag)() has empty parentheses. Either remove them — '#\(tag)' — or supply an argument, e.g. '#\(tag)(value)'.",
+            pInfo
+        )
+    }
+
     /// Builds a parsing error when a property is referenced on a type that doesn't define it.
     ///
     /// Generates a descriptive error message that includes "did you mean?" suggestions
