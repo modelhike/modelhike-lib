@@ -67,9 +67,9 @@ public actor ListAPIByCustomProperties : APIWithCustomProperties {
     
     public func append(property: Property) async {
         self.properties.append(property)
-        await updateName()
+        await updateNameByEntityProperties()
     }
-    
+
     public func name(_ value: String) async {
         await self.state.name(value)
         self.name = value
@@ -96,9 +96,9 @@ public actor GetAPIByCustomProperties : APIWithCustomProperties {
     
     public func append(_ property: Property) async {
         self.properties.append(property)
-        await updateName()
+        await updateNameByEntityProperties()
     }
-    
+
     public func name(_ value: String) async {
         await self.state.name(value)
         self.name = value
@@ -120,8 +120,8 @@ public protocol APIWithCustomProperties : API {
     func name(_ value: String) async
 }
 
-public extension APIWithCustomProperties {
-    func updateName() async {
+fileprivate extension APIWithCustomProperties {
+    func updateNameByEntityProperties() async {
         var propNames : [String] = []
         
         for property in self.properties {
@@ -131,8 +131,8 @@ public extension APIWithCustomProperties {
         let seperator = andCondition ? "And" : "Or"
         let joined = propNames.joined(separator: seperator)
         
-        //it can be either entity or component level api
-        let ownerName = await entity?.name ?? ""
+        guard let entity else { return }
+        let ownerName = await entity.name
         let newName = "list\(ownerName.pluralized())By\(joined)"
         await self.name(newName)
     }
