@@ -20,7 +20,7 @@ public struct MongoDB_TypescriptLib {
                 return nil
             }
             
-            let entity = wrapped.item.entity
+            guard let entity = wrapped.item.entity else { return nil }
             let param = wrapped.item.queryParam
             let propMap = wrapped.item.propMaping
             return await self.getFilterString(queryParam: param, propMap: propMap, entity: entity, sandbox: sandbox)

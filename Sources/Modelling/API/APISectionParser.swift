@@ -112,6 +112,52 @@ public enum APISectionParser {
         return apis
     }
 
+    public static func parse(for obj: C4Component, lineParser parser: LineParser) async throws
+            -> [Artifact]
+    {
+        var apis: [Artifact] = []
+
+        while await parser.linesRemaining {
+            if await parser.isCurrentLineEmptyOrCommented() {
+                await parser.skipLine()
+                continue
+            }
+
+            guard let pInfo = await parser.currentParsedInfo(level: 0) else {
+                await parser.skipLine()
+                continue
+            }
+
+            if pInfo.firstWord == ModelConstants.AttachedSection {
+                //either it is the starting of another attached section
+                // or it is the end of this attached sections, which is
+                // having only '#' in the line
+                break
+            }
+
+            if try await pInfo.tryParseAnnotations(with: obj) {
+                continue
+            }
+
+            if pInfo.firstWord == ModelConstants.AttachedSubSection {
+                var methodPInfo = pInfo
+                methodPInfo.removeLine(after: pInfo.firstWord) //removes ## prefix
+                if let method = try await MethodObject.parse(pInfo: methodPInfo, skipLine: false) {
+                    // custom logic api is defined using method syntax
+                    let api = await CustomLogicAPI(method: method, component: obj)
+                    apis.append(api)
+                } else {
+                    throw Model_ParsingError.invalidApiLine(pInfo)
+                }
+            }
+
+
+            await parser.skipLine()
+        }
+
+        return apis
+    }
+
     nonisolated(unsafe)
     static let customListApi_SingleProperty_Regex = Regex {
         "list by"

@@ -140,11 +140,19 @@ public actor ModelFileParser {
                 }
                 
                 if let subComponent = await self.subComponent { //sub module active
+                    if try await pInfo.tryParseAttachedSections(with: subComponent) {
+                        pendingMetadataBlock.clear()
+                        return
+                    }
                     if try await pInfo.tryParseAnnotations(with: subComponent) {
                         pendingMetadataBlock.clear()
                         return
                     }
                 } else {
+                    if try await pInfo.tryParseAttachedSections(with: self.component) {
+                        pendingMetadataBlock.clear()
+                        return
+                    }
                     if try await pInfo.tryParseAnnotations(with: self.component) {
                         pendingMetadataBlock.clear()
                         return

@@ -43,7 +43,8 @@ public actor API_Wrap : ObjectWrapper {
         if let custom = item as? CustomLogicAPI {
             await custom.returnType
         } else {
-            await item.entity.name
+            //no need to check for component, as component-level APIs are all custom logic APIs
+            await item.entity?.name ?? ""
         }
     }}
     
@@ -55,11 +56,15 @@ public actor API_Wrap : ObjectWrapper {
         return try await value(for: key, pInfo: pInfo)
     }
 
-    private func value(for property: APIProperty, pInfo: ParsedInfo) async throws -> Sendable {
+    private func value(for property: APIProperty, pInfo: ParsedInfo) async throws -> Sendable? {
         switch property {
-        case .entity: await CodeObject_Wrap(item.entity)
+        case .entity:
+            if let e = await item.entity { CodeObject_Wrap(e) } else { nil }
         case .returnType: try await CheckSendable(value: returnType, pInfo: pInfo)
-        case .inputType: await item.entity.name
+        case .inputType:
+            if let name = await item.entity?.name { name }
+            else if let name = await item.component?.name { name }
+            else { nil }
         case .hasPath: await item.path.isNotEmpty
         case .path: await item.path
         case .name: await item.name

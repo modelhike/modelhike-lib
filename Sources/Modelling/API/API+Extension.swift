@@ -15,37 +15,53 @@ public actor APIState {
     public let givenname: String
     public let dataType: ArtifactKind = .api
 
-    public let entity : CodeObject
+    /// Set for entity-level APIs; nil for component-level APIs.
+    public let entity: CodeObject?
+    /// Set for component-level APIs; nil for entity-level APIs.
+    public let component: C4Component?
     public let type: APIType
-    
+
     public let path: String
     public let baseUrl: String
     /// Optional REST path prefix from `# APIs` bracket markers such as `[/api/v1]`.
     public let routePrefix: String?
     public let version: Int
     public private(set) var queryParams: [APIQueryParamWrapper] = []
-    
+
     public func append(queryParam: APIQueryParamWrapper) {
         self.queryParams.append(queryParam)
     }
-    
+
     public func name(_ value: String) {
         self.name = value
     }
-    
+
     public init(entity item: CodeObject, name: String, path: String, type: APIType, version: Int = 1, routePrefix: String? = nil) async {
         let entityname = await item.name
         self.entity = item
+        self.component = nil
         self.type = type
         self.baseUrl = entityname.slugify()
         self.version = version
-        
         self.path = path
         self.routePrefix = routePrefix
-        
         self.name = name
         self.givenname = name
     }
+
+    public init(component item: C4Component, name: String, path: String, type: APIType, version: Int = 1, routePrefix: String? = nil) async {
+        let componentName = item.name
+        self.component = item
+        self.entity = nil
+        self.type = type
+        self.baseUrl = componentName.slugify()
+        self.version = version
+        self.path = path
+        self.routePrefix = routePrefix
+        self.name = name
+        self.givenname = name
+    }
+
 }
 
 public actor GenericAPI: API {
@@ -145,6 +161,15 @@ public actor GenericAPI: API {
         self.state = await APIState(entity: item, name: name, path: path, type: type, version: version, routePrefix: routePrefix)
         self.name = name
     }
+
+    public init(component item: C4Component, path: String, type: APIType, version: Int = 1, routePrefix: String? = nil) async {
+        await self.init(component: item, name: item.name, path: path, type: type, version: version, routePrefix: routePrefix)
+    }
+
+    public init(component item: C4Component, name: String, path: String, type: APIType, version: Int = 1, routePrefix: String? = nil) async {
+        self.state = await APIState(component: item, name: name, path: path, type: type, version: version, routePrefix: routePrefix)
+        self.name = name
+    }
 }
 
 public protocol API : Artifact {
@@ -152,7 +177,8 @@ public protocol API : Artifact {
 }
 
 extension API {
-    public var entity: CodeObject { state.entity }
+    public var entity: CodeObject? { state.entity }
+    public var component: C4Component? { state.component }
     public var givenname: String { state.givenname }
     public var attribs: Attributes { state.attribs }
     public var annotations: Annotations { state.annotations }
@@ -173,7 +199,17 @@ extension API {
     }
     
     public func set(_ key: String, value newValue: String) async {
-        let wrapped = APIQueryParamWrapper(queryParam: QueryParam_KeyMapping(key), propMaping: QueryParam_PropertyNameMapping(newValue), entity: entity)
+        let qKey  = QueryParam_KeyMapping(key)
+        let qVal  = QueryParam_PropertyNameMapping(newValue)
+        let wrapped: APIQueryParamWrapper
+        if let entity {
+            wrapped = APIQueryParamWrapper(queryParam: qKey, propMaping: qVal, entity: entity)
+        } else if let component {
+            wrapped = APIQueryParamWrapper(queryParam: qKey, propMaping: qVal, component: component)
+        } else {
+            preconditionFailure("API has neither an entity nor a component owner")
+        }
+        
         await state.append(queryParam: wrapped)
     }
     
@@ -236,12 +272,19 @@ public actor APIQueryParamStore {
 public struct APIQueryParamWrapper: Sendable {
     public var queryParam: QueryParam_KeyMapping
     public var propMaping : QueryParam_PropertyNameMapping
-    public var entity: CodeObject
-    
+    public var entity: CodeObject? = nil
+    public var component: C4Component? = nil
+
     public init(queryParam: QueryParam_KeyMapping, propMaping: QueryParam_PropertyNameMapping, entity: CodeObject) {
         self.queryParam = queryParam
         self.propMaping = propMaping
         self.entity = entity
+    }
+
+    public init(queryParam: QueryParam_KeyMapping, propMaping: QueryParam_PropertyNameMapping, component: C4Component) {
+        self.queryParam = queryParam
+        self.propMaping = propMaping
+        self.component = component
     }
 }
 
@@ -343,5 +386,17 @@ public extension CodeObject {
         let apis = await getAPIs()
         
         return await apis.count == 0
+    }
+}
+
+public extension C4Component {
+    func getAPIs() async -> APIList {
+        let apis = APIList()
+        for item in attached {
+            if let api = item as? API {
+                await apis.append(api)
+            }
+        }
+        return apis
     }
 }

@@ -6,14 +6,16 @@
 
 import Foundation
 
-public actor C4Component: ArtifactHolder, HasTechnicalImplications_Actor {
+public actor C4Component: ArtifactHolderWithAttachedSections, HasTechnicalImplications_Actor {
     public let attribs = Attributes()
     public let tags = Tags()
     public let technicalImplications = TechnicalImplications()
     public let annotations = Annotations()
+    public var attached: [Artifact] = []
+    public var attachedSections = AttachedSections()
 
-    public var name: String = ""
-    public var givenname: String = ""
+    public let name: String
+    public let givenname: String
     public let dataType: ArtifactKind = .container
     public private(set) var description: String?
     /// Module-level `=` expressions (computed constants).
@@ -24,6 +26,12 @@ public actor C4Component: ArtifactHolder, HasTechnicalImplications_Actor {
     public let namedConstraints = Constraints()
 
     public internal(set) var items: [Artifact] = []
+
+    @discardableResult
+    public func appendAttached(_ item: Artifact) -> Self {
+        attached.append(item)
+        return self
+    }
 
     public func setDescription(_ value: String?) {
         self.description = value
@@ -133,5 +141,8 @@ public actor C4Component: ArtifactHolder, HasTechnicalImplications_Actor {
         self.items = []
     }
 
-    public init() {}
+    public init() {
+        self.name = ""
+        self.givenname = ""
+    }
 }

@@ -62,7 +62,7 @@ public enum AttachedSectionParser {
                 continue
             }
 
-            let attachedItems = try await pctx.parseAttachedItems(for: obj, with: item)
+            let attachedItems = try await AttachedSectionParser.parseAttachedItems(for: obj, section: item, with: pctx)
             for attachedItem in attachedItems {
                 await obj.appendAttached(attachedItem)
             }
@@ -81,5 +81,24 @@ public enum AttachedSectionParser {
         }
 
         return item
+    }
+
+
+    public static func parseAttachedItems(for obj: ArtifactHolder, section: AttachedSection, with pctx: ParsedInfo) async throws -> [Artifact] {
+        let sectionName = await section.name.lowercased()
+
+        if let cls = obj as? CodeObject {
+            if sectionName == "apis" {
+                return try await APISectionParser.parse(for: cls, lineParser: pctx.parser)
+            }
+        }
+
+        if let component = obj as? C4Component {
+            if sectionName == "apis" {
+                return try await APISectionParser.parse(for: component, lineParser: pctx.parser)
+            }
+        }
+
+        return []
     }
 }

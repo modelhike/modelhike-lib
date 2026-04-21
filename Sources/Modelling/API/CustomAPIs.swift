@@ -35,6 +35,26 @@ public actor CustomLogicAPI : API {
         state = await api.state
         name = await api.name
     }
+
+    public init(method: MethodObject, component: C4Component, version: Int = 1) async {
+        self.method = method
+        
+        var type: APIType = .mutationUsingCustomLogic
+        
+        //If the return type is an object, assume it is either get-by or list api
+        if await method.returnType.isObject() {
+            if await method.returnType.isArray {
+                type = .listByUsingCustomLogic
+            } else {
+                type = .getByUsingCustomLogic
+            }
+        }
+        
+        let methodName = await method.name.uppercasedFirst()
+        api = await GenericAPI(component: component, name: methodName, path: "", type: type, version: version)
+        state = await api.state
+        name = await api.name
+    }
 }
 
 public actor ListAPIByCustomProperties : APIWithCustomProperties {
@@ -111,7 +131,9 @@ public extension APIWithCustomProperties {
         let seperator = andCondition ? "And" : "Or"
         let joined = propNames.joined(separator: seperator)
         
-        let newName = "list\(await entity.name.pluralized())By\(joined)"
+        //it can be either entity or component level api
+        let ownerName = await entity?.name ?? ""
+        let newName = "list\(ownerName.pluralized())By\(joined)"
         await self.name(newName)
     }
 }

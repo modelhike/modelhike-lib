@@ -17,17 +17,6 @@ public struct ParsedInfo : Sendable, Equatable {
     public private(set) var parser: LineParser
     public private(set) var ctx: Context
     
-    public func parseAttachedItems(for obj: ArtifactHolder, with section: AttachedSection) async throws -> [Artifact] {
-        if let cls = obj as? CodeObject {
-            let name = await section.name.lowercased()
-            if name == "apis" {
-                return try await APISectionParser.parse(for: cls, lineParser: self.parser)
-            }
-        }
-        
-        return []
-    }
-    
     public func tryParseAttachedSections(with item: ArtifactHolderWithAttachedSections) async throws -> Bool {
         if AttachedSectionParser.canParse(firstWord: self.firstWord) {
             if let section = try await AttachedSectionParser.parse(for: item, with: self) {

@@ -52,7 +52,8 @@ public struct SampleQueryString {
     ) async -> String {
         let propName = mapping.first
 
-        guard let prop = await typesModel.getLastPropInRecursive(propName, inObj: api.entity.name)
+        guard let entityName = await api.entity?.name,
+              let prop = await typesModel.getLastPropInRecursive(propName, inObj: entityName)
         else { return "" }
 
         var suffix = ""

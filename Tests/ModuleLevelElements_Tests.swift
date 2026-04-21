@@ -182,6 +182,81 @@ import Testing
         #expect(await prop.appliedDefaultExpression == "DEFAULT_CURRENCY")
     }
 
+    // MARK: - Component-level # apis section
+
+    @Test func componentLevelCustomLogicAPI() async throws {
+        let (_, space) = try await parseModel("""
+            ===
+            Svc
+            ===
+            + Mod
+
+            === Mod ===
+
+            # apis
+            ## notify(userId: Id) : Void
+            #
+            """)
+
+        let module = try #require(await moduleNamed("Mod", space: space))
+        let apis = await module.getAPIs().snapshot()
+        #expect(apis.count == 1)
+        let api = try #require(apis.first as? CustomLogicAPI)
+        #expect(await api.method.name == "notify")
+    }
+
+    @Test func componentLevelAPIs_exposedViaWrap() async throws {
+        let (ctx, space) = try await parseModel("""
+            ===
+            Svc
+            ===
+            + Mod
+
+            === Mod ===
+
+            # apis
+            ## sendAlert(message: String) : Void
+            ## fetchStatus() : String
+            #
+            """)
+
+        let model = await ctx.model
+        let module = try #require(await moduleNamed("Mod", space: space))
+        let wrap = C4Component_Wrap(module, model: model)
+        let apis = await wrap.apis
+        #expect(apis.count == 2)
+        #expect(apis.isNotEmpty)
+    }
+
+    @Test func componentLevelAPIs_mergedWithEntityAPIs() async throws {
+        let (ctx, space) = try await parseModel("""
+            ===
+            Svc
+            ===
+            + Mod
+
+            === Mod ===
+
+            # apis
+            ## ping() : Void
+            #
+
+            Order
+            =====
+            ** id : Id
+            # apis
+            ## cancel
+            #
+            """)
+
+        let model = await ctx.model
+        let module = try #require(await moduleNamed("Mod", space: space))
+        let wrap = C4Component_Wrap(module, model: model)
+        let apis = await wrap.apis
+        // 1 component-level + 1 entity-level
+        #expect(apis.count == 2)
+    }
+
     @Test func classLevelNamedConstraint() async throws {
         let (ctx, _) = try await parseModel("""
             ===
