@@ -21,6 +21,9 @@ public enum ModelRegEx {
     nonisolated(unsafe)
         public static let variableValue: Regex<Substring> = Regex {
             ChoiceOf {
+                CommonRegEx.doublePattern
+                CommonRegEx.integerPattern
+                CommonRegEx.stringLiteralPattern
                 CommonRegEx.objectPropertyPattern
                 CommonRegEx.variable
             }
@@ -28,6 +31,19 @@ public enum ModelRegEx {
 
     nonisolated(unsafe)
         public static let integer: Regex<Substring> = CommonRegEx.integerPattern
+
+    /// Matches the argument list inside `( … )` for a tag — zero or more comma-separated
+    /// `validValue` tokens, e.g. `1,1` in `#identity(1,1)`.
+    nonisolated(unsafe)
+        private static let tagArgs: Regex<Substring> = Regex {
+            ZeroOrMore {
+                whitespace
+                CommonRegEx.validValue
+                whitespace
+                Optionally(",")
+                whitespace
+            }
+        }
 
     nonisolated(unsafe)
         public static let tags: Regex<Substring> = Regex {
@@ -40,7 +56,7 @@ public enum ModelRegEx {
                     whitespace
                     "("
                     whitespace
-                    CommonRegEx.validValue
+                    tagArgs
                     whitespace
                     ")"
                 }
@@ -63,11 +79,10 @@ public enum ModelRegEx {
                     "("
                     whitespace
                     Capture {
-                        CommonRegEx.validValue
+                        tagArgs
                     } transform: {
-                        String($0)
+                        String($0).trim()
                     }
-
                     whitespace
                     ")"
                 }
