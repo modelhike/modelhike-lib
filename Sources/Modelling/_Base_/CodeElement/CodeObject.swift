@@ -42,6 +42,9 @@ extension CodeObject {
         }
     }
 
+    public func hasMethods() async -> Bool { !methods.isEmpty }
+    public func hasProperties() async -> Bool { !(await properties.isEmpty) }
+
     public func hasMethod(_ name: String, isCaseSensitive: Bool = false) async -> Bool {
         if let _ = await getMethod(name, isCaseSensitive: isCaseSensitive) {
             return true

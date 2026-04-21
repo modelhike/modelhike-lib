@@ -74,6 +74,7 @@ public actor CodeObject_Wrap: ObjectWrapper {
             case .properties: await properties
 
             case .entity: await item.dataType == .entity
+            case .service: await item.dataType == .service
             case .dto: await item.dataType == .dto
             case .common: await item.dataType == .valueType
             case .cache: await item.dataType == .cache
@@ -507,6 +508,7 @@ private enum WrapperDynamicPropertyKey {
         case hasDescription = "has-description"
         case properties
         case entity
+        case service
         case dto
         case common
         case cache

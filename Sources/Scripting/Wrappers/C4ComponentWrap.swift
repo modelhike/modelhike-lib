@@ -15,6 +15,7 @@ public actor C4Component_Wrap : ObjectWrapper {
     private var _cachedEmbeddedTypes: [CodeObject_Wrap]?
     private var _cachedEntities: [CodeObject_Wrap]?
     private var _cachedDtos: [CodeObject_Wrap]?
+    private var _cachedServices: [CodeObject_Wrap]?
 
     public var attribs: Attributes { item.attribs }
 
@@ -40,6 +41,7 @@ public actor C4Component_Wrap : ObjectWrapper {
         get async {
             if let cached = _cachedEntities { return cached }
             let out = await typesFiltered { await $0.dataType == .entity }
+
             _cachedEntities = out
             return out
         }
@@ -56,6 +58,15 @@ public actor C4Component_Wrap : ObjectWrapper {
         }
     }
 
+    public var services: [CodeObject_Wrap] {
+        get async {
+            if let cached = _cachedServices { return cached }
+            let out = await typesFiltered { await $0.dataType == .service }
+            _cachedServices = out
+            return out
+        }
+    }
+
     public var entitiesAndDtos: [CodeObject_Wrap] {
         get async {
             var list = await entities
@@ -68,6 +79,11 @@ public actor C4Component_Wrap : ObjectWrapper {
         get async {
             if let cached = _cachedApis { return cached }
             var result: [API_Wrap] = []
+            // component-level direct APIs (from its own # apis section)
+            for a in await item.getAPIs().snapshot() {
+                result.append(API_Wrap(a))
+            }
+            // APIs declared on each child type
             for wrapped in await types {
                 let apis = await wrapped.item.getAPIs().snapshot()
                 for a in apis {
@@ -145,6 +161,8 @@ public actor C4Component_Wrap : ObjectWrapper {
         case .hasEmbeddedTypes: (await embeddedTypes).isNotEmpty
         case .entities: await entities
         case .hasEntities: (await entities).isNotEmpty
+        case .services: await services
+        case .hasServices: (await services).isNotEmpty
         case .dtos: await dtos
         case .hasDtos: (await dtos).isNotEmpty
         case .entitiesAndDtos: await entitiesAndDtos
@@ -218,6 +236,8 @@ private enum C4ComponentProperty: String, CaseIterable {
     case hasEmbeddedTypes = "has-embedded-types"
     case entities
     case hasEntities = "has-entities"
+    case services
+    case hasServices = "has-services"
     case dtos
     case hasDtos = "has-dtos"
     case entitiesAndDtos = "entities-and-dtos"

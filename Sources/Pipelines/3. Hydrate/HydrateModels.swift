@@ -39,9 +39,11 @@ public struct HydrateModelsPass: LoadingPass {
                 if await cls.givenname.hasSuffix("Cache"){
                     await e.dataType(.cache)
                 } else if await cls.givenname.hasSuffix("Input"){
-                    await e.dataType(.apiInput)
+                    await e.dataType(.apiInput_forGraphQL)
                 } else if await hasIdProp(cls) {
                     await e.dataType(.entity)
+                } else if await isService(cls) {
+                    await e.dataType(.service)
                 } else {
                     await e.dataType(.embeddedType)
                 }
@@ -50,7 +52,7 @@ public struct HydrateModelsPass: LoadingPass {
             
             if let cls = e as? DtoObject {
                 if await cls.givenname.hasSuffix("Input"){
-                    await e.dataType(.apiInput)
+                    await e.dataType(.apiInput_forGraphQL)
                 } else {
                     await e.dataType(.dto)
                 }
@@ -63,6 +65,12 @@ public struct HydrateModelsPass: LoadingPass {
         let hasIdProp2: Bool = await cls.hasProp("id")
         
         return hasIdProp || hasIdProp2
+    }
+
+    /// A domain object with no properties but at least one method is a service.
+    private func isService(_ cls: DomainObject) async -> Bool {
+        guard await !cls.hasProperties() else { return false }
+        return await cls.hasMethods()
     }
 
     public init() {}
