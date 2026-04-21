@@ -254,9 +254,29 @@ import Testing
 
     // MARK: db-raw
 
+    @Test func dbRawSqlMultiLineWithWhereClause() async throws {
+        let logic = try await parse("""
+            |> DB-RAW primary
+            |> SQL
+            | SELECT a, b
+            | FROM t1
+            | INNER JOIN t2 ON t2.id = t1.id
+            | WHERE t1.x = @p
+            | ORDER BY t1.y
+            |> PARAMS
+            |  p = value
+            """)
+        #expect(logic.statements.count == 1)
+        guard case .dbRaw(let node) = await logic.statements[0].node else {
+            Issue.record("Expected .dbRaw"); return
+        }
+        #expect(node.sqlLines.count == 5)
+        #expect(node.sqlLines[3] == "WHERE t1.x = @p")
+        #expect(node.params.count == 1)
+    }
+
     @Test func dbRawWithSqlAndParams() async throws {
-        // SQL keywords (SELECT, WHERE) collide with CodeLogic keywords, so use a stored-proc call
-        // that avoids those tokens while still testing the sql> block plumbing.
+        // Exercises sql> + params + let; `| WHERE …` in raw SQL is verbatim (not CodeLogic `where>`).
         let logic = try await parse("""
             |> DB-RAW postgres
             |> PARAMS

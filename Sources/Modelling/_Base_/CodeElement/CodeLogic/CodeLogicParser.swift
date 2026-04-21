@@ -211,6 +211,14 @@ public enum CodeLogicParser {
             }
         }
 
+        // Sub-statement-only kinds (where, include, params, sql, elseif, else, path, …) are only
+        // meaningful as block openers (`|> KEYWORD`). A line without `>` is raw text content
+        // (e.g. `| WHERE …` inside a sql> body) — keep it verbatim.
+        let resolvedKind = CodeLogicStmtKind.parse(firstWord)
+        if !isBlock && resolvedKind.isSubStatementOnly {
+            return ParsedLogicLine(depth: depth, keyword: CodeLogicStmtKind.unknown.keyword, expression: content, rawLine: originalLine, lineNo: lineNo, precededBySeparator: precededBySeparator)
+        }
+
         return ParsedLogicLine(depth: depth, keyword: firstWord, expression: parts.second, rawLine: originalLine, lineNo: lineNo, precededBySeparator: precededBySeparator)
     }
 
