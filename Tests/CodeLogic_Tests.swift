@@ -680,8 +680,9 @@ import Testing
             * id : Id
             ~ trigger-sql
             ```
+            |> DB-RAW
             |> SQL
-            | SELECT 1
+            | EXEC sp_test 1
             ```
             """
         let obj = try await firstObject(in: dsl)
@@ -690,7 +691,11 @@ import Testing
         #expect(await methods[0].givenname == "trigger-sql")
         let logic = try await requireLogic(of: methods[0])
         #expect(logic.statements.count == 1)
-        #expect(await logic.statements[0].kind == .sql)
+        #expect(await logic.statements[0].kind == .dbRaw)
+        guard case .dbRaw(let node) = await logic.statements[0].node else {
+            Issue.record("Expected .dbRaw"); return
+        }
+        #expect(node.sqlLines == ["EXEC sp_test 1"])
     }
 
     @Test func apiSectionParamlessMethodNoParens() async throws {

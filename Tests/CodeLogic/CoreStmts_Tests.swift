@@ -69,28 +69,23 @@ import Testing
         #expect(node.expression == "list.sort()")
     }
 
-    // MARK: raw
+    // MARK: raw  (sub-statement only — must appear inside http-raw>)
 
-    @Test func rawSingleLine() async throws {
-        let logic = try await parse("|> RAW someRawContent")
-        let s = logic.statements[0]
-        #expect(await s.kind == .raw)
-        guard case .raw(let node) = await s.node else { Issue.record("Expected .raw"); return }
-        #expect(node.content == "someRawContent")
-        #expect(node.lines.isEmpty)
+    @Test func rawSingleLine_StandaloneIsError() async throws {
+        await #expect(throws: (any Error).self) {
+            try await parse("|> RAW someRawContent")
+        }
     }
 
-    @Test func rawMultiLine() async throws {
-        let logic = try await parse("""
-            |> RAW
-            |line one
-            |line two
-            |line three
-            """)
-        guard case .raw(let node) = await logic.statements[0].node else {
-            Issue.record("Expected .raw"); return
+    @Test func rawMultiLine_StandaloneIsError() async throws {
+        await #expect(throws: (any Error).self) {
+            try await parse("""
+                |> RAW
+                |line one
+                |line two
+                |line three
+                """)
         }
-        #expect(node.lines == ["line one", "line two", "line three"])
     }
 
     // MARK: let
