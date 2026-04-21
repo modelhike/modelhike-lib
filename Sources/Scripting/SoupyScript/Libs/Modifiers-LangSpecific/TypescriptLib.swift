@@ -31,7 +31,7 @@ public struct TypescriptLib {
             }
 
             switch type {
-            case .int, .double, .float: return "number"
+            case .int, .decimal, .double, .float: return "number"
             case .bool: return "boolean"
             case .string, .id: return "string"
             case .any: return "any"
@@ -72,7 +72,7 @@ public struct TypescriptLib {
             }
 
             switch type {
-            case .int, .double, .float: return "0"
+            case .int, .decimal, .double, .float: return "0"
             case .bool: return "false"
             case .id: return "\"\""
             case .string: return "null"

@@ -40,7 +40,7 @@ public struct TypeInfo: Sendable {
     
     public var isNumeric: Bool {
         switch self.kind {
-        case .int, .double, .float:
+        case .int, .decimal, .double, .float:
             return true
         default:
             return false
@@ -117,6 +117,8 @@ public struct TypeInfo: Sendable {
             return "UnKnown"
         case .int:
             return "Int"
+        case .decimal:
+            return "Decimal"
         case .double:
             return "Double"
         case .float:

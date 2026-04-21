@@ -57,7 +57,7 @@ public struct MockDataLib {
             let mocking = MockData_Generator()
 
             switch type {
-            case .int, .double, .float:
+            case .int, .decimal, .double, .float:
                 return prefix + " \(num)" + suffix
             case .bool: return prefix + " true" + suffix
             case .string:

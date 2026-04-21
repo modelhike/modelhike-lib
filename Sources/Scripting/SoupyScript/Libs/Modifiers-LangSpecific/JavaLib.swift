@@ -31,6 +31,7 @@ public struct JavaLib {
 
             switch type {
             case .int: return "Integer"
+            case .decimal: return "BigDecimal"
             case .float: return "Float"
             case .double: return "Double"
             case .bool: return "Boolean"
@@ -73,7 +74,7 @@ public struct JavaLib {
             }
 
             switch type {
-            case .int, .double, .float: return "0"
+            case .int, .decimal, .double, .float: return "0"
             case .bool: return "false"
             case .id: return "\"\""
             case .string: return "null"

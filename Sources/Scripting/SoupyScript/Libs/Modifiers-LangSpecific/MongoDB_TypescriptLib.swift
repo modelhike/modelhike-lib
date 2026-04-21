@@ -137,7 +137,7 @@ public struct MongoDB_TypescriptLib {
         return StringTemplate {
                 
             switch lastProp_type_kind {
-            case .int, .double :
+            case .int, .decimal, .double :
                 let startName = queryParam.name
                 let endName = queryParam.SecondName.isNotEmpty ? queryParam.SecondName : queryParam.name
 

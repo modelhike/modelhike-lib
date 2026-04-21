@@ -290,7 +290,7 @@ extension ReferenceTarget: Equatable {
 }
 
 public enum PropertyKind : Equatable, Sendable {
-    case unKnown, int, double, float, bool, string, date, datetime, buffer, id, any, 
+    case unKnown, int, decimal, double, float, bool, string, date, datetime, buffer, id, any, 
     reference(ReferenceTarget), multiReference([ReferenceTarget]), extendedReference(ReferenceTarget), 
     multiExtendedReference([ReferenceTarget]), codedValue(String), customType(String)
     
@@ -298,8 +298,13 @@ public enum PropertyKind : Equatable, Sendable {
         let split1 = str.trim().components(separatedBy: "@")
         
         switch split1.first!.lowercased() {
-            case "int", "integer" : return .int
-            case "number", "decimal", "double", "float" : return .double
+            case "int", "integer",
+                 "int8", "int16", "int32", "int64",
+                 "uint8", "uint16", "uint32", "uint64",
+                 "byte", "short", "long", "bigint", "smallint", "tinyint" : return .int
+            case "decimal", "money", "smallmoney", "currency" : return .decimal
+            case "number", "numeric", "double", "float",
+                 "float32", "float64", "real" : return .double
             case "bool", "boolean", "yesno", "yes/no" : return .bool
             case "string", "text": return .string
             case "date" : return .date

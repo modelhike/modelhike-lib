@@ -31,6 +31,7 @@ public struct GraphQLLib {
             
             switch type {
                 case .int : return "Int"
+                case .decimal: return "Float"
                 case .float, .double : return "Float"
                 case .bool: return "Boolean"
                 case .string: return "String"
