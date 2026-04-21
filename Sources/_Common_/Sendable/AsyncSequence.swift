@@ -99,7 +99,7 @@ public struct _CollectionIterator<Parent: _CollectionSequence>: IteratorProtocol
 
 extension AsyncSequence {
     @inlinable
-    public func compactMap<T>(
+    func compactMap<T>(
         _ transform: @Sendable @escaping (Element) async -> T?
     ) async throws -> [T] {
         var result: [T] = []
@@ -112,7 +112,7 @@ extension AsyncSequence {
     }
 
     @inlinable
-    public func map<T>(
+    func map<T>(
         _ transform: @Sendable @escaping (Element) async -> T?
     ) async throws -> [T?] {
         var result: [T?] = []
@@ -124,7 +124,7 @@ extension AsyncSequence {
     }
 
     @inlinable
-    public func flatMap<T>(
+    func flatMap<T>(
         _ transform: @Sendable (Element) async -> [T]
     ) async throws -> [T] {
         var result: [T] = []
@@ -136,7 +136,7 @@ extension AsyncSequence {
     }
 
     @inlinable
-    public func first(where predicate: (Element) async throws -> Bool) async rethrows -> Element? {
+    func first(where predicate: (Element) async throws -> Bool) async rethrows -> Element? {
         for try await element in self {
             if try await predicate(element) {
                 return element
@@ -148,7 +148,7 @@ extension AsyncSequence {
 
 extension Array {
     @inlinable
-    public func compactMap<T>(
+    func compactMap<T>(
         _ transform: @Sendable @escaping (Element) async -> T?
     ) async -> [T] {
         var result: [T] = []
@@ -161,7 +161,7 @@ extension Array {
     }
 
     @inlinable
-    public func map<T>(
+    func map<T>(
         _ transform: @Sendable @escaping (Element) async -> T?
     ) async -> [T?] {
         var result: [T?] = []
@@ -173,7 +173,7 @@ extension Array {
     }
 
     @inlinable
-    public func flatMap<T>(
+    func flatMap<T>(
         _ transform: @Sendable (Element) async -> [T]
     ) async -> [T] {
         var result: [T] = []
@@ -185,18 +185,17 @@ extension Array {
     }
 
     @inlinable
-    public func first(where predicate: (Element) async -> Bool) async -> Element? {
+    func first(where predicate: (Element) async -> Bool) async -> Element? {
         for element in self {
             if await predicate(element) {
                 return element
             }
         }
-
         return nil
     }
 
     @inlinable
-    public func contains(where predicate: (Element) async -> Bool) async -> Bool {
+    func contains(where predicate: (Element) async -> Bool) async -> Bool {
         if await first(where: predicate) != nil {
             return true
         } else {
@@ -205,7 +204,7 @@ extension Array {
     }
 
     @inlinable
-    public func filter(_ isIncluded: (Element) async throws -> Bool) async rethrows -> [Element] {
+    func filter(_ isIncluded: (Element) async throws -> Bool) async rethrows -> [Element] {
         var list: [Element] = []
         for element in self {
             if try await isIncluded(element) {
@@ -216,7 +215,7 @@ extension Array {
     }
 
     @inlinable
-    public func asyncThrowingMap<T>(
+    func asyncThrowingMap<T>(
         _ transform: @Sendable @escaping (Element) async throws -> T
     ) async rethrows -> [T] {
         var result: [T] = []
