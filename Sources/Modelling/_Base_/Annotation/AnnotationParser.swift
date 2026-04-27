@@ -31,6 +31,8 @@ public enum AnnotationParser {
                 //dont do anything here
                 //handled elsewhere in pipeline
                 return nil
+            case let name where AnnotationConstants.valueAnnotations.contains(name):
+                return try ValuesAnnotation(annotationName, line: remainingLine, pInfo: pInfo)
             default:
                 throw Model_ParsingError.invalidAnnotationLine(pInfo)
             }

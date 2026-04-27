@@ -69,6 +69,55 @@ public actor C4Component: ArtifactHolderWithAttachedSections, HasTechnicalImplic
         }
     }
 
+    public var flowObjects: [FlowObject] {
+        get async { await artifacts(of: FlowObject.self) }
+    }
+
+    public var rulesObjects: [RulesObject] {
+        get async { await artifacts(of: RulesObject.self) }
+    }
+
+    public var printableObjects: [PrintableObject] {
+        get async { await artifacts(of: PrintableObject.self) }
+    }
+
+    public var configObjects: [ConfigObject] {
+        get async { await artifacts(of: ConfigObject.self) }
+    }
+
+    public var uiViewObjects: [UIView] {
+        get async { await artifacts(of: UIView.self) }
+    }
+
+    public var agentObjects: [AgentObject] {
+        get async {
+            var list: [AgentObject] = []
+            for attached in attached {
+                if let agent = attached as? AgentObject {
+                    list.append(agent)
+                }
+            }
+            for item in items {
+                if let component = item as? C4Component {
+                    await list.append(contentsOf: component.agentObjects)
+                }
+            }
+            return list
+        }
+    }
+
+    private func artifacts<T: Sendable>(of type: T.Type) async -> [T] {
+        var list: [T] = []
+        for item in items {
+            if let component = item as? C4Component {
+                await list.append(contentsOf: component.artifacts(of: type))
+            } else if let obj = item as? T {
+                list.append(obj)
+            }
+        }
+        return list
+    }
+
     private func invalidateTypesCache() {
         _cachedTypes = nil
     }
@@ -79,6 +128,11 @@ public actor C4Component: ArtifactHolderWithAttachedSections, HasTechnicalImplic
     }
 
     public func append(_ item: UIObject) {
+        items.append(item)
+        invalidateTypesCache()
+    }
+
+    public func append(_ item: Artifact) {
         items.append(item)
         invalidateTypesCache()
     }

@@ -87,9 +87,17 @@ public enum AttachedSectionParser {
     public static func parseAttachedItems(for obj: ArtifactHolder, section: AttachedSection, with pctx: ParsedInfo) async throws -> [Artifact] {
         let sectionName = await section.name.lowercased()
 
+        if pctx.firstWord == ModelConstants.AttachedSection {
+            return []
+        }
+
         if let cls = obj as? CodeObject {
             if sectionName == "apis" {
                 return try await APISectionParser.parse(for: cls, lineParser: pctx.parser)
+            }
+            if sectionName == "hierarchy" {
+                try await HierarchyParser.parseAttachedLine(for: cls, section: section, with: pctx)
+                return []
             }
         }
 
@@ -99,6 +107,42 @@ public enum AttachedSectionParser {
             }
         }
 
+        if Self.genericSectionNames.contains(sectionName) {
+            let scoped = ExtendedDSLParserSupport.scopeDepthAndText(pctx.line)
+            await section.append(bodyLine: DSLBodyLine(text: scoped.text, depth: scoped.depth, pInfo: pctx))
+            await pctx.parser.skipLine()
+            return []
+        }
+
         return []
+    }
+
+    private static let domainObjectSectionNames: Set<String> = [
+        "import",
+        "export",
+        "cache",
+        "rate limit",
+        "search",
+        "media",
+        "hierarchy",
+        "versioned",
+    ]
+
+    private static let moduleSectionNames: Set<String> = [
+        "analytics",
+        "fixtures",
+        "jobs"
+    ]
+
+    private static let methodPolicySectionNames: Set<String> = [
+        "error policy"
+    ]
+
+    private static let genericSectionNames: Set<String> = [
+        domainObjectSectionNames,
+        moduleSectionNames,
+        methodPolicySectionNames
+    ].reduce(into: []) { aggregate, sectionNames in
+        aggregate.formUnion(sectionNames)
     }
 }

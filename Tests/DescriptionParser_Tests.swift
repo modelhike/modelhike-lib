@@ -229,7 +229,7 @@ import Testing
             === UI ===
 
             Dashboard
-            ~~~~~~~~~
+            /;;;;;;;/
             -- Main dashboard view
             -- with multiple panels
             """)

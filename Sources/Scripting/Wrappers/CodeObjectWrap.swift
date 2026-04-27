@@ -11,6 +11,7 @@ public actor CodeObject_Wrap: ObjectWrapper {
 
     private var _cachedProperties: [TypeProperty_Wrap]?
     private var _cachedApis: [API_Wrap]?
+    private var _cachedHierarchies: [HierarchyObject_Wrap]?
 
     public var attribs: Attributes { get async { await item.attribs } }
 
@@ -29,6 +30,20 @@ public actor CodeObject_Wrap: ObjectWrapper {
             let computed = await item.getAPIs().snapshot().map { API_Wrap($0) }
             _cachedApis = computed
             return computed
+        }
+    }
+
+    public var hierarchies: [HierarchyObject_Wrap] {
+        get async {
+            if let cached = _cachedHierarchies { return cached }
+            var out: [HierarchyObject_Wrap] = []
+            for attached in await item.attached {
+                if let hierarchy = attached as? HierarchyObject {
+                    out.append(HierarchyObject_Wrap(hierarchy))
+                }
+            }
+            _cachedHierarchies = out
+            return out
         }
     }
 
@@ -81,6 +96,9 @@ public actor CodeObject_Wrap: ObjectWrapper {
             case .workflow: await item.dataType == .workflow
             case .hasPushApis: await hasPushDataApi()
             case .hasAnyApis: (await apis).isNotEmpty
+            case .hierarchy: await hierarchies.first
+            case .hierarchies: await hierarchies
+            case .hasHierarchy: (await hierarchies).isNotEmpty
             case .methods: await item.methods.map { MethodObject_Wrap($0) }
             case .hasMethods: (await item.methods).isNotEmpty
             case .hasDbLogic: await hasAnyMethodWithDataAccessLogic()
@@ -515,6 +533,9 @@ private enum WrapperDynamicPropertyKey {
         case workflow
         case hasPushApis = "has-push-apis"
         case hasAnyApis = "has-any-apis"
+        case hierarchy
+        case hierarchies
+        case hasHierarchy = "has-hierarchy"
         case methods
         case hasMethods = "has-methods"
         case hasDbLogic = "has-db-logic"

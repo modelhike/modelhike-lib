@@ -16,6 +16,12 @@ public actor C4Component_Wrap : ObjectWrapper {
     private var _cachedEntities: [CodeObject_Wrap]?
     private var _cachedDtos: [CodeObject_Wrap]?
     private var _cachedServices: [CodeObject_Wrap]?
+    private var _cachedFlows: [FlowObject_Wrap]?
+    private var _cachedRules: [RulesObject_Wrap]?
+    private var _cachedPrintables: [PrintableObject_Wrap]?
+    private var _cachedConfigs: [ConfigObject_Wrap]?
+    private var _cachedUIViews: [UIObject_Wrap]?
+    private var _cachedAgents: [AgentObject_Wrap]?
 
     public var attribs: Attributes { item.attribs }
 
@@ -72,6 +78,60 @@ public actor C4Component_Wrap : ObjectWrapper {
             var list = await entities
             await list.append(contentsOf: dtos)
             return list
+        }
+    }
+
+    public var flows: [FlowObject_Wrap] {
+        get async {
+            if let cached = _cachedFlows { return cached }
+            let out = await item.flowObjects.map { FlowObject_Wrap($0) }
+            _cachedFlows = out
+            return out
+        }
+    }
+
+    public var rules: [RulesObject_Wrap] {
+        get async {
+            if let cached = _cachedRules { return cached }
+            let out = await item.rulesObjects.map { RulesObject_Wrap($0) }
+            _cachedRules = out
+            return out
+        }
+    }
+
+    public var printables: [PrintableObject_Wrap] {
+        get async {
+            if let cached = _cachedPrintables { return cached }
+            let out = await item.printableObjects.map { PrintableObject_Wrap($0) }
+            _cachedPrintables = out
+            return out
+        }
+    }
+
+    public var configs: [ConfigObject_Wrap] {
+        get async {
+            if let cached = _cachedConfigs { return cached }
+            let out = await item.configObjects.map { ConfigObject_Wrap($0) }
+            _cachedConfigs = out
+            return out
+        }
+    }
+
+    public var uiViews: [UIObject_Wrap] {
+        get async {
+            if let cached = _cachedUIViews { return cached }
+            let out = await item.uiViewObjects.map { UIObject_Wrap($0) }
+            _cachedUIViews = out
+            return out
+        }
+    }
+
+    public var agents: [AgentObject_Wrap] {
+        get async {
+            if let cached = _cachedAgents { return cached }
+            let out = await item.agentObjects.map { AgentObject_Wrap($0) }
+            _cachedAgents = out
+            return out
         }
     }
 
@@ -155,7 +215,7 @@ public actor C4Component_Wrap : ObjectWrapper {
             return try await resolveFallbackProperty(propname: propname, pInfo: pInfo)
         }
         let value: Sendable = switch key {
-        case .name: await item.name
+        case .name: item.name
         case .types: await types
         case .embeddedTypes: await embeddedTypes
         case .hasEmbeddedTypes: (await embeddedTypes).isNotEmpty
@@ -185,8 +245,56 @@ public actor C4Component_Wrap : ObjectWrapper {
         case .namedConstraints:
             await item.namedConstraints.snapshot().map { Constraint_Wrap($0) }
         case .hasNamedConstraints: await item.namedConstraints.snapshot().isNotEmpty
+        case .flows: await flows
+        case .hasFlows: (await flows).isNotEmpty
+        case .rules: await rules
+        case .hasRules: (await rules).isNotEmpty
+        case .printables: await printables
+        case .hasPrintables: (await printables).isNotEmpty
+        case .configs: await configs
+        case .hasConfigs: (await configs).isNotEmpty
+        case .uiViews: await uiViews
+        case .hasUIViews: (await uiViews).isNotEmpty
+        case .agents: await agents
+        case .hasAgents: (await agents).isNotEmpty
+        case .agentPrompts: await collectAgentPrompts()
+        case .agentTools: await collectAgentTools()
+        case .slashCommands: await collectSlashCommands()
+        case .guardrails: await collectGuardrails()
         }
         return value
+    }
+
+    private func collectAgentPrompts() async -> [AgentPrompt] {
+        var out: [AgentPrompt] = []
+        for agent in await item.agentObjects {
+            await out.append(contentsOf: agent.prompts)
+        }
+        return out
+    }
+
+    private func collectAgentTools() async -> [AgentTool] {
+        var out: [AgentTool] = []
+        for agent in await item.agentObjects {
+            await out.append(contentsOf: agent.tools)
+        }
+        return out
+    }
+
+    private func collectSlashCommands() async -> [AgentSection] {
+        var out: [AgentSection] = []
+        for agent in await item.agentObjects {
+            await out.append(contentsOf: agent.slashCommands)
+        }
+        return out
+    }
+
+    private func collectGuardrails() async -> [AgentSection] {
+        var out: [AgentSection] = []
+        for agent in await item.agentObjects {
+            await out.append(contentsOf: agent.guardrails)
+        }
+        return out
     }
 
     /// Filters `item.types` and wraps each match as ``CodeObject_Wrap`` (same end result as filtering ``types``).
@@ -256,6 +364,22 @@ private enum C4ComponentProperty: String, CaseIterable {
     case hasFunctions = "has-functions"
     case namedConstraints = "named-constraints"
     case hasNamedConstraints = "has-named-constraints"
+    case flows
+    case hasFlows = "has-flows"
+    case rules
+    case hasRules = "has-rules"
+    case printables
+    case hasPrintables = "has-printables"
+    case configs
+    case hasConfigs = "has-configs"
+    case uiViews = "ui-views"
+    case hasUIViews = "has-ui-views"
+    case agents
+    case hasAgents = "has-agents"
+    case agentPrompts = "agent-prompts"
+    case agentTools = "agent-tools"
+    case slashCommands = "slash-commands"
+    case guardrails
 }
 
 

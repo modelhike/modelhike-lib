@@ -65,9 +65,17 @@ modelhike/
 │   └── Pipelines/              # 6-phase pipeline orchestrator
 │
 ├── DSL/                        # Canonical DSL markdown specs — own SPM target (ModelHikeDSL); bundled as package resources
+│   ├── README.md                # DSL family index
 │   ├── modelHike.dsl.md        # Full DSL specification (Beginner → Pro guide)
 │   ├── codelogic.dsl.md        # Fenced method-body logic block syntax reference
-│   └── templatesoup.dsl.md     # TemplateSoup + SoupyScript syntax reference
+│   ├── templatesoup.dsl.md     # TemplateSoup + SoupyScript syntax reference
+│   ├── flow.dsl.md             # Flow/lifecycle/workflow syntax
+│   ├── rules.dsl.md            # Rules/decision syntax
+│   ├── printable.dsl.md        # Printable/document output syntax
+│   ├── config.dsl.md           # Config object syntax
+│   ├── uiview.dsl.md           # UIView syntax
+│   ├── hierarchy.dsl.md        # Hierarchy attached-section syntax
+│   └── agent.dsl.md            # Agent/sub-agent syntax
 │
 ├── DevTester/                  # Executable target for development runs
 │   ├── DevMain.swift           # Entry point; runs codegen pipeline (or debug mode with --debug / --debug-stepping)
@@ -143,11 +151,17 @@ System  (* * * ... * * * asterism fence)
              └─ SubModule  (extra = closing fence)
                   ├─ Class / Entity  (Name \n underline of =)
                   ├─ DTO             (Name \n /===/  underline)
-                  ├─ UIView          (Name \n ~~~~ underline)
+                  ├─ UIView          (Name \n /;;;;;/ underline)
+                  ├─ Flow            (Name \n >>>>>> underline)
+                  ├─ Rules           (Name \n ?????? underline)
+                  ├─ Printable       (Name \n /#####/ underline)
+                  ├─ Config          (Name \n :::::::: underline)
+                  ├─ Hierarchy       (# Hierarchy attached section on entities)
+                  ├─ Agent           (=== Name (agent) === \n ~~~~~~ underline)
                   └─ Method          (~ prefix inside a class)
 ```
 
-> **Syntax reference:** All DSL syntax — property prefixes, type names, array notation, attribute/annotation/tag grammar, UIView syntax, method syntax, API protocol options, and the `(backend)` attribute convention — is documented in [`DSL/modelHike.dsl.md`](DSL/modelHike.dsl.md). Fenced method-body logic block syntax (fence styles, depth rules, all statement keywords) is documented in [`DSL/codelogic.dsl.md`](DSL/codelogic.dsl.md). Those files are the single source of truth. **Update them when any syntax changes; do not duplicate syntax here.**
+> **Syntax reference:** The DSL family index is [`DSL/README.md`](DSL/README.md). Core model syntax is documented in [`DSL/modelHike.dsl.md`](DSL/modelHike.dsl.md); Flow, Rules, Printable, Config, UIView, Hierarchy, and Agent syntax each have their own `DSL/*.dsl.md` guide. Fenced method-body logic is documented in [`DSL/codelogic.dsl.md`](DSL/codelogic.dsl.md). Those files are the single source of truth. **Update them when any syntax changes; do not duplicate syntax here.**
 
 **Technical implications** — `[ … ]` segments after `(attributes)` and before `#` tags on the same line; parsed into `TechnicalImplication` / `TechnicalImplications` / `HasTechnicalImplicationsValues`. On `# APIs` lines, bracket text starting with `/` contributes to the REST route prefix. See **§6.5** in `DSL/modelHike.dsl.md`.
 
@@ -215,6 +229,12 @@ Modelling/
 │   ├── DomainObjectParser.swift
 │   ├── DtoObject.swift         # DTO actor
 │   └── DtoObjectParser.swift
+├── Flow/                       # Flow/lifecycle/workflow parser and model
+├── Rules/                      # Rules/decision parser and model
+├── Printable/                  # Printable parser and model
+├── Config/                     # Config object parser and model
+├── Hierarchy/                  # Semantic # Hierarchy parser and model
+├── Agent/                      # Agent/sub-agent parser and model
 └── UI/
     ├── UIView.swift            # UIView actor + UIObject protocol
     └── UIViewParser.swift
@@ -222,22 +242,28 @@ Modelling/
 
 **Key types:**
 
-- `ModelFileParser` (actor) — main entry point; dispatches to `ContainerParser`, `ModuleParser`, `SubModuleParser`, `DomainObjectParser`, `DtoObjectParser`, `UIViewParser`.
+- `ModelFileParser` (actor) — main entry point; dispatches to system/container/module parsers plus DomainObject, DTO, Flow, Rules, Printable, Config, UIView, Hierarchy attached sections, and Agent/Sub-agent parsing.
 - `ModelSpace` (actor) — root model: holds `C4SystemList` + `C4ContainerList` + `C4ComponentList`.
 - `C4Container` (actor) — `name`, `givenname`, `containerType` (unknown/microservices/webApp/mobileApp), `C4ComponentList`, `unresolvedMembers`.
-- `C4Component` (actor) — module; holds `CodeObject`s (domain objects, DTOs, UIViews) + submodules.
+- `C4Component` (actor) — module; holds `CodeObject`s (domain objects, DTOs), UIViews, Flow/Rules/Printable/Config artifacts, Agent profiles, and submodules.
 - `DomainObject` (actor) — class with `[CodeMember]` (properties + methods), `mixins`, `attachedSections`, `Annotations`, `Attributes`, `Tags`. `properties` returns members that are `Property`; `methods` returns members that are `MethodObject`.
 - `MethodObject` (actor) — `name`, `givenname`, `parameters: [MethodParameter]`, `returnType: TypeInfo`, `logic: CodeLogic?`, `tags`. Parsed from `~ methodName(param: Type) : ReturnType` or paramless `~ methodName` (tilde-prefix), and from `methodName(...)\n------` or paramless `methodName\n------` (setext) lines. An optional fenced logic block (` ``` `, `'''`, or `"""` — 3+ chars, opening and closing must match) may follow a tilde-prefix method; setext methods use `---` as the closing fence. Optionally preceded by one or more `>>>` parameter metadata lines (see DSL §12.1) — `canParse` uses `lookAheadLine(skippingPrefix:)` to verify a valid signature follows the block before committing.
 - `MethodParameter` (struct, `Sendable`) — `name: String`, `type: TypeInfo`, `metadata: ParameterMetadata`. The `metadata` field carries all rich parameter decoration.
 - `ParameterMetadata` (struct, public, `Sendable`) — `required: RequiredKind`, `isOutput: Bool`, `defaultValue: String?`, `validValueSet: [String]`, `constraints: [Constraint]`, `attribs: [Attribute]`, `tags: [Tag]`. Static factory methods: `parse(from: String) -> (name: String, metadata: ParameterMetadata)?` (parses one `>>>` line) and `parseMetadataBlockIfAny(from: LineParser) async -> [String: ParameterMetadata]` (consumes all consecutive `>>>` lines from a parser).
 - `DtoObject` (actor) — read-model; fields reference parent types.
-- `UIView` (actor) — UI component; `dataType = .ui`.
+- `UIView` (actor) — UI component parsed from `/;;;;;/`; `dataType = .ui`.
+- `FlowObject` (actor) — Flow/lifecycle/workflow object parsed from `>>>>>>`; classifies to `.flow`, `.lifecycle`, or `.workflow`.
+- `RulesObject` (actor) — Rules/decision object parsed from `??????`.
+- `PrintableObject` (actor) — Printable/document output object parsed from `/#####/`.
+- `ConfigObject` (actor) — Config object parsed from `::::::::`.
+- `HierarchyObject` (actor) — semantic tree-operation model created from `# Hierarchy` attached sections on entities.
+- `AgentObject` (actor) — agent/sub-agent profile attached to `C4Component`, parsed from `=== Name (agent) ===` or `==== Name (sub-agent) ====`, followed by a `~~~~~~` underline.
 - `Property` (actor) — `name`, `givenname`, `type: TypeInfo`, `required: RequiredKind`, `arrayMultiplicity: MultiplicityKind`, `isUnique`, `isObjectID`, `isSearchable`, regular `attribs`, separate `constraints`, `defaultValue`, `validValueSet: [String]`, `tags`.
 - `ParserUtil` (class, static helpers) — shared parsing utilities. Value-returning sync helpers: `parseAttributes(from: String) -> [Attribute]`, `parseTags(from: String) -> [Tag]`, `parseValidValueSet(from: String?) -> [String]`, `parseConstraints(from: String?) -> [Constraint]`. Actor-populating async helpers: `populateAttributes(for:from:)`, `populateTags(for:from:)`, `populateConstraints(for:from:)` — the async variants delegate to their sync counterparts.
 - `PropertyKind` (enum) — full type system (see §4.3).
 - `TypeInfo` — `kind: PropertyKind`, `isArray: Bool`; helpers `isObject()`, `isNumeric`, `isDate`, `isReference()`, etc.
 - `APIType` (enum) — create, update, delete, getById, list, listByCustomProperties, getByCustomProperties, associate, deassosiate, activate, deactivate, pushData, pushDataList, getByUsingCustomLogic, listByUsingCustomLogic, mutationUsingCustomLogic.
-- `ArtifactKind` (enum) — container, component, entity, dto, cache, apiInput, embeddedType, valueType, api, ui, unKnown.
+- `ArtifactKind` (enum) — container, component, entity, dto, cache, apiInput, embeddedType, valueType, api, workflow, lifecycle, flow, hierarchy, rules, printable, configObject, agent, ui, unKnown, and related generated kinds.
 
 ### `Sources/Pipelines/`
 
@@ -965,7 +991,7 @@ Used by `DevTester` (via `Environment.debug`) to run the full pipeline against r
 
 ### What Is Working
 
-- ✅ Complete DSL parser — containers, modules, submodules, classes, DTOs, UIViews, properties, annotations, tags, attributes, API blocks, custom operations
+- ✅ Complete DSL parser — containers, modules, submodules, classes, DTOs, UIViews, properties, annotations, tags, attributes, API blocks, custom operations, Flow, Rules, Printable, Config, Hierarchy, and Agent DSLs
 - ✅ Full 6-phase pipeline (`Discover → Load → Hydrate → Transform → Render → Persist`)
 - ✅ SoupyScript engine — all statement types, modifiers, operators, functions, loops, conditionals
 - ✅ NestJS monorepo blueprint (TypeScript + MongoDB) — switch `blueprintName` to use it
@@ -992,7 +1018,7 @@ Used by `DevTester` (via `Environment.debug`) to run the full pipeline against r
 
 ### DSL File Extension
 
-The loader (`LocalFileModelLoader`) only reads files with extension `.modelhike` (via `ModelConstants.ModelFile_Extension`). `DSL/modelHike.dsl.md` uses `.dsl.md` — it is the DSL documentation, not a model file loaded by the engine.
+The loader (`LocalFileModelLoader`) only reads files with extension `.modelhike` (via `ModelConstants.ModelFile_Extension`). Files under `DSL/` (`README.md` and `*.dsl.md`) are documentation, not model files loaded by the engine.
 
 ### Gaps Between README and Implementation
 
@@ -1022,6 +1048,9 @@ Test files (`Tests/`):
 | `MethodParameterMetadata_Tests` | `>>>` parameter metadata parsing: required/optional markers, `#output` tag, `defaultValue`, constraints, attributes, valid value set, multi-param methods, setext methods |
 | `FlatLogicLineData_Tests` | `FlatLogicLineData.flatten` — empty logic, single return, if/else chaining (no spurious close), `isChainedAfter` |
 | `BlueprintModifier_Tests` | Blueprint-defined modifiers; **`InlineBlueprint`** (folders, static files, harness); **`InlineGenerationHarness`** smoke tests |
+| `FlowParser_Tests`, `RulesParser_Tests`, `PrintableParser_Tests`, `ConfigParser_Tests`, `UIViewParser_Tests` | Extended DSL parser coverage for Flow, Rules, Printable, Config, and UIView syntax |
+| `HierarchyParser_Tests`, `AgentParser_Tests`, `AgentWrapper_Tests` | Semantic Hierarchy and Agent/Sub-agent parsing plus template wrapper exposure |
+| `AttachedSectionParser_Tests`, `AnnotationParser_Tests`, `DSLWrapper_Tests` | Cross-cutting attached sections, stricter annotations, and DSL wrapper access |
 
 No tests yet for:
 - Pipeline phases (aside from inline harness coverage in `BlueprintModifier_Tests`)
@@ -1125,7 +1154,14 @@ CRITICAL:
 | `Annotation_Start` | `@` | Annotation prefix |
 | `Annotation_Split` | `::` | Separator between annotation keyword and values |
 | `NameUnderlineChar` | `=` | Class/DTO underline character |
-| `UIViewUnderlineChar` | `~` | UIView underline character |
+| `UIViewUnderlineChar` | `;` | UIView underline character inside `/;;;;;/` fences |
+| `UIViewFenceChar` | `/` | UIView fence character |
+| `FlowUnderlineChar` | `>` | Flow underline character |
+| `RulesUnderlineChar` | `?` | Rules underline character |
+| `PrintableUnderlineChar` | `#` | Printable underline character inside `/#####/` fences |
+| `PrintableFenceChar` | `/` | Printable fence character |
+| `ConfigUnderlineChar` | `:` | Config underline character |
+| `AgentUnderlineChar` | `~` | Agent/sub-agent underline character after `(agent)` or `(sub-agent)` module headers |
 | `ModelFile_Extension` | `modelhike` | Model file extension scanned by loader |
 | `ConfigFile_Extension` | `tconfig` | Generation config file extension |
 

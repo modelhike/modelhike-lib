@@ -30,9 +30,14 @@ public actor AttachedSection: ArtifactHolder, HasTechnicalImplications_Actor {
     internal var containingObject: ArtifactHolderWithAttachedSections
 
     public internal(set) var items: [Artifact]
+    public private(set) var bodyLines: [DSLBodyLine] = []
 
     public func appendAttached(_ item: Artifact) {
         self.items.append(item)
+    }
+
+    public func append(bodyLine: DSLBodyLine) {
+        bodyLines.append(bodyLine)
     }
 
     public init(code: String, for obj: ArtifactHolderWithAttachedSections) {

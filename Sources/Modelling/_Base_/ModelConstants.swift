@@ -39,7 +39,14 @@ public enum ModelConstants {
     public static let NameOverlineChar = "="
     public static let NamePrefixLineChar = "="
 
-    public static let UIViewUnderlineChar = "~"
+    public static let UIViewUnderlineChar = ";"
+    public static let UIViewFenceChar = "/"
+    public static let FlowUnderlineChar = ">"
+    public static let RulesUnderlineChar = "?"
+    public static let PrintableUnderlineChar = "#"
+    public static let PrintableFenceChar = "/"
+    public static let ConfigUnderlineChar = ":"
+    public static let AgentUnderlineChar = "~"
 
     public static let ModelFile_Extension = "modelhike"
     public static let ConfigFile_Extension = "tconfig"

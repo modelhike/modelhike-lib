@@ -23,6 +23,12 @@ public enum Model_ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeProvidin
     case invalidDomainObjectLine(ParsedInfo)
     case invalidDtoObjectLine(ParsedInfo)
     case invalidUIViewLine(ParsedInfo)
+    case invalidFlowLine(ParsedInfo)
+    case invalidRulesLine(ParsedInfo)
+    case invalidPrintableLine(ParsedInfo)
+    case invalidConfigLine(ParsedInfo)
+    case invalidHierarchyLine(ParsedInfo)
+    case invalidAgentLine(ParsedInfo)
     case invalidAnnotationLine(ParsedInfo)
     case invalidAttachedSection(ParsedInfo)
     case invalidApiLine(ParsedInfo)
@@ -59,6 +65,12 @@ public enum Model_ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeProvidin
         case .invalidDomainObjectLine(let pInfo): return "invalid domain object: \(pInfo.line)"
         case .invalidDtoObjectLine(let pInfo): return "invalid dto object: \(pInfo.line)"
         case .invalidUIViewLine(let pInfo): return "invalid ui view: \(pInfo.line)"
+        case .invalidFlowLine(let pInfo): return "invalid flow: \(pInfo.line)"
+        case .invalidRulesLine(let pInfo): return "invalid rules: \(pInfo.line)"
+        case .invalidPrintableLine(let pInfo): return "invalid printable: \(pInfo.line)"
+        case .invalidConfigLine(let pInfo): return "invalid config: \(pInfo.line)"
+        case .invalidHierarchyLine(let pInfo): return "invalid hierarchy: \(pInfo.line)"
+        case .invalidAgentLine(let pInfo): return "invalid agent: \(pInfo.line)"
 
         case .invalidApiLine(let pInfo): return "invalid api: \(pInfo.line)"
         case .invalidCodeLogicStatement(let message, _): return message
@@ -83,6 +95,12 @@ public enum Model_ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeProvidin
         case .invalidDomainObjectLine: return .e612
         case .invalidDtoObjectLine: return .e613
         case .invalidUIViewLine: return .e614
+        case .invalidFlowLine: return .e614
+        case .invalidRulesLine: return .e614
+        case .invalidPrintableLine: return .e614
+        case .invalidConfigLine: return .e614
+        case .invalidHierarchyLine: return .e614
+        case .invalidAgentLine: return .e614
         case .invalidAnnotationLine: return .e615
         case .invalidAttachedSection: return .e616
         case .invalidApiLine: return .e617
@@ -115,6 +133,12 @@ public enum Model_ParsingError: ErrorWithMessageAndParsedInfo, ErrorCodeProvidin
         case .invalidDomainObjectLine(let pInfo): pInfo
         case .invalidDtoObjectLine(let pInfo): pInfo
         case .invalidUIViewLine(let pInfo): pInfo
+        case .invalidFlowLine(let pInfo): pInfo
+        case .invalidRulesLine(let pInfo): pInfo
+        case .invalidPrintableLine(let pInfo): pInfo
+        case .invalidConfigLine(let pInfo): pInfo
+        case .invalidHierarchyLine(let pInfo): pInfo
+        case .invalidAgentLine(let pInfo): pInfo
 
         case .invalidApiLine(let pInfo): pInfo
         case .invalidCodeLogicStatement(_, let pInfo): pInfo

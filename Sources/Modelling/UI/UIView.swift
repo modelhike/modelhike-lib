@@ -6,55 +6,108 @@
 
 import Foundation
 
-public actor UIView : UIObject, HasTechnicalImplications_Actor {
-    let sourceLocation: SourceLocation
+public struct UIViewBinding: Sendable {
+    public let name: String
+    public let typeName: String?
+    public let required: RequiredKind
+    public let pInfo: ParsedInfo
+}
 
-    public var givenname: String
-    public var name: String
-    public var members : [CodeMember] = []
-    public var attachedSections = AttachedSections()
-    public var attached : [Artifact] = []
-    public var mixins : [CodeObject] = []
+public struct UIViewSection: Sendable {
+    public let name: String
+    public var controls: [UIViewBinding]
+    public let pInfo: ParsedInfo
+}
+
+public struct UIViewSlot: Sendable {
+    public let name: String
+    public let reference: String
+    public var directives: [DSLBodyLine]
+    public let pInfo: ParsedInfo
+}
+
+public struct UIActionHandler: Sendable {
+    public let trigger: String
+    public var lines: [DSLBodyLine]
+    public let pInfo: ParsedInfo
+}
+
+public actor UIView: UIObject, HasTechnicalImplications_Actor {
+    let sourceLocation: SourceLocation
     
     public let attribs = Attributes()
     public let tags = Tags()
     public let technicalImplications = TechnicalImplications()
     public let annotations = Annotations()
+    public var attachedSections = AttachedSections()
+    public var attached: [Artifact] = []
+
+    public let givenname: String
+    public let name: String
+    public var dataType: ArtifactKind = .ui
     public private(set) var description: String?
 
+    public private(set) var directives: [DSLDirective] = []
+    public private(set) var bindings: [UIViewBinding] = []
+    public private(set) var sections: [UIViewSection] = []
+    public private(set) var slots: [UIViewSlot] = []
+    public private(set) var actions: [UIActionHandler] = []
+
+    public var methods: [MethodObject] { [] }
+
     public func setDescription(_ value: String?) {
-        self.description = value
+        description = value
     }
 
-    public var methods: [MethodObject] {
-        get async {
-            let result: [MethodObject] = ParserUtil.filterCodeMembers(members)
-            return result
-        }
-    }
-    
-    public var dataType: ArtifactKind = .ui
-    
     @discardableResult
-    func append(_ item: CodeMember) -> Self {
-        members.append(item)
+    public func appendAttached(_ item: Artifact) -> Self {
+        attached.append(item)
         return self
     }
-    
-    public var debugDescription: String { get async {
-        return "\(self.name) : \(self.members.count) items"
-    }}
-    
-    public init(name: String, @CodeMemberBuilder _ builder: () -> [CodeMember]) {
-        self.sourceLocation = SourceLocation(fileIdentifier: "", lineNo: 0, lineContent: "", level: 0)
-        self.givenname = name
-        self.name = name.normalizeForVariableName()
-        self.members = builder()
+
+    public func append(directive: DSLDirective) {
+        directives.append(directive)
     }
-    
+
+    public func append(binding: UIViewBinding) {
+        if sections.isNotEmpty {
+            sections[sections.count - 1].controls.append(binding)
+        } else {
+            bindings.append(binding)
+        }
+    }
+
+    public func append(section: UIViewSection) {
+        sections.append(section)
+    }
+
+    public func append(slot: UIViewSlot) {
+        slots.append(slot)
+    }
+
+    public func appendDirectiveToLastSlot(_ line: DSLBodyLine) {
+        guard slots.isNotEmpty else { return }
+        slots[slots.count - 1].directives.append(line)
+    }
+
+    public func append(action: UIActionHandler) {
+        actions.append(action)
+    }
+
+    public func appendLineToLastAction(_ line: DSLBodyLine) {
+        guard actions.isNotEmpty else { return }
+        actions[actions.count - 1].lines.append(line)
+    }
+
+    public var debugDescription: String {
+        get async {
+            "\(name) : ui view controls=\(bindings.count) actions=\(actions.count)"
+        }
+    }
+
     public init(name: String, sourceLocation: SourceLocation) {
         self.sourceLocation = sourceLocation
-        self.givenname = name
+        self.givenname = name.trim()
         self.name = name.normalizeForVariableName()
     }
 }

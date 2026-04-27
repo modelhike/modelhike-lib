@@ -62,6 +62,20 @@ public actor ModelFileParser {
                     return
                 }
                 
+                if await AgentParser.canParseModule(parser: lineParser) {
+                    let meta = ParserUtil.PendingMetadata.from(pendingMetadataBlock)
+                    pendingMetadataBlock.clear()
+                    try await parseAgentModule(pInfo: pInfo, parser: lineParser, pending: meta)
+                    return
+                }
+
+                if await AgentParser.canParseSubAgent(parser: lineParser) {
+                    let meta = ParserUtil.PendingMetadata.from(pendingMetadataBlock)
+                    pendingMetadataBlock.clear()
+                    try await parseAgentSubModule(pInfo: pInfo, parser: lineParser, pending: meta)
+                    return
+                }
+
                 if await ModuleParser.canParse(parser: lineParser) {
                     let meta = ParserUtil.PendingMetadata.from(pendingMetadataBlock)
                     pendingMetadataBlock.clear()
@@ -104,6 +118,27 @@ public actor ModelFileParser {
                         return
                     }
                 }
+
+                if let agent = await currentAgentObject() {
+                    if await AgentParser.canParsePrompt(parser: lineParser) {
+                        try await AgentParser.parsePrompt(parser: lineParser, with: pInfo, into: agent)
+                        pendingMetadataBlock.clear()
+                        return
+                    }
+
+                    if try await AgentParser.parseAgentSection(parser: lineParser, with: pInfo, into: agent) {
+                        pendingMetadataBlock.clear()
+                        return
+                    }
+
+                    if await AgentParser.canParseTool(parser: lineParser) {
+                        let passPending = pendingMetadataBlock.isEmpty ? nil : pendingMetadataBlock
+                        pendingMetadataBlock.clear()
+                        if try await AgentParser.parseTool(parser: lineParser, with: pInfo, into: agent, pending: passPending) {
+                            return
+                        }
+                    }
+                }
                 
                 //check for class starting
                 if await DomainObjectParser.canParse(parser: lineParser) {
@@ -127,11 +162,55 @@ public actor ModelFileParser {
                         throw Model_ParsingError.invalidDtoObjectLine(pInfo)
                     }
                 }
-                
+
+                if await FlowParser.canParse(parser: lineParser) {
+                    let meta = ParserUtil.PendingMetadata.from(pendingMetadataBlock)
+                    pendingMetadataBlock.clear()
+                    if let item = try await FlowParser.parse(parser: lineParser, with: pInfo, pending: meta) {
+                        await appendToComponent(item)
+                        return
+                    } else {
+                        throw Model_ParsingError.invalidFlowLine(pInfo)
+                    }
+                }
+
+                if await RulesParser.canParse(parser: lineParser) {
+                    let meta = ParserUtil.PendingMetadata.from(pendingMetadataBlock)
+                    pendingMetadataBlock.clear()
+                    if let item = try await RulesParser.parse(parser: lineParser, with: pInfo, pending: meta) {
+                        await appendToComponent(item)
+                        return
+                    } else {
+                        throw Model_ParsingError.invalidRulesLine(pInfo)
+                    }
+                }
+
+                if await PrintableParser.canParse(parser: lineParser) {
+                    let meta = ParserUtil.PendingMetadata.from(pendingMetadataBlock)
+                    pendingMetadataBlock.clear()
+                    if let item = try await PrintableParser.parse(parser: lineParser, with: pInfo, pending: meta) {
+                        await appendToComponent(item)
+                        return
+                    } else {
+                        throw Model_ParsingError.invalidPrintableLine(pInfo)
+                    }
+                }
+
+                if await ConfigParser.canParse(parser: lineParser) {
+                    let meta = ParserUtil.PendingMetadata.from(pendingMetadataBlock)
+                    pendingMetadataBlock.clear()
+                    if let item = try await ConfigParser.parse(parser: lineParser, with: pInfo, pending: meta) {
+                        await appendToComponent(item)
+                        return
+                    } else {
+                        throw Model_ParsingError.invalidConfigLine(pInfo)
+                    }
+                }
+
                 if await UIViewParser.canParse(parser: lineParser) {
                     let meta = ParserUtil.PendingMetadata.from(pendingMetadataBlock)
                     pendingMetadataBlock.clear()
-                    if let item = try await UIViewParser.parse(parser: lineParser, with: ctx, pending: meta) {
+                    if let item = try await UIViewParser.parse(parser: lineParser, with: pInfo, pending: meta) {
                         await appendToComponent(item)
                         return
                     } else {
@@ -191,6 +270,32 @@ public actor ModelFileParser {
             throw Model_ParsingError.invalidSubModuleLine(pInfo)
         }
     }
+
+    func parseAgentModule(pInfo: ParsedInfo, parser: LineParser, pending: ParserUtil.PendingMetadata? = nil) async throws {
+        if let module = try await AgentParser.parseModule(parser: lineParser, with: ctx, pending: pending, kind: .agent) {
+            self.component = module
+            self.subComponent = nil
+            await self.modelSpace.append(module: module)
+        } else {
+            throw Model_ParsingError.invalidAgentLine(pInfo)
+        }
+    }
+
+    func parseAgentSubModule(pInfo: ParsedInfo, parser: LineParser, pending: ParserUtil.PendingMetadata? = nil) async throws {
+        if let submodule = try await AgentParser.parseModule(parser: lineParser, with: ctx, pending: pending, kind: .subAgent) {
+            self.subComponent = submodule
+            await self.component.append(submodule: submodule)
+        } else {
+            throw Model_ParsingError.invalidAgentLine(pInfo)
+        }
+    }
+
+    private func currentAgentObject() async -> AgentObject? {
+        if let subComponent = self.subComponent, let agent = await AgentParser.agentObject(in: subComponent) {
+            return agent
+        }
+        return await AgentParser.agentObject(in: self.component)
+    }
     
     func parseSystem(pInfo: ParsedInfo, parser: LineParser, pending: ParserUtil.PendingMetadata? = nil) async throws {
         if let system = try await SystemParser.parse(parser: lineParser, with: ctx, pending: pending) {
@@ -220,6 +325,15 @@ public actor ModelFileParser {
     
     
     fileprivate func appendToComponent(_ item: UIObject) async {
+        //if sub-component is actively being parsed, then add the object to it
+        if let subComponent = self.subComponent {
+            await subComponent.append(item)
+        } else {
+            await self.component.append(item)
+        }
+    }
+
+    fileprivate func appendToComponent(_ item: Artifact) async {
         //if sub-component is actively being parsed, then add the object to it
         if let subComponent = self.subComponent {
             await subComponent.append(item)

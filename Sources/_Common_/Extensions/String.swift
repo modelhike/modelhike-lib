@@ -56,7 +56,7 @@ public extension String {
     func has(prefix: String, filler txt: String, suffix: String) -> Bool {
         if self.hasPrefix(prefix) && self.hasSuffix(suffix) {
             if let filler = between(prefix: prefix, suffix: suffix),
-                filler.hasOnly(ModelConstants.NameOverlineChar) {
+                filler.hasOnly(txt) {
                 return true
             }
         }

@@ -146,10 +146,12 @@ From this single model, ModelHike generates entities, repositories, controllers,
 | 📐 **Typed Properties** | Constraints `{min, max}`, defaults, value sets `<A, B, C>` |
 | ⚙️ **Methods** | Typed params, return types, fenced logic blocks |
 | 🚀 **API Scaffolding** | Annotations `@apis:: create, get-by-id, list` |
+| 🧭 **Extended DSLs** | Flow, Rules, Printable, Config, UIView, Hierarchy, and Agent syntax |
 | 🌐 **Protocols** | REST, GraphQL, gRPC support |
 | 🏷️ **Extensibility** | Mixins, annotations, attributes, tags |
 
-Full DSL specification: [DSL/modelHike.dsl.md](DSL/modelHike.dsl.md)
+DSL documentation index: [DSL/README.md](DSL/README.md)
+Core DSL specification: [DSL/modelHike.dsl.md](DSL/modelHike.dsl.md)
 
 ---
 
@@ -164,7 +166,7 @@ Discover → Load → Hydrate → Validate → Render → Persist
 | Phase | What it does |
 |-------|-------------|
 | **Discover** | Walks the model directory, finds all `.modelhike` files |
-| **Load** | Parses DSL files into an in-memory model (`ModelSpace` with containers, modules, domain objects, DTOs, UIViews) |
+| **Load** | Parses DSL files into an in-memory model (`ModelSpace` with containers, modules, domain objects, DTOs, UIViews, flows, rules, printables, configs, hierarchy sections, and agents) |
 | **Hydrate** | Post-load refinements — port assignment, data type classification, annotation cascade |
 | **Validate** | Semantic checks — unresolved types, duplicate names, missing modules. Emits structured diagnostics (never halts) |
 | **Render** | Loads a blueprint (templates + scripts), runs `main.ss` entry-point script, generates output files |
@@ -264,9 +266,17 @@ Full guide: [Docs/debug/VISUALDEBUG.md](Docs/debug/VISUALDEBUG.md)
 
 | Document | Description |
 |----------|-------------|
+| [DSL Index](DSL/README.md) | Index for the DSL family and per-syntax guides |
 | [ModelHike DSL Spec](DSL/modelHike.dsl.md) | Complete DSL syntax — beginner to pro guide |
 | [Code Logic DSL](DSL/codelogic.dsl.md) | Fenced method-body logic blocks |
 | [TemplateSoup & SoupyScript](DSL/templatesoup.dsl.md) | Template engine and scripting language |
+| [Flow DSL](DSL/flow.dsl.md) | Lifecycle and workflow state/orchestration syntax |
+| [Rules DSL](DSL/rules.dsl.md) | Decisions, tables, scoring, formulas, matching, and constraints |
+| [Printable DSL](DSL/printable.dsl.md) | Document/output syntax for sections, tables, headers, and formats |
+| [Config DSL](DSL/config.dsl.md) | System settings, knowledge sources, and grouped config data |
+| [UIView DSL](DSL/uiview.dsl.md) | UI layout, bindings, sections, actions, and slots |
+| [Hierarchy DSL](DSL/hierarchy.dsl.md) | Self-referential entity tree operations |
+| [Agent DSL](DSL/agent.dsl.md) | Agents, sub-agents, prompts, tools, skills, MCP, commands, and guardrails |
 | [Documentation Hub](Docs/documentation.md) | Index of all available docs |
 | [Debugging Guide](Docs/debug/DEBUGGING.md) | Debug flags, hooks, and techniques |
 | [Visual Debugger](Docs/debug/VISUALDEBUG.md) | Browser-based pipeline inspector |
@@ -280,7 +290,7 @@ Full guide: [Docs/debug/VISUALDEBUG.md](Docs/debug/VISUALDEBUG.md)
 
 | Status | Feature |
 |--------|---------|
-| ✅ | Complete DSL parser with containers, modules, classes, DTOs, UIViews, properties, methods, APIs |
+| ✅ | Complete DSL parser with containers, modules, classes, DTOs, UIViews, properties, methods, APIs, Flow, Rules, Printable, Config, Hierarchy, and Agent DSLs |
 | ✅ | 6-phase pipeline: Discover → Load → Hydrate → Validate → Render → Persist |
 | ✅ | TemplateSoup + SoupyScript engine with full scripting (loops, conditionals, modifiers) |
 | ✅ | NestJS monorepo blueprint (TypeScript + MongoDB) |
@@ -288,7 +298,7 @@ Full guide: [Docs/debug/VISUALDEBUG.md](Docs/debug/VISUALDEBUG.md)
 | ✅ | World-class error messages with "did you mean?" suggestions |
 | ✅ | Blueprint-defined modifiers with front-matter configuration |
 | ✅ | Browser-based visual debugger with live stepping |
-| ✅ | ~120+ test cases |
+| ✅ | 440 test cases |
 | ⏳ | Production CLI (`modelhike generate`, `modelhike validate`) |
 | ⏳ | Spring Boot blueprint |
 | ⏳ | VS Code extension |

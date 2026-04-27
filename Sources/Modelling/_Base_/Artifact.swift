@@ -37,6 +37,12 @@ public protocol ArtifactHolderWithAttachedSections: ArtifactHolder, HasAttachedS
 typealias ArtifactHolderBuilder = ResultBuilder<ArtifactHolder>
 
 public enum ArtifactKind: Sendable {
-    case unKnown, entity, service, dataAccessLayer, embeddedType, valueType, dto, api, apiInput_forGraphQL, 
-    cache, workflow, event, agent, data, ui, uxFlow, container, attachedSection, custom
+    case unKnown, container, entity, service, dataAccessLayer, 
+    embeddedType, valueType, dto, 
+    api, apiInput_forGraphQL, 
+    cache, 
+    workflow, lifecycle, flow, hierarchy,
+    rules, printable, configObject, 
+    event, agent, data, ui, uxFlow,  
+    attachedSection, custom
 }
