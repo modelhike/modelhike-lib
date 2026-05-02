@@ -24,4 +24,4 @@ extension String : StringConvertible {
     
 }
 
-typealias StringConvertibleBuilder = ResultBuilder<StringConvertible> 
+public typealias StringConvertibleBuilder = ResultBuilder<StringConvertible>
