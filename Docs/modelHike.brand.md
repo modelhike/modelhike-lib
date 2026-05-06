@@ -1,4 +1,37 @@
-# ModelHike
+# ModelHike Brand & Positioning
+
+## 1. Core Brand Stack
+
+- **Category:** Intent compiler
+- **Slogan:** Diff the why, not the what
+- **Hero Message:** AI is stealing your time. Diff the why, not the what.
+- **Technical positioning:** Intent-native, not prompt-guessed
+- **Manifestos in use:**
+  - *Code is downstream now.*
+  - *ModelHike is Intent-native. Not prompt-guessed.*
+  - *Source intent is the new source code.*
+
+### The Brand Stack, Explained
+
+Think of it as five layers, each addressing a different reader question. The reader doesn't ask all five questions at once. They ask them in sequence, depending on how deep they get. Each layer answers one question.
+
+- **Layer 1: Category — "Intent compiler"**
+  *Reader's question:* What kind of thing is this?
+  *Job:* place ModelHike on a mental shelf in two seconds.
+- **Layer 2: Slogan — "Diff the why, not the what"**
+  *Reader's question:* What does it do for me?
+  *Job:* give the daily-use promise in six words.
+- **Layer 3: Hero — "AI is stealing your time. Diff the why, not the what."**
+  *Reader's question:* Why should I care right now?
+  *Job:* name the villain and the move on the same screen.
+- **Layer 4: Technical positioning — "Intent-native, not prompt-guessed"**
+  *Reader's question:* How is this different from the dozen tools I already saw?
+  *Job:* draw the competitive line in five words.
+- **Layer 5: Manifesto title — "Code is downstream"**
+  *Reader's question:* What worldview is this product part of?
+  *Job:* claim a worldview the reader can adopt as their own.
+
+## 2. Naming & Origin Metaphor
 
 **ModelHike** - This name effectively conveys the journey through models with a sense of exploration and elevation. It's catchy and implies moving upward through your modeling process.
 suggests progression and exploration in modeling.

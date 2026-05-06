@@ -1,8 +1,9 @@
-# ModelHike
+# ModelHike — The Intent Compiler
 
-**Markdown-like App Models → Production Code, Docs & Diagrams**
+> **Diff the why, not the what.** 
+> ModelHike is the intent compiler for the AI era. Generate deterministic system diagrams and production-ready code from a single declarative intent.
 
-| ⚔️ **Enemy** | Drift — when docs say one thing and code does another |
+| ⚔️ **Enemy** | AI hallucinations, code review hell, and architecture drift |
 |:--|:--|
 | 📜 **Philosophy** | Zero Dead Docs |
 | ⚙️ **Mechanism** | One model, multiple views |
@@ -19,7 +20,7 @@ Build systems with structure, intent, and trust.
 .modelhike files → Parse → Hydrate → Validate → Render → Output
 ```
 
-All boilerplate — entities, repositories, controllers, services, DTOs, validation, and API docs — is generated from a single source of truth, so your team can focus on domain rules and business logic.
+All boilerplate — entities, repositories, controllers, services, DTOs, validation, and API docs — is generated from a single declarative source of truth, so your team can focus on domain rules and business logic.
 
 | Property | Description |
 |:---------|:------------|

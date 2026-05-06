@@ -1,26 +1,26 @@
-# ModelHike Trail Guide (5-minute Heads up)
+# ModelHike Quickstart Guide
 
-Welcome to ModelHike’s friendly, joyful documentation—think of it like planning a casual stroll up a hill, not a hardcore expedition. Think of ModelHike as your smooth, joyful journey from idea to a fully-fledged, mega-scale app—with no heavy climbing gear needed. Whether you’ve never hiked or you’re a pro, you’ll find the path intuitive (follow the easy steps), the pace exhilarating (feel the flow) , and the view unbeatable (feel the joy).
+Welcome to ModelHike. ModelHike is the intent compiler for the AI era. Generate deterministic system diagrams and production-ready code from a single declarative intent.
+> You’re on a hike through your system’s architecture. ModelHike is the **trail map, compass, and lookout points** — all in one. You control the pace. The path is clear.
 
 ## 🧭 Why ModelHike?
 
 Most architecture tools are either:
 
 - **Too rigid** (low-code platforms that fight your flow)
-- **Too loose** (AI tools that hallucinate)
+- **Too loose** (spec-driven AI tools that guess your intent and hallucinate code)
 - **Too complicated** (enterprise UML monsters that nobody enjoys using)
 
 ModelHike gives you:
 
-✅ A Markdown-inspired DSL that’s **structured, readable, and versionable**
- ✅ A frictionless **output preview** system with no context switches
- ✅ A smooth **flow** between writing and seeing — like hiking with a map that updates as you walk
- ✅ Git-friendly artifacts that integrate with your codebase
- ✅ A joyful experience that makes software modeling feel like an exploration — not a chore
+✅ **Intent-native development:** A Markdown-inspired DSL that acts as the single source of truth.
+✅ **Compilation, not generation:** 100% deterministic code generation. Same intent twice = same code twice.
+✅ **Diff the why, not the what:** Shrink the review surface. You diff 20 lines of why, not 500 files of generated what.
+✅ **AI in the Loop:** Let your AI author the intent. The compiler handles the rest.
 
 Think of it like this:
 
-> You’re on a hike through your system’s architecture. ModelHike is the **trail map, compass, and lookout points** — all in one. You control the pace. The path is clear.
+> **Source intent is the new source code.** Code is downstream now. ModelHike lets you control the intent while the compiler automates the implementation.
 
 ---
 
