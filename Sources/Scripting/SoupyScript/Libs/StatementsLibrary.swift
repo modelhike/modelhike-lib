@@ -16,6 +16,7 @@ public struct StatementsLibrary {
 
             CopyFileStmt.register,
             RenderTemplateFileStmt.register,
+            ImportFileStmt.register,
             FillAndCopyFileStmt.register,
 
             CopyFolderStmt.register,

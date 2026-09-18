@@ -246,7 +246,15 @@ public actor CodeGenerationSandbox : GenerationSandbox {
         try await file.render()
         return file
     }
-    
+
+    public func importFile(_ templateName: String, with pInfo: ParsedInfo) async throws {
+        // Compile + execute for side effects only (e.g. `func` registration, which happens
+        // at parse time — see ScriptParser.parseStartTemplateFunction). Deliberately does not
+        // go through generation_dir/TemplateRenderedFile: nothing is persisted, and the
+        // rendered content itself is discarded.
+        _ = try await templateSoup.renderTemplate(fileName: templateName, with: pInfo)
+    }
+
     public func generateFileWithData(_ filename: String, template: String, data: [String: Sendable], with pInfo: ParsedInfo) async throws -> TemplateRenderedFile? {
         if try await !context.events.canRender(filename: filename, templatename: template, with: pInfo) { //if handler returns false, dont render file
             return nil
