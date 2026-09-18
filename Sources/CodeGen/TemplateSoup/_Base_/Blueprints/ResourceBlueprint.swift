@@ -103,9 +103,7 @@ public actor ResourceBlueprint: Blueprint {
     private func loadPathExists() -> Bool {
         do {
             let folder = blueprintPath
-            guard let resourceURL = bundle.resourceURL?.appendingPathComponent(folder) else {
-                return false
-            }
+            let resourceURL = bundle.bundleURL.appendingPathComponent(folder)
 
             let fm = FileManager.default
             let resourcePaths = try fm.contentsOfDirectory(
@@ -130,9 +128,7 @@ public actor ResourceBlueprint: Blueprint {
     public func hasFolder(_ foldername: String) -> Bool {
         do {
             let folder = blueprintPath + foldername
-            guard let resourceURL = bundle.resourceURL?.appendingPathComponent(folder) else {
-                return false
-            }
+            let resourceURL = bundle.bundleURL.appendingPathComponent(folder)
 
             let fm = FileManager.default
             let resourcePaths = try fm.contentsOfDirectory(
@@ -150,7 +146,7 @@ public actor ResourceBlueprint: Blueprint {
 
     public func listFiles(inFolder foldername: String) -> [String] {
         let folder = blueprintPath + foldername
-        guard let resourceURL = bundle.resourceURL?.appendingPathComponent(folder) else { return [] }
+        let resourceURL = bundle.bundleURL.appendingPathComponent(folder)
 
         let fm = FileManager.default
         do {
@@ -169,7 +165,7 @@ public actor ResourceBlueprint: Blueprint {
     async throws
     {
         let folder = blueprintPath + foldername
-        guard let resourceURL = bundle.resourceURL?.appendingPathComponent(folder) else { return }
+        let resourceURL = bundle.bundleURL.appendingPathComponent(folder)
 
         try await copyResourceFiles(from: resourceURL, to: outputFolder, pInfo: pInfo)
     }
@@ -208,7 +204,7 @@ public actor ResourceBlueprint: Blueprint {
         with pInfo: ParsedInfo
     ) async throws {
         let folder = blueprintPath + foldername
-        guard let resourceURL = bundle.resourceURL?.appendingPathComponent(folder) else { return }
+        let resourceURL = bundle.bundleURL.appendingPathComponent(folder)
 
         let fileset = try await cachedFileset(for: foldername, resourceURL: resourceURL, pInfo: pInfo)
         try await renderFileset(fileset, to: outputFolder, using: templateSoup, with: pInfo)
