@@ -24,7 +24,10 @@ public actor ResourceBlueprintFinder {
 
     public init(bundle: Bundle) {
         self.bundle = bundle
-        self.blueprintsRoot = "blueprints/"
+        // SwiftPM's `.copy("Resources/")` in modelhike-blueprints/Package.swift preserves the
+        // "Resources" folder name at the bundle root, so the built bundle layout is
+        // `Resources/blueprints/<name>/...`, not `blueprints/<name>/...`.
+        self.blueprintsRoot = "Resources/blueprints/"
         self.resourceRoot = ""
     }
 }
