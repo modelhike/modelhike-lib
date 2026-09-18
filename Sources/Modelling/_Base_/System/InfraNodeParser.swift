@@ -19,6 +19,19 @@ public enum InfraNodeParser {
 
     // MARK: - Regex
 
+    /// Captures the bracketed infra type, e.g. `[message-broker]` -> `"message-broker"`.
+    /// Factored out of `infraHeader` below purely so the compiler can type-check that combined
+    /// expression in reasonable time (`the compiler is unable to type-check this expression`).
+    nonisolated(unsafe)
+        private static let infraTypeCapture = Capture {
+            OneOrMore {
+                NegativeLookahead { "]" }
+                CharacterClass.any
+            }
+        } transform: {
+            String($0).trim()
+        }
+
     /// Captures: (fullMatch, name, optional infraType, optional tagString)
     /// e.g. `Kafka Events [message-broker] #async -- desc`
     nonisolated(unsafe)
@@ -45,14 +58,7 @@ public enum InfraNodeParser {
             Optionally {
                 ZeroOrMore(.whitespace)
                 "["
-                Capture {
-                    OneOrMore {
-                        NegativeLookahead { "]" }
-                        CharacterClass.any
-                    }
-                } transform: {
-                    String($0).trim()
-                }
+                infraTypeCapture
                 "]"
             }
 

@@ -90,20 +90,29 @@ public enum ModelRegEx {
             }
         }
 
+    /// A single `[ … ]` segment (whitespace-prefixed, non-capturing). Factored out of
+    /// `technicalImplications_Capturing` below purely so the compiler can type-check that
+    /// expression in reasonable time — the combined builder chain otherwise blows past the
+    /// solver's time budget (`the compiler is unable to type-check this expression`).
+    nonisolated(unsafe)
+        private static let bracketSegment = Regex {
+            Optionally { whitespace }
+            "["
+            ZeroOrMore {
+                NegativeLookahead {
+                    "]"
+                }
+                CharacterClass.any
+            }
+            "]"
+        }
+
     /// One or more `[ … ]` segments (technical implications / review notes). Parsed after `(attributes)`, before `#` tags.
     nonisolated(unsafe)
         public static let technicalImplications_Capturing: Regex<(Substring, String)> = Regex {
             Capture {
                 OneOrMore {
-                    Optionally { whitespace }
-                    "["
-                    ZeroOrMore {
-                        NegativeLookahead {
-                            "]"
-                        }
-                        CharacterClass.any
-                    }
-                    "]"
+                    bracketSegment
                 }
             } transform: {
                 String($0)
