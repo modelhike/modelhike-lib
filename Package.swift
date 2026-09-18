@@ -20,6 +20,18 @@ let package = Package(
         .target(
             name: "ModelHikeDSL",
             path: "DSL",
+            exclude: [
+                "README.md",
+                "agent.dsl.md",
+                "attached-sections.dsl.md",
+                "config.dsl.md",
+                "detailed-examples.md",
+                "flow.dsl.md",
+                "hierarchy.dsl.md",
+                "printable.dsl.md",
+                "rules.dsl.md",
+                "uiview.dsl.md",
+            ],
             resources: [
                 .copy("modelHike.dsl.md"),
                 .copy("codelogic.dsl.md"),
