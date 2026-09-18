@@ -42,6 +42,18 @@ public struct FlatLogicLineData: Sendable {
     public let switchSubject: String
     public let caseValue: String
     public let letName: String
+    /// `FILTER`/`MAP`/`SELECT` lambda parameter name (e.g. `employee` in `employee -> employee.isActive`).
+    public let lambdaParam: String
+    /// `FILTER`/`MAP`/`SELECT` lambda body — the predicate/projection expression after `->`.
+    public let lambdaBody: String
+    /// `REDUCE`'s accumulator variable name (first of the `(acc,item)` pair).
+    public let reduceAccumulator: String
+    /// `REDUCE`'s per-item variable name (second of the `(acc,item)` pair).
+    public let reduceItem: String
+    /// `REDUCE`'s combining expression (between the `(acc,item)` pair and the initial value).
+    public let reduceExpression: String
+    /// `REDUCE`'s initial accumulator value.
+    public let reduceInitial: String
     /// For `lineType == .close`: the pipe-gutter keyword of the block being closed (empty otherwise).
     public let closingKind: String
     /// The pipe-gutter keyword of the enclosing block (empty at top level).
@@ -111,6 +123,12 @@ public struct FlatLogicLineData: Sendable {
             switchSubject: "",
             caseValue: "",
             letName: "",
+            lambdaParam: "",
+            lambdaBody: "",
+            reduceAccumulator: "",
+            reduceItem: "",
+            reduceExpression: "",
+            reduceInitial: "",
             closingKind: stmt.kind.keyword,
             parentKind: parentStmt?.kind.keyword ?? "",
             mergedDbRawResultLetName: stmt.node.resultLetName,
@@ -142,6 +160,12 @@ public struct FlatLogicLineData: Sendable {
         var switchSubject = ""
         var caseValue = ""
         var letName = ""
+        var lambdaParam = ""
+        var lambdaBody = ""
+        var reduceAccumulator = ""
+        var reduceItem = ""
+        var reduceExpression = ""
+        var reduceInitial = ""
 
         switch node {
         case .ifStmt(let n):
@@ -168,6 +192,24 @@ public struct FlatLogicLineData: Sendable {
             letName = n.name
             let parts = expr.slicingAroundFirstEquals()
             expr = parts.rhs
+        case .filter(let n):
+            let parts = n.lambda.slicingAroundArrow()
+            lambdaParam = parts.param
+            lambdaBody = parts.body
+        case .select(let n):
+            let parts = n.lambda.slicingAroundArrow()
+            lambdaParam = parts.param
+            lambdaBody = parts.body
+        case .map(let n):
+            let parts = n.lambda.slicingAroundArrow()
+            lambdaParam = parts.param
+            lambdaBody = parts.body
+        case .reduce(let n):
+            let parts = n.expression.slicingReduceExpression()
+            reduceAccumulator = parts.accumulator
+            reduceItem = parts.item
+            reduceExpression = parts.expression
+            reduceInitial = parts.initial
         case .tryBlock:
             break
         case .catchClause(let n):
@@ -230,6 +272,12 @@ public struct FlatLogicLineData: Sendable {
             switchSubject: switchSubject,
             caseValue: caseValue,
             letName: letName,
+            lambdaParam: lambdaParam,
+            lambdaBody: lambdaBody,
+            reduceAccumulator: reduceAccumulator,
+            reduceItem: reduceItem,
+            reduceExpression: reduceExpression,
+            reduceInitial: reduceInitial,
             closingKind: "",
             parentKind: parentStmt?.kind.keyword ?? "",
             mergedDbRawResultLetName: mergedDbRawResultLetName,
@@ -246,6 +294,37 @@ private extension String {
         let lhs = String(self[startIndex..<range.lowerBound]).trimmingCharacters(in: .whitespaces)
         let rhs = String(self[range.upperBound...]).trimmingCharacters(in: .whitespaces)
         return (lhs, rhs)
+    }
+
+    /// Splits a `FILTER`/`MAP`/`SELECT` lambda (`param -> body`) into its two halves. Only the
+    /// first `->` is treated as the separator, so an arrow appearing again inside `body` (e.g. a
+    /// nested ternary-like expression) is left alone.
+    func slicingAroundArrow() -> (param: String, body: String) {
+        guard let range = range(of: " -> ") else {
+            return (trimmingCharacters(in: .whitespacesAndNewlines), "")
+        }
+        let param = String(self[startIndex..<range.lowerBound]).trimmingCharacters(in: .whitespaces)
+        let body = String(self[range.upperBound...]).trimmingCharacters(in: .whitespaces)
+        return (param, body)
+    }
+
+    /// Splits a `REDUCE` expression (`source -> (acc,item) -> expr -> init`) into its four parts.
+    /// `source` itself is discarded here — mid-chain it's always the placeholder `_` (the running
+    /// pipe value), and a template renderer tracking an accumulated chain doesn't need it repeated.
+    /// Falls back to putting the whole raw text in `expression` (leaving the others empty) if the
+    /// shape doesn't match, so a renderer can still fall back to showing something useful.
+    func slicingReduceExpression() -> (accumulator: String, item: String, expression: String, initial: String) {
+        let parts = components(separatedBy: " -> ").map { $0.trimmingCharacters(in: .whitespaces) }
+        guard parts.count == 4 else {
+            return ("", "", trimmingCharacters(in: .whitespacesAndNewlines), "")
+        }
+
+        let pair = parts[1].trimmingCharacters(in: CharacterSet(charactersIn: "()"))
+        let pairParts = pair.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        let accumulator = pairParts.first ?? ""
+        let item = pairParts.count > 1 ? pairParts[1] : ""
+
+        return (accumulator, item, parts[2], parts[3])
     }
 }
 
@@ -283,6 +362,12 @@ public actor FlatLogicLine_Wrap: DynamicMemberLookup, SendableDebugStringConvert
         case .switchSubject: data.switchSubject
         case .caseValue: data.caseValue
         case .letName: data.letName
+        case .lambdaParam: data.lambdaParam
+        case .lambdaBody: data.lambdaBody
+        case .reduceAccumulator: data.reduceAccumulator
+        case .reduceItem: data.reduceItem
+        case .reduceExpression: data.reduceExpression
+        case .reduceInitial: data.reduceInitial
         case .closingKind: data.closingKind
         case .parentKind: data.parentKind
         case .mergedDbRawResultLet: data.mergedDbRawResultLetName
@@ -325,6 +410,12 @@ private enum FlatLogicLineProperty: String, CaseIterable {
     case switchSubject = "switch-subject"
     case caseValue = "case-value"
     case letName = "let-name"
+    case lambdaParam = "lambda-param"
+    case lambdaBody = "lambda-body"
+    case reduceAccumulator = "reduce-accumulator"
+    case reduceItem = "reduce-item"
+    case reduceExpression = "reduce-expression"
+    case reduceInitial = "reduce-initial"
     case closingKind = "closing-kind"
     case parentKind = "parent-kind"
     case mergedDbRawResultLet = "merged-db-raw-result-let"
