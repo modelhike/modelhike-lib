@@ -40,17 +40,21 @@ public actor ExpressionEvaluator {
             return arr
         }
 
+        // Bool literal — must be checked before the variable/object-property lookup below:
+        // `Bool(_:)` only matches the exact tokens "true"/"false", but those tokens also match
+        // `variableOrObjectProperty`'s identifier pattern, and a failed variable lookup *throws*
+        // (it doesn't fall through), so this check would otherwise never be reached.
+        if let bool = Bool(value) {
+            return bool
+        }
+
         //check if variable or object property
         if let _ = value.wholeMatch(of: CommonRegEx.variableOrObjectProperty) {
             if let value = try await ctx.valueOf(variableOrObjProp: value, with: pInfo) {
                 return value
             }
         }
-        
-        if let bool = Bool(value) {
-            return bool
-        }
-        
+
         return nil
     }
     
