@@ -206,17 +206,22 @@ public enum ModelRegEx {
             }
             Capture {
                 OneOrMore {
-                    NegativeLookahead {
-                        whitespace
-                        ChoiceOf {
-                            "<"
-                            "{"
-                            "("
-                            "#"
-                            "//"
+                    ChoiceOf {
+                        CommonRegEx.stringLiteralPattern
+                        Regex {
+                            NegativeLookahead {
+                                whitespace
+                                ChoiceOf {
+                                    "<"
+                                    "{"
+                                    "("
+                                    "#"
+                                    "//"
+                                }
+                            }
+                            CharacterClass.any
                         }
                     }
-                    CharacterClass.any
                 }
             } transform: {
                 String($0).trim()
