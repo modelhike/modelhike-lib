@@ -59,9 +59,12 @@ public struct MockDataLib {
             switch type {
             case .int, .decimal, .double, .float:
                 return prefix + " \(num)" + suffix
-            case .bool: return prefix + " true" + suffix
+            case .bool: return prefix + " \(Bool.random())" + suffix
             case .string:
-                if let prop = prop {  //used for a property
+                if let prop = prop, await prop.validValueSet.isNotEmpty {
+                    let choice = await prop.validValueSet.randomElement() ?? "\"\""
+                    return prefix + " \(choice)" + suffix
+                } else if let prop = prop {  //used for a property
                     return prefix + " \"\(await prop.name) \(num)\"" + suffix
                 } else {
                     return prefix + " \"string \(num)\"" + suffix
