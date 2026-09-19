@@ -21,6 +21,13 @@ public actor UIObject_Wrap: ObjectWrapper {
         case .givenName: await item.givenname
         case .description: await uiDescription()
         case .hasDescription: await uiHasDescription()
+        case .title: await uiTitle()
+        case .sections: await uiSections()
+        case .hasSections: await uiSections().isNotEmpty
+        case .bindings: await uiBindings()
+        case .hasBindings: await uiBindings().isNotEmpty
+        case .actions: await uiActions()
+        case .hasActions: await uiActions().isNotEmpty
         }
         return value
     }
@@ -36,6 +43,26 @@ public actor UIObject_Wrap: ObjectWrapper {
             return d.map { $0.isNotEmpty } ?? false
         }
         return false
+    }
+
+    private func uiTitle() async -> String {
+        guard let v = item as? UIView else { return "" }
+        return await v.directives.first(where: { $0.name == "title" })?.value ?? ""
+    }
+
+    private func uiSections() async -> [UIViewSection_Wrap] {
+        guard let v = item as? UIView else { return [] }
+        return await v.sections.map { UIViewSection_Wrap($0) }
+    }
+
+    private func uiBindings() async -> [UIViewBinding_Wrap] {
+        guard let v = item as? UIView else { return [] }
+        return await v.bindings.map { UIViewBinding_Wrap($0) }
+    }
+
+    private func uiActions() async -> [UIActionHandler_Wrap] {
+        guard let v = item as? UIView else { return [] }
+        return await v.actions.map { UIActionHandler_Wrap($0) }
     }
 
     private func propertyCandidates() async -> [String] {
@@ -71,4 +98,11 @@ private enum UIObjectProperty: String, CaseIterable {
     case givenName = "given-name"
     case description
     case hasDescription = "has-description"
+    case title
+    case sections
+    case hasSections = "has-sections"
+    case bindings
+    case hasBindings = "has-bindings"
+    case actions
+    case hasActions = "has-actions"
 }

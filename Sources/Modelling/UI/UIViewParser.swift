@@ -21,10 +21,14 @@ public enum UIViewParser {
         await parser.skipLine(by: 2)
 
         var inActions = false
+        var pendingMetadataBlock = ParserUtil.PendingMetadataBlock()
 
        while await parser.linesRemaining {
             if await parser.isCurrentLineEmptyOrCommented() {
                 await parser.skipLine()
+                continue
+            }
+            if await ParserUtil.consumePendingMetadataBlockLines(from: parser, into: &pendingMetadataBlock) {
                 continue
             }
             guard let lineInfo = await parser.currentParsedInfo(level: 0) else {
@@ -113,7 +117,7 @@ public enum UIViewParser {
         let rest = text.remainingLine(after: "*")
         let parts = rest.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: true)
         guard parts.count == 2 else { return nil }
-        let name = String(parts[0]).trim()
+        let name = String(parts[0]).trim().normalizeForVariableName()
         guard let firstQuote = text.firstIndex(of: "\""), let secondQuote = text[text.index(after: firstQuote)...].firstIndex(of: "\"") else { return nil }
         let reference = String(text[text.index(after: firstQuote)..<secondQuote])
         return UIViewSlot(name: name, reference: reference, directives: [], pInfo: pInfo)
@@ -142,7 +146,8 @@ public enum UIViewParser {
         }
 
         let parts = rest.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: true)
-        let name = parts.first.map { String($0).trim() } ?? rest.trim()
+        let rawName = parts.first.map { String($0).trim() } ?? rest.trim()
+        let name = rawName.normalizeForVariableName()
         let typeName = parts.count == 2 ? String(parts[1]).trim().nonEmpty : nil
         return UIViewBinding(name: name, typeName: typeName, required: required, pInfo: pInfo)
     }
